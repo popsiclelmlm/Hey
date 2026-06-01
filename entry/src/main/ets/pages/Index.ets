@@ -3,6 +3,7 @@ import { SectionHeader } from '../components/SectionHeader';
 import { DEFAULT_LANGUAGE, normalizeLanguage, translate } from '../core/I18n';
 import { AppLanguage, AppSettings, ConnectionStatus, ProxyNode, ProxyProfile, RuntimeStats, SubscriptionGroup, SubscriptionProfile } from '../core/Profile';
 import { normalizeOutboundInput } from '../core/XrayConfig';
+import { RuntimeLogPanel } from '../features/logs/LogPanel';
 import { RuntimeStatusPanel } from '../features/runtime/RuntimePanel';
 import { ConnectionController, ConnectionSnapshot } from '../services/ConnectionController';
 import { DelayTester, DelayTestResult } from '../services/DelayTester';
@@ -527,7 +528,14 @@ struct Index {
         tunActive: this.stats.tun2SocksRunning,
         lastMessage: this.localizeCoreMessage(this.stats.lastMessage)
       })
-      this.LogPanel()
+      RuntimeLogPanel({
+        title: this.t('logs.title'),
+        clearLabel: this.t('action.clear'),
+        items: this.allLogs(),
+        onClear: () => {
+          this.clearLogs();
+        }
+      })
     }
     .width('100%')
   }
@@ -1047,48 +1055,6 @@ struct Index {
       }
       .width('100%')
       .alignItems(VerticalAlign.Center)
-    }
-    .width('100%')
-    .padding(16)
-    .backgroundColor('#FFFFFF')
-    .borderRadius(8)
-  }
-
-  @Builder
-  private LogPanel() {
-    Column({ space: 10 }) {
-      Row() {
-        Text(this.t('logs.title'))
-          .fontSize(18)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#111827')
-          .layoutWeight(1)
-        Button(this.t('action.clear'))
-          .height(32)
-          .width(72)
-          .fontSize(13)
-          .backgroundColor('#E5E7EB')
-          .fontColor('#374151')
-          .borderRadius(6)
-          .onClick(() => {
-            this.clearLogs();
-          })
-      }
-      .width('100%')
-
-      Column({ space: 6 }) {
-        ForEach(this.allLogs(), (item: string, index: number) => {
-          Text(item)
-            .fontSize(12)
-            .fontColor(index === 0 ? '#111827' : '#4B5563')
-            .width('100%')
-        }, (item: string, index: number) => `${index}-${item}`)
-      }
-      .width('100%')
-      .padding(12)
-      .backgroundColor('#F9FAFB')
-      .borderRadius(6)
-      .constraintSize({ minHeight: 120 })
     }
     .width('100%')
     .padding(16)
