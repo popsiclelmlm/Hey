@@ -15,6 +15,9 @@ export interface ProxyNode {
   sourceUrl: string;
   rawLink: string;
   updatedAt: number;
+  delayMs: number;
+  delayTestAt: number;
+  delayStatus: string;
 }
 
 export interface SubscriptionGroup {
@@ -47,6 +50,40 @@ export interface GeneratedXrayConfig {
   configJson: string;
   socksHost: string;
   socksPort: number;
+}
+
+export type AppLanguage = 'zh' | 'en';
+
+export interface AppSettings {
+  language: AppLanguage;
+  sniffingEnabled: boolean;
+  routeOnlyEnabled: boolean;
+  perAppProxyEnabled: boolean;
+  localDnsEnabled: boolean;
+  fakeDnsEnabled: boolean;
+  appendHttpProxy: boolean;
+  muxEnabled: boolean;
+  muxConcurrency: number;
+  muxXudpConcurrency: number;
+  muxXudpQuic: string;
+  fragmentEnabled: boolean;
+  fragmentPackets: string;
+  fragmentLength: string;
+  fragmentInterval: string;
+  preferIpv6: boolean;
+  proxySharingEnabled: boolean;
+  allowInsecure: boolean;
+  socksPort: number;
+  localDnsPort: number;
+  vpnDns: string;
+  remoteDns: string;
+  domesticDns: string;
+  dnsHosts: string;
+  delayTestUrl: string;
+  logLevel: string;
+  mode: string;
+  trafficMode: string;
+  routingDomainStrategy: string;
 }
 
 export interface RuntimeStats {

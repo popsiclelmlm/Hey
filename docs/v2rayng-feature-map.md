@@ -14,8 +14,8 @@ XML layouts, drawable assets, launcher artwork, strings, or package branding.
 | SubSettingActivity / SubEditActivity | Subs | Multi-group model present. Save/update/select/enable-disable/delete are wired; dedicated edit form and reorder pending. |
 | ServerActivity protocol editors | Add | Scaffolded for VLESS, VMess, Shadowsocks, SOCKS, HTTP, Trojan, WireGuard, Hysteria2. Field-level editors pending. |
 | ServerCustomConfigActivity | Add | Raw outbound JSON import works. Full custom config import pending. |
-| RoutingSettingActivity / RoutingEditActivity | Route | Scaffolded. Strategy selection is local; ruleset persistence and config generation pending. |
-| SettingsActivity | Config | Scaffolded. Core, VPN, UI, mux, fragment, subscription and advanced settings need persistence/config wiring. |
+| RoutingSettingActivity / RoutingEditActivity | Route | Traffic mode (global/rules/direct) and domain strategy persist and feed generated Xray routing. Full custom ruleset editor pending. |
+| SettingsActivity | Config | Core, VPN DNS, SOCKS port, mux, sniffing, log level and routing strategy persist and feed generated Xray config. Dedicated pickers and full advanced options pending. |
 | PerAppProxyActivity | Apps | Scaffolded. Harmony bundle enumeration and blocked/allowed app mapping pending. |
 | UserAssetActivity / UserAssetUrlActivity | Assets | Scaffolded. Geo asset download, URL management and backup/restore pending. |
 | LogcatActivity | Logs | Present. App diagnostic logs and native runtime stats are visible. |
@@ -30,12 +30,13 @@ XML layouts, drawable assets, launcher artwork, strings, or package branding.
 | Subscription URL fetch and parse | Present for `vless://`, `vmess://`, `trojan://`, `ss://`, `socks://`, `http://`, `https://`, `wireguard://`, `hysteria2://`, `hy2://`. |
 | Node select and save current profile | Present. |
 | Xray config generation | Present for outbound + local SOCKS inbound + basic direct/block outbounds. |
+| Persistent app settings | Present for core VPN, DNS, mux, sniffing, log and routing strategy; selected values are applied at connection start. |
 | VPN Extension start/stop | Present, with emulator timeout diagnostics. Needs real-device validation. |
 | Xray executable + tun2socks adapter | Present in HAP. Needs real-device closed-loop verification. |
 | VMess/VLESS/Trojan/Shadowsocks parsing | Present. |
 | SOCKS/HTTP/WireGuard/Hysteria2 parsing | Present for share-link import and subscription discovery. Runtime connection for WireGuard/Hysteria2 still needs core validation. |
 | TUIC parsing | Pending. |
-| Delay test / real ping / sort by delay | Pending. |
+| Delay test / real ping / sort by delay | Basic URL delay test is wired and persisted per node. Proxy-outbound-per-node delay and sorting pending. |
 | Delete all / duplicate / invalid configs | Pending. |
 | Export/share configs and QR generation | Pending. |
 | Multi-subscription groups | Present with legacy single-subscription migration. Rename/reorder and batch update all pending. |

@@ -1,5 +1,7 @@
 import { describe, it, expect } from '@ohos/hypium';
-import { buildXrayConfig, normalizeOutboundInput, validateOutboundJson } from '../main/ets/core/XrayConfig';
+import { formatTranslation, missingTranslationKeys, normalizeLanguage, translate } from '../main/ets/core/I18n';
+import { AppSettings } from '../main/ets/core/Profile';
+import { buildXrayConfig, buildXrayConfigWithSettings, normalizeOutboundInput, validateOutboundJson } from '../main/ets/core/XrayConfig';
 import { parseShareLinkToOutboundJson } from '../main/ets/core/ShareLinkParser';
 import { SubscriptionManager } from '../main/ets/services/SubscriptionManager';
 
@@ -33,6 +35,60 @@ export default function localUnitTest() {
       expect(result.configJson).assertContain('"outbounds"');
       expect(result.configJson).assertContain('"protocol": "socks"');
       expect(result.configJson).assertContain('"security": "reality"');
+    });
+
+    it('applies app settings when generating xray config', 0, () => {
+      const settings: AppSettings = {
+        language: 'zh',
+        sniffingEnabled: true,
+        routeOnlyEnabled: true,
+        perAppProxyEnabled: false,
+        localDnsEnabled: false,
+        fakeDnsEnabled: false,
+        appendHttpProxy: false,
+        muxEnabled: true,
+        muxConcurrency: 4,
+        muxXudpConcurrency: 4,
+        muxXudpQuic: 'reject',
+        fragmentEnabled: false,
+        fragmentPackets: 'tlshello',
+        fragmentLength: '50-100',
+        fragmentInterval: '10-20',
+        preferIpv6: false,
+        proxySharingEnabled: false,
+        allowInsecure: false,
+        socksPort: 10909,
+        localDnsPort: 10853,
+        vpnDns: '1.1.1.1',
+        remoteDns: '9.9.9.9',
+        domesticDns: '223.5.5.5',
+        dnsHosts: '',
+        delayTestUrl: 'https://www.gstatic.com/generate_204',
+        logLevel: 'debug',
+        mode: 'VPN',
+        trafficMode: 'rules',
+        routingDomainStrategy: 'IPIfNonMatch'
+      };
+      const result = buildXrayConfigWithSettings(VLESS_REALITY_OUTBOUND, settings);
+      expect(result.socksPort).assertEqual(10909);
+      expect(result.configJson).assertContain('"loglevel": "debug"');
+      expect(result.configJson).assertContain('"domainStrategy": "IPIfNonMatch"');
+      expect(result.configJson).assertContain('"geosite:cn"');
+      expect(result.configJson).assertContain('"sniffing"');
+      expect(result.configJson).assertContain('"mux"');
+      expect(result.configJson).assertContain('"9.9.9.9"');
+    });
+
+    it('has complete zh and en translations with fallback helpers', 0, () => {
+      expect(missingTranslationKeys('zh').length).assertEqual(0);
+      expect(missingTranslationKeys('en').length).assertEqual(0);
+      expect(translate('zh', 'screen.settings.title')).assertEqual('设置');
+      expect(translate('en', 'screen.settings.title')).assertEqual('Settings');
+      expect(translate('zh', 'missing.translation.key')).assertEqual('missing.translation.key');
+      expect(formatTranslation('en', 'subscription.updateComplete', ['count'], ['3'])).assertContain('3');
+      expect(normalizeLanguage('en')).assertEqual('en');
+      expect(normalizeLanguage('zh')).assertEqual('zh');
+      expect(normalizeLanguage('fr')).assertEqual('zh');
     });
 
     it('imports vless reality share link as outbound json', 0, () => {

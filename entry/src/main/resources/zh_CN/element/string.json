@@ -1,0 +1,16 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "Hey VPN 模块"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "Hey VPN 主界面"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "Hey VPN"
+    }
+  ]
+}

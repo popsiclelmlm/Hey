@@ -50,10 +50,26 @@ export class SubscriptionStore {
     }
 
     group.url = url;
-    group.nodes = nodes;
+    group.nodes = SubscriptionStore.mergeNodeRuntime(group.nodes, nodes);
     group.selectedNodeId = selectedNodeId;
     group.updatedAt = Date.now();
     profile.selectedGroupId = group.id;
+    await SubscriptionStore.save(context, SubscriptionStore.normalize(profile));
+    return SubscriptionStore.load(context);
+  }
+
+  static async saveNodeDelay(context: common.Context, nodeId: string, delayMs: number, delayStatus: string, delayTestAt: number): Promise<SubscriptionProfile> {
+    const profile = await SubscriptionStore.load(context);
+    for (let groupIndex = 0; groupIndex < profile.groups.length; groupIndex++) {
+      const group = profile.groups[groupIndex];
+      for (let nodeIndex = 0; nodeIndex < group.nodes.length; nodeIndex++) {
+        if (group.nodes[nodeIndex].id === nodeId) {
+          group.nodes[nodeIndex].delayMs = delayMs;
+          group.nodes[nodeIndex].delayStatus = delayStatus;
+          group.nodes[nodeIndex].delayTestAt = delayTestAt;
+        }
+      }
+    }
     await SubscriptionStore.save(context, SubscriptionStore.normalize(profile));
     return SubscriptionStore.load(context);
   }
@@ -139,7 +155,7 @@ export class SubscriptionStore {
         url: profile.url,
         enabled: true,
         selectedNodeId: profile.selectedNodeId,
-        nodes: profile.nodes,
+        nodes: SubscriptionStore.normalizeNodes(profile.nodes),
         updatedAt: profile.updatedAt
       });
     }
@@ -172,9 +188,44 @@ export class SubscriptionStore {
       url,
       enabled: group.enabled ?? true,
       selectedNodeId: group.selectedNodeId ?? '',
-      nodes: group.nodes ?? [],
+      nodes: SubscriptionStore.normalizeNodes(group.nodes ?? []),
       updatedAt: group.updatedAt ?? 0
     };
+  }
+
+  private static normalizeNodes(nodes: Array<ProxyNode>): Array<ProxyNode> {
+    const normalized = new Array<ProxyNode>();
+    for (let index = 0; index < nodes.length; index++) {
+      const node = nodes[index];
+      normalized.push({
+        id: node.id ?? '',
+        name: node.name ?? '',
+        protocol: node.protocol ?? '',
+        outboundJson: node.outboundJson ?? '',
+        sourceUrl: node.sourceUrl ?? '',
+        rawLink: node.rawLink ?? '',
+        updatedAt: node.updatedAt ?? 0,
+        delayMs: node.delayMs ?? -1,
+        delayTestAt: node.delayTestAt ?? 0,
+        delayStatus: node.delayStatus ?? ''
+      });
+    }
+    return normalized;
+  }
+
+  private static mergeNodeRuntime(existing: Array<ProxyNode>, next: Array<ProxyNode>): Array<ProxyNode> {
+    const merged = new Array<ProxyNode>();
+    for (let index = 0; index < next.length; index++) {
+      const node = next[index];
+      const previous = SubscriptionStore.findNode(existing, node.id);
+      if (previous !== null) {
+        node.delayMs = previous.delayMs;
+        node.delayStatus = previous.delayStatus;
+        node.delayTestAt = previous.delayTestAt;
+      }
+      merged.push(node);
+    }
+    return merged;
   }
 
   private static activeGroup(profile: SubscriptionProfile): SubscriptionGroup | null {

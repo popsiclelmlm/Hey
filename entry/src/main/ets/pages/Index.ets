@@ -1,10 +1,13 @@
 import { common } from '@kit.AbilityKit';
-import { ConnectionStatus, ProxyNode, ProxyProfile, RuntimeStats, SubscriptionGroup, SubscriptionProfile } from '../core/Profile';
+import { DEFAULT_LANGUAGE, formatTranslation, normalizeLanguage, translate } from '../core/I18n';
+import { AppLanguage, AppSettings, ConnectionStatus, ProxyNode, ProxyProfile, RuntimeStats, SubscriptionGroup, SubscriptionProfile } from '../core/Profile';
 import { normalizeOutboundInput } from '../core/XrayConfig';
 import { ConnectionController, ConnectionSnapshot } from '../services/ConnectionController';
+import { DelayTester, DelayTestResult } from '../services/DelayTester';
 import { DiagnosticEvent, DiagnosticLog } from '../services/DiagnosticLog';
 import { SubscriptionManager, SubscriptionUpdateResult } from '../services/SubscriptionManager';
 import { ProfileStore } from '../storage/ProfileStore';
+import { DEFAULT_APP_SETTINGS, SettingsStore } from '../storage/SettingsStore';
 import { SubscriptionStore } from '../storage/SubscriptionStore';
 
 const EMPTY_STATS: RuntimeStats = {
@@ -12,7 +15,7 @@ const EMPTY_STATS: RuntimeStats = {
   downloadBytes: 0,
   xrayRunning: false,
   tun2SocksRunning: false,
-  lastMessage: 'Native bridge not queried yet.'
+  lastMessage: translate(DEFAULT_LANGUAGE, 'runtime.nativeBridgeNotQueried')
 };
 
 enum AppScreen {
@@ -30,21 +33,21 @@ enum AppScreen {
 
 interface ScreenEntry {
   id: AppScreen;
-  label: string;
-  title: string;
+  labelKey: string;
+  titleKey: string;
 }
 
 const SCREEN_ENTRIES: Array<ScreenEntry> = [
-  { id: AppScreen.SERVERS, label: 'Nodes', title: 'Server List' },
-  { id: AppScreen.IMPORT, label: 'Add', title: 'Add Config' },
-  { id: AppScreen.SUBSCRIPTIONS, label: 'Subs', title: 'Subscriptions' },
-  { id: AppScreen.ROUTING, label: 'Route', title: 'Routing' },
-  { id: AppScreen.SETTINGS, label: 'Config', title: 'Settings' },
-  { id: AppScreen.PER_APP, label: 'Apps', title: 'Per-App Proxy' },
-  { id: AppScreen.ASSETS, label: 'Assets', title: 'User Assets' },
-  { id: AppScreen.LOGS, label: 'Logs', title: 'Logcat' },
-  { id: AppScreen.SCANNER, label: 'Scan', title: 'Scanner' },
-  { id: AppScreen.ABOUT, label: 'About', title: 'About' }
+  { id: AppScreen.SERVERS, labelKey: 'screen.servers.label', titleKey: 'screen.servers.title' },
+  { id: AppScreen.IMPORT, labelKey: 'screen.import.label', titleKey: 'screen.import.title' },
+  { id: AppScreen.SUBSCRIPTIONS, labelKey: 'screen.subscriptions.label', titleKey: 'screen.subscriptions.title' },
+  { id: AppScreen.ROUTING, labelKey: 'screen.routing.label', titleKey: 'screen.routing.title' },
+  { id: AppScreen.SETTINGS, labelKey: 'screen.settings.label', titleKey: 'screen.settings.title' },
+  { id: AppScreen.PER_APP, labelKey: 'screen.perApp.label', titleKey: 'screen.perApp.title' },
+  { id: AppScreen.ASSETS, labelKey: 'screen.assets.label', titleKey: 'screen.assets.title' },
+  { id: AppScreen.LOGS, labelKey: 'screen.logs.label', titleKey: 'screen.logs.title' },
+  { id: AppScreen.SCANNER, labelKey: 'screen.scanner.label', titleKey: 'screen.scanner.title' },
+  { id: AppScreen.ABOUT, labelKey: 'screen.about.label', titleKey: 'screen.about.title' }
 ];
 
 @Entry
@@ -57,17 +60,20 @@ struct Index {
   @State private status: ConnectionStatus = ConnectionStatus.IDLE;
   @State private startedAt: number = 0;
   @State private elapsedText: string = '00:00';
-  @State private validationMessage: string = '等待粘贴 Xray outbound JSON 或分享链接。';
+  @State private language: AppLanguage = DEFAULT_LANGUAGE;
+  @State private validationMessage: string = translate(DEFAULT_LANGUAGE, 'validation.initial');
   @State private validationOk: boolean = false;
   @State private lastError: string = '';
-  @State private logs: Array<string> = ['Ready. Paste one Xray outbound JSON or share link to begin.'];
+  @State private logs: Array<string> = [translate(DEFAULT_LANGUAGE, 'log.ready')];
   @State private diagnosticLogs: Array<string> = [];
   @State private stats: RuntimeStats = EMPTY_STATS;
-  @State private profileUpdatedAt: string = 'Not saved';
+  @State private profileUpdatedAt: string = translate(DEFAULT_LANGUAGE, 'profile.notSaved');
+  @State private profileUpdatedAtValue: number = 0;
   @State private subscriptionUrl: string = '';
   @State private nodes: Array<ProxyNode> = [];
   @State private selectedNodeId: string = '';
-  @State private subscriptionMessage: string = 'No subscription loaded.';
+  @State private subscriptionMessage: string = translate(DEFAULT_LANGUAGE, 'subscription.none');
+  @State private subscriptionUpdatedAt: number = 0;
   @State private subscriptionUpdating: boolean = false;
   @State private subscriptionGroups: Array<SubscriptionGroup> = [];
   @State private selectedGroupId: string = '';
@@ -76,6 +82,8 @@ struct Index {
   @State private importBuffer: string = '';
   @State private selectedImportProtocol: string = 'vless';
   @State private routingStrategy: string = 'AsIs';
+  @State private trafficMode: string = DEFAULT_APP_SETTINGS.trafficMode;
+  @State private delayTesting: boolean = false;
   @State private settingSniffing: boolean = true;
   @State private settingRouteOnly: boolean = false;
   @State private settingLocalDns: boolean = false;
@@ -85,6 +93,12 @@ struct Index {
   @State private settingProxySharing: boolean = false;
   @State private settingAllowInsecure: boolean = false;
   @State private settingPerAppProxy: boolean = false;
+  @State private settingSocksPort: string = DEFAULT_APP_SETTINGS.socksPort.toString();
+  @State private settingRemoteDns: string = DEFAULT_APP_SETTINGS.remoteDns;
+  @State private settingDomesticDns: string = DEFAULT_APP_SETTINGS.domesticDns;
+  @State private settingVpnDns: string = DEFAULT_APP_SETTINGS.vpnDns;
+  @State private settingLogLevel: string = DEFAULT_APP_SETTINGS.logLevel;
+  @State private settingDelayTestUrl: string = DEFAULT_APP_SETTINGS.delayTestUrl;
   private diagnosticRefreshing: boolean = false;
 
   aboutToAppear(): void {
@@ -137,7 +151,7 @@ struct Index {
         .margin({ bottom: 8 })
 
       ForEach(SCREEN_ENTRIES, (entry: ScreenEntry) => {
-        Button(entry.label)
+        Button(this.t(entry.labelKey))
           .height(36)
           .width('100%')
           .fontSize(12)
@@ -163,7 +177,7 @@ struct Index {
           .fontSize(20)
           .fontWeight(FontWeight.Bold)
           .fontColor('#111827')
-        Text(`${this.nodes.length} nodes / ${this.statusLabel()}`)
+        Text(this.f2('topbar.summary', 'nodes', this.nodes.length.toString(), 'status', this.statusLabel()))
           .fontSize(12)
           .fontColor('#6B7280')
       }
@@ -212,7 +226,7 @@ struct Index {
   private ServersPage() {
     Column({ space: 12 }) {
       Row({ space: 8 }) {
-        Button(this.isRunning() ? 'Stop' : 'Start')
+        Button(this.isRunning() ? this.t('action.stop') : this.t('action.start'))
           .height(42)
           .layoutWeight(1)
           .fontSize(15)
@@ -228,7 +242,7 @@ struct Index {
               this.startConnection();
             }
           })
-        Button('Restart')
+        Button(this.t('action.restart'))
           .height(42)
           .width(92)
           .fontSize(13)
@@ -244,7 +258,7 @@ struct Index {
       .width('100%')
 
       Row({ space: 8 }) {
-        TextInput({ placeholder: 'Search', text: this.searchQuery })
+        TextInput({ placeholder: this.t('action.search'), text: this.searchQuery })
           .height(38)
           .layoutWeight(1)
           .fontSize(13)
@@ -253,7 +267,7 @@ struct Index {
           .onChange((value: string) => {
             this.searchQuery = value;
           })
-        Button('Add')
+        Button(this.t('action.add'))
           .height(38)
           .width(68)
           .fontSize(13)
@@ -267,7 +281,7 @@ struct Index {
       .width('100%')
 
       Row({ space: 8 }) {
-        Button('Sub Update')
+        Button(this.t('action.subUpdate'))
           .height(34)
           .layoutWeight(1)
           .fontSize(12)
@@ -278,17 +292,18 @@ struct Index {
           .onClick(() => {
             this.updateSubscription();
           })
-        Button('Ping All')
+        Button(this.delayTesting ? this.t('node.delay.testing') : this.t('action.pingAll'))
           .height(34)
           .layoutWeight(1)
           .fontSize(12)
+          .enabled(!this.delayTesting && !this.isBusy())
           .backgroundColor('#F3F4F6')
           .fontColor('#374151')
           .borderRadius(6)
           .onClick(() => {
-            this.appendLog('Delay test queued for all visible nodes.');
+            this.testVisibleNodeDelay();
           })
-        Button('Export')
+        Button(this.t('action.export'))
           .height(34)
           .layoutWeight(1)
           .fontSize(12)
@@ -296,7 +311,7 @@ struct Index {
           .fontColor('#374151')
           .borderRadius(6)
           .onClick(() => {
-            this.appendLog(`Export prepared for ${this.nodes.length} nodes.`);
+            this.appendLog(this.f1('log.exportPrepared', 'count', this.nodes.length.toString()));
           })
       }
       .width('100%')
@@ -331,13 +346,19 @@ struct Index {
           .fontColor('#111827')
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
-        Text(`${node.protocol.toUpperCase()}  ${node.sourceUrl.length > 0 ? 'subscription' : 'manual'}`)
+        Text(`${node.protocol.toUpperCase()}  ${node.sourceUrl.length > 0 ? this.t('node.source.subscription') : this.t('node.source.manual')}`)
           .fontSize(12)
           .fontColor('#6B7280')
       }
       .layoutWeight(1)
 
-      Button(node.id === this.selectedNodeId ? 'Current' : 'Use')
+      Text(this.nodeDelayText(node))
+        .fontSize(12)
+        .fontColor(this.nodeDelayColor(node))
+        .width(84)
+        .textAlign(TextAlign.Center)
+
+      Button(node.id === this.selectedNodeId ? this.t('action.current') : this.t('action.use'))
         .height(34)
         .width(86)
         .fontSize(12)
@@ -358,7 +379,7 @@ struct Index {
   @Builder
   private ImportPage() {
     Column({ space: 12 }) {
-      Text('Protocol')
+      Text(this.t('label.protocol'))
         .fontSize(13)
         .fontColor('#6B7280')
         .width('100%')
@@ -378,7 +399,7 @@ struct Index {
       .width('100%')
 
       TextArea({
-        placeholder: 'Paste share link, subscription item, or outbound JSON.',
+        placeholder: this.t('placeholder.importPayload'),
         text: this.importBuffer
       })
         .height(220)
@@ -391,7 +412,7 @@ struct Index {
         })
 
       Row({ space: 8 }) {
-        Button('Import')
+        Button(this.t('action.import'))
           .height(40)
           .layoutWeight(1)
           .enabled(!this.isBusy())
@@ -401,7 +422,7 @@ struct Index {
           .onClick(() => {
             this.importManualConfig();
           })
-        Button('Use Current')
+        Button(this.t('action.useCurrent'))
           .height(40)
           .width(116)
           .backgroundColor('#E5E7EB')
@@ -438,7 +459,7 @@ struct Index {
       this.SubscriptionPanel()
 
       Row({ space: 8 }) {
-        Button('Update All')
+        Button(this.t('action.updateAll'))
           .height(38)
           .layoutWeight(1)
           .enabled(!this.subscriptionUpdating && !this.isBusy())
@@ -448,7 +469,7 @@ struct Index {
           .onClick(() => {
             this.updateSubscription();
           })
-        Button('Scan URL')
+        Button(this.t('action.scanUrl'))
           .height(38)
           .width(100)
           .backgroundColor('#E5E7EB')
@@ -466,7 +487,15 @@ struct Index {
   @Builder
   private RoutingPage() {
     Column({ space: 12 }) {
-      this.SectionHeader('Domain Strategy', this.routingStrategy)
+      this.SectionHeader(this.t('routing.trafficMode'), this.t(`routing.mode.${this.trafficMode}`))
+      Row({ space: 8 }) {
+        this.TrafficModeButton('global', this.t('routing.mode.global'))
+        this.TrafficModeButton('rules', this.t('routing.mode.rules'))
+        this.TrafficModeButton('direct', this.t('routing.mode.direct'))
+      }
+      .width('100%')
+
+      this.SectionHeader(this.t('routing.domainStrategy'), this.routingStrategy)
       Row({ space: 8 }) {
         this.StrategyButton('AsIs')
         this.StrategyButton('IPIfNonMatch')
@@ -474,10 +503,10 @@ struct Index {
       }
       .width('100%')
 
-      this.RoutingPreset('Global', 'All traffic uses proxy outbound.')
-      this.RoutingPreset('Bypass LAN/CN', 'Private and domestic destinations use direct outbound.')
-      this.RoutingPreset('Block Ads', 'Ad domains use block outbound.')
-      this.RoutingPreset('Custom Rulesets', 'Manage domain, IP, protocol and app rules.')
+      this.RoutingPreset(this.t('routing.global.title'), this.t('routing.global.detail'))
+      this.RoutingPreset(this.t('routing.bypassLanCn.title'), this.t('routing.bypassLanCn.detail'))
+      this.RoutingPreset(this.t('routing.blockAds.title'), this.t('routing.blockAds.detail'))
+      this.RoutingPreset(this.t('routing.customRulesets.title'), this.t('routing.customRulesets.detail'))
     }
     .width('100%')
   }
@@ -485,18 +514,36 @@ struct Index {
   @Builder
   private SettingsPage() {
     Column({ space: 10 }) {
-      this.SectionHeader('Core', 'Xray runtime preferences')
-      this.SettingToggle('Sniffing', 'pref_sniffing_enabled', this.settingSniffing, 'sniffing')
-      this.SettingToggle('Route Only', 'pref_route_only_enabled', this.settingRouteOnly, 'routeOnly')
-      this.SettingToggle('Allow Insecure', 'pref_allow_insecure', this.settingAllowInsecure, 'allowInsecure')
-      this.SectionHeader('VPN', 'TUN and DNS preferences')
-      this.SettingToggle('Per-App Proxy', 'pref_per_app_proxy', this.settingPerAppProxy, 'perApp')
-      this.SettingToggle('Local DNS', 'pref_local_dns_enabled', this.settingLocalDns, 'localDns')
-      this.SettingToggle('Fake DNS', 'pref_fake_dns_enabled', this.settingFakeDns, 'fakeDns')
-      this.SettingToggle('Proxy Sharing', 'pref_proxy_sharing_enabled', this.settingProxySharing, 'proxySharing')
-      this.SectionHeader('Transport', 'Mux and fragmentation')
-      this.SettingToggle('Mux', 'pref_mux_enabled', this.settingMux, 'mux')
-      this.SettingToggle('Fragment', 'pref_fragment_enabled', this.settingFragment, 'fragment')
+      this.SectionHeader(this.t('settings.language.section'), this.t('settings.language.detail'))
+      this.LanguageToggle()
+      this.SectionHeader(this.t('settings.core'), this.t('settings.core.detail'))
+      this.SettingToggle(this.t('settings.sniffing'), 'pref_sniffing_enabled', this.settingSniffing, 'sniffing')
+      this.SettingToggle(this.t('settings.routeOnly'), 'pref_route_only_enabled', this.settingRouteOnly, 'routeOnly')
+      this.SettingToggle(this.t('settings.allowInsecure'), 'pref_allow_insecure', this.settingAllowInsecure, 'allowInsecure')
+      this.SectionHeader(this.t('settings.vpn'), this.t('settings.vpn.detail'))
+      this.SettingToggle(this.t('settings.perAppProxy'), 'pref_per_app_proxy', this.settingPerAppProxy, 'perApp')
+      this.SettingToggle(this.t('settings.localDns'), 'pref_local_dns_enabled', this.settingLocalDns, 'localDns')
+      this.SettingToggle(this.t('settings.fakeDns'), 'pref_fake_dns_enabled', this.settingFakeDns, 'fakeDns')
+      this.SettingToggle(this.t('settings.proxySharing'), 'pref_proxy_sharing_enabled', this.settingProxySharing, 'proxySharing')
+      this.SettingInput(this.t('settings.socksPort'), 'pref_socks_port', this.settingSocksPort, 'socksPort')
+      this.SettingInput(this.t('settings.vpnDns'), 'pref_vpn_dns', this.settingVpnDns, 'vpnDns')
+      this.SectionHeader(this.t('settings.transport'), this.t('settings.transport.detail'))
+      this.SettingToggle(this.t('settings.mux'), 'pref_mux_enabled', this.settingMux, 'mux')
+      this.SettingToggle(this.t('settings.fragment'), 'pref_fragment_enabled', this.settingFragment, 'fragment')
+      this.SectionHeader(this.t('settings.advanced'), this.t('settings.advanced.detail'))
+      this.SettingInput(this.t('settings.remoteDns'), 'pref_remote_dns', this.settingRemoteDns, 'remoteDns')
+      this.SettingInput(this.t('settings.domesticDns'), 'pref_domestic_dns', this.settingDomesticDns, 'domesticDns')
+      this.SettingInput(this.t('settings.delayTestUrl'), 'pref_delay_test_url', this.settingDelayTestUrl, 'delayTestUrl')
+      this.SettingInput(this.t('settings.logLevel'), 'pref_core_loglevel', this.settingLogLevel, 'logLevel')
+      Button(this.t('action.saveSettings'))
+        .height(40)
+        .width('100%')
+        .backgroundColor('#1D4ED8')
+        .fontColor('#FFFFFF')
+        .borderRadius(8)
+        .onClick(() => {
+          this.persistSettings();
+        })
     }
     .width('100%')
   }
@@ -504,10 +551,10 @@ struct Index {
   @Builder
   private PerAppPage() {
     Column({ space: 12 }) {
-      this.SettingToggle('Enable Per-App Proxy', 'pref_per_app_proxy', this.settingPerAppProxy, 'perApp')
-      this.RoutingPreset('Proxy selected apps', 'Application bundle allowlist.')
-      this.RoutingPreset('Bypass selected apps', 'Application bundle blocklist.')
-      this.RoutingPreset('System app visibility', 'Include or hide system bundles.')
+      this.SettingToggle(this.t('settings.perAppProxy'), 'pref_per_app_proxy', this.settingPerAppProxy, 'perApp')
+      this.RoutingPreset(this.t('perApp.proxySelected.title'), this.t('perApp.proxySelected.detail'))
+      this.RoutingPreset(this.t('perApp.bypassSelected.title'), this.t('perApp.bypassSelected.detail'))
+      this.RoutingPreset(this.t('perApp.systemVisibility.title'), this.t('perApp.systemVisibility.detail'))
     }
     .width('100%')
   }
@@ -515,11 +562,11 @@ struct Index {
   @Builder
   private AssetsPage() {
     Column({ space: 12 }) {
-      this.SectionHeader('Assets', 'Geo and custom routing resources')
-      this.RoutingPreset('geosite.dat', 'Ruleset asset used by routing.')
-      this.RoutingPreset('geoip.dat', 'IP database asset used by routing.')
-      this.RoutingPreset('User Asset URLs', 'Remote assets and local refresh list.')
-      this.RoutingPreset('Backup / Restore', 'Import and export app profiles.')
+      this.SectionHeader(this.t('assets.section'), this.t('assets.section.detail'))
+      this.RoutingPreset('geosite.dat', this.t('assets.geosite.detail'))
+      this.RoutingPreset('geoip.dat', this.t('assets.geoip.detail'))
+      this.RoutingPreset(this.t('assets.userUrls.title'), this.t('assets.userUrls.detail'))
+      this.RoutingPreset(this.t('assets.backupRestore.title'), this.t('assets.backupRestore.detail'))
     }
     .width('100%')
   }
@@ -537,7 +584,7 @@ struct Index {
   private ScannerPage() {
     Column({ space: 12 }) {
       TextArea({
-        placeholder: 'Paste scanned QR result or URL scheme payload.',
+        placeholder: this.t('placeholder.scannerPayload'),
         text: this.importBuffer
       })
         .height(180)
@@ -548,7 +595,7 @@ struct Index {
         .onChange((value: string) => {
           this.importBuffer = value;
         })
-      Button('Import Result')
+      Button(this.t('action.importResult'))
         .height(40)
         .width('100%')
         .backgroundColor('#166534')
@@ -564,10 +611,10 @@ struct Index {
   @Builder
   private AboutPage() {
     Column({ space: 10 }) {
-      this.SectionHeader('Hey VPN', 'HarmonyOS NEXT Xray client')
-      this.RoutingPreset('Source Reference', 'Function parity target: v2rayNG Android business flows.')
-      this.RoutingPreset('Core', 'Xray executable mode plus tun2socks adapter.')
-      this.RoutingPreset('License Note', 'Feature parity implementation; Android code and resources are not copied.')
+      this.SectionHeader('Hey VPN', this.t('about.section.detail'))
+      this.RoutingPreset(this.t('about.source.title'), this.t('about.source.detail'))
+      this.RoutingPreset(this.t('about.core.title'), this.t('about.core.detail'))
+      this.RoutingPreset(this.t('about.license.title'), this.t('about.license.detail'))
     }
     .width('100%')
   }
@@ -593,6 +640,22 @@ struct Index {
   }
 
   @Builder
+  private TrafficModeButton(value: string, label: string) {
+    Button(label)
+      .height(34)
+      .layoutWeight(1)
+      .fontSize(12)
+      .backgroundColor(this.trafficMode === value ? '#111827' : '#E5E7EB')
+      .fontColor(this.trafficMode === value ? '#FFFFFF' : '#374151')
+      .borderRadius(6)
+      .onClick(() => {
+        this.trafficMode = value;
+        this.appendLog(this.f1('log.routingStrategy', 'value', label));
+        this.persistSettings();
+      })
+  }
+
+  @Builder
   private StrategyButton(value: string) {
     Button(value)
       .height(34)
@@ -603,7 +666,8 @@ struct Index {
       .borderRadius(6)
       .onClick(() => {
         this.routingStrategy = value;
-        this.appendLog(`Routing strategy: ${value}`);
+        this.appendLog(this.f1('log.routingStrategy', 'value', value));
+        this.persistSettings();
       })
   }
 
@@ -622,7 +686,7 @@ struct Index {
           .textOverflow({ overflow: TextOverflow.Ellipsis })
       }
       .layoutWeight(1)
-      Button('Open')
+      Button(this.t('action.open'))
         .height(32)
         .width(68)
         .fontSize(12)
@@ -630,7 +694,7 @@ struct Index {
         .fontColor('#374151')
         .borderRadius(6)
         .onClick(() => {
-          this.appendLog(`${title} opened.`);
+          this.appendLog(this.f1('log.presetOpened', 'title', title));
         })
     }
     .width('100%')
@@ -652,7 +716,7 @@ struct Index {
           .fontColor('#6B7280')
       }
       .layoutWeight(1)
-      Button(enabled ? 'On' : 'Off')
+      Button(enabled ? this.t('action.on') : this.t('action.off'))
         .height(32)
         .width(62)
         .fontSize(12)
@@ -661,6 +725,77 @@ struct Index {
         .borderRadius(6)
         .onClick(() => {
           this.toggleSetting(action);
+        })
+    }
+    .width('100%')
+    .padding(12)
+    .backgroundColor('#FFFFFF')
+    .borderRadius(8)
+  }
+
+  @Builder
+  private LanguageToggle() {
+    Row({ space: 10 }) {
+      Column({ space: 3 }) {
+        Text(this.t('settings.language.title'))
+          .fontSize(14)
+          .fontWeight(FontWeight.Medium)
+          .fontColor('#111827')
+        Text(this.t('settings.language.key'))
+          .fontSize(12)
+          .fontColor('#6B7280')
+      }
+      .layoutWeight(1)
+
+      Button(this.t('settings.language.zh'))
+        .height(32)
+        .width(96)
+        .fontSize(12)
+        .backgroundColor(this.language === 'zh' ? '#111827' : '#E5E7EB')
+        .fontColor(this.language === 'zh' ? '#FFFFFF' : '#374151')
+        .borderRadius(6)
+        .onClick(() => {
+          this.changeLanguage('zh');
+        })
+      Button(this.t('settings.language.en'))
+        .height(32)
+        .width(96)
+        .fontSize(12)
+        .backgroundColor(this.language === 'en' ? '#111827' : '#E5E7EB')
+        .fontColor(this.language === 'en' ? '#FFFFFF' : '#374151')
+        .borderRadius(6)
+        .onClick(() => {
+          this.changeLanguage('en');
+        })
+    }
+    .width('100%')
+    .padding(12)
+    .backgroundColor('#FFFFFF')
+    .borderRadius(8)
+  }
+
+  @Builder
+  private SettingInput(title: string, key: string, value: string, action: string) {
+    Column({ space: 8 }) {
+      Row() {
+        Text(title)
+          .fontSize(14)
+          .fontWeight(FontWeight.Medium)
+          .fontColor('#111827')
+          .layoutWeight(1)
+        Text(key)
+          .fontSize(12)
+          .fontColor('#6B7280')
+      }
+      .width('100%')
+      TextInput({ text: value, placeholder: title })
+        .height(36)
+        .width('100%')
+        .fontSize(13)
+        .backgroundColor('#F9FAFB')
+        .borderRadius(6)
+        .onChange((next: string) => {
+          this.updateSettingInput(action, next);
         })
     }
     .width('100%')
@@ -696,7 +831,7 @@ struct Index {
       .alignItems(VerticalAlign.Center)
 
       Row({ space: 10 }) {
-        Button(this.isRunning() ? 'Stop' : 'Start')
+        Button(this.isRunning() ? this.t('action.stop') : this.t('action.start'))
           .height(44)
           .layoutWeight(1)
           .fontSize(16)
@@ -713,7 +848,7 @@ struct Index {
             }
           })
 
-        Button('Save')
+        Button(this.t('action.save'))
           .height(44)
           .width(96)
           .fontSize(15)
@@ -747,19 +882,19 @@ struct Index {
   private SubscriptionPanel() {
     Column({ space: 12 }) {
       Row() {
-        Text('Subscription Groups')
+        Text(this.t('subscription.panelTitle'))
           .fontSize(18)
           .fontWeight(FontWeight.Bold)
           .fontColor('#111827')
           .layoutWeight(1)
-        Text(`${this.subscriptionGroups.length} groups / ${this.nodes.length} nodes`)
+        Text(this.f2('subscription.summary', 'groups', this.subscriptionGroups.length.toString(), 'nodes', this.nodes.length.toString()))
           .fontSize(12)
           .fontColor('#6B7280')
       }
       .width('100%')
 
       TextArea({
-        placeholder: 'Paste subscription URL.',
+        placeholder: this.t('placeholder.subscriptionUrl'),
         text: this.subscriptionUrl
       })
         .height(56)
@@ -775,7 +910,7 @@ struct Index {
         })
 
       Row({ space: 8 }) {
-        Button('Save Group')
+        Button(this.t('action.saveGroup'))
           .height(38)
           .width(116)
           .fontSize(14)
@@ -786,7 +921,7 @@ struct Index {
           .onClick(() => {
             this.saveSubscriptionGroup();
           })
-        Button(this.subscriptionUpdating ? 'Updating' : 'Update')
+        Button(this.subscriptionUpdating ? this.t('action.updating') : this.t('action.update'))
           .height(38)
           .width(96)
           .fontSize(14)
@@ -839,13 +974,13 @@ struct Index {
           .fontColor('#111827')
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
-        Text(`${group.enabled ? 'Enabled' : 'Disabled'} / ${group.nodes.length} nodes`)
+        Text(this.f2('group.enabledSummary', 'status', group.enabled ? this.t('common.enabled') : this.t('common.disabled'), 'count', group.nodes.length.toString()))
           .fontSize(12)
           .fontColor('#6B7280')
       }
       .layoutWeight(1)
 
-      Button(group.id === this.selectedGroupId ? 'Current' : 'Open')
+      Button(group.id === this.selectedGroupId ? this.t('action.current') : this.t('action.open'))
         .height(32)
         .width(76)
         .fontSize(12)
@@ -855,7 +990,7 @@ struct Index {
         .onClick(() => {
           this.selectSubscriptionGroup(group);
         })
-      Button(group.enabled ? 'On' : 'Off')
+      Button(group.enabled ? this.t('action.on') : this.t('action.off'))
         .height(32)
         .width(58)
         .fontSize(12)
@@ -865,7 +1000,7 @@ struct Index {
         .onClick(() => {
           this.toggleSubscriptionGroup(group);
         })
-      Button('Del')
+      Button(this.t('action.del'))
         .height(32)
         .width(54)
         .fontSize(12)
@@ -898,7 +1033,13 @@ struct Index {
       }
       .layoutWeight(1)
 
-      Button(node.id === this.selectedNodeId ? 'Selected' : 'Use')
+      Text(this.nodeDelayText(node))
+        .fontSize(12)
+        .fontColor(this.nodeDelayColor(node))
+        .width(84)
+        .textAlign(TextAlign.Center)
+
+      Button(node.id === this.selectedNodeId ? this.t('action.selected') : this.t('action.use'))
         .height(34)
         .width(86)
         .fontSize(13)
@@ -920,7 +1061,7 @@ struct Index {
   private ConfigPanel() {
     Column({ space: 12 }) {
       Row() {
-        Text('Outbound Config')
+        Text(this.t('config.title'))
           .fontSize(18)
           .fontWeight(FontWeight.Bold)
           .fontColor('#111827')
@@ -932,7 +1073,7 @@ struct Index {
       .width('100%')
 
       TextArea({
-        placeholder: 'Paste outbound JSON, vless:// link, or trojan:// link.',
+        placeholder: this.t('placeholder.outbound'),
         text: this.outboundJson
       })
         .height(220)
@@ -949,7 +1090,7 @@ struct Index {
         })
 
       Row({ space: 8 }) {
-        Text(this.validationOk ? 'Valid' : 'Invalid')
+        Text(this.validationOk ? this.t('config.valid') : this.t('config.invalid'))
           .fontSize(12)
           .fontWeight(FontWeight.Medium)
           .fontColor(this.validationOk ? '#166534' : '#B42318')
@@ -960,7 +1101,7 @@ struct Index {
           .fontSize(13)
           .fontColor('#374151')
           .layoutWeight(1)
-        Button('Import')
+        Button(this.t('action.import'))
           .height(32)
           .width(76)
           .fontSize(13)
@@ -984,16 +1125,16 @@ struct Index {
   @Builder
   private RuntimePanel() {
     Column({ space: 12 }) {
-      Text('Runtime')
+      Text(this.t('runtime.title'))
         .fontSize(18)
         .fontWeight(FontWeight.Bold)
         .fontColor('#111827')
         .width('100%')
 
       Row({ space: 10 }) {
-        this.MetricTile('Duration', this.elapsedText)
-        this.MetricTile('Upload', this.formatBytes(this.stats.uploadBytes))
-        this.MetricTile('Download', this.formatBytes(this.stats.downloadBytes))
+        this.MetricTile(this.t('runtime.duration'), this.elapsedText)
+        this.MetricTile(this.t('runtime.upload'), this.formatBytes(this.stats.uploadBytes))
+        this.MetricTile(this.t('runtime.download'), this.formatBytes(this.stats.downloadBytes))
       }
       .width('100%')
 
@@ -1003,7 +1144,7 @@ struct Index {
       }
       .width('100%')
 
-      Text(this.stats.lastMessage)
+      Text(this.localizeCoreMessage(this.stats.lastMessage))
         .fontSize(12)
         .fontColor('#4B5563')
         .width('100%')
@@ -1054,12 +1195,12 @@ struct Index {
   private LogPanel() {
     Column({ space: 10 }) {
       Row() {
-        Text('Logs')
+        Text(this.t('logs.title'))
           .fontSize(18)
           .fontWeight(FontWeight.Bold)
           .fontColor('#111827')
           .layoutWeight(1)
-        Button('Clear')
+        Button(this.t('action.clear'))
           .height(32)
           .width(72)
           .fontSize(13)
@@ -1093,8 +1234,40 @@ struct Index {
   }
 
   private async loadInitialState(): Promise<void> {
+    await this.loadSettings();
     await this.loadProfile();
     await this.loadSubscription();
+  }
+
+  private async loadSettings(): Promise<void> {
+    try {
+      const context = getContext(this) as common.Context;
+      this.applySettings(await SettingsStore.load(context));
+    } catch (error) {
+      this.appendLog(this.f1('error.loadSettings', 'error', JSON.stringify(error)));
+    }
+  }
+
+  private applySettings(settings: AppSettings): void {
+    this.language = normalizeLanguage(settings.language);
+    this.settingSniffing = settings.sniffingEnabled;
+    this.settingRouteOnly = settings.routeOnlyEnabled;
+    this.settingPerAppProxy = settings.perAppProxyEnabled;
+    this.settingLocalDns = settings.localDnsEnabled;
+    this.settingFakeDns = settings.fakeDnsEnabled;
+    this.settingMux = settings.muxEnabled;
+    this.settingFragment = settings.fragmentEnabled;
+    this.settingProxySharing = settings.proxySharingEnabled;
+    this.settingAllowInsecure = settings.allowInsecure;
+    this.settingSocksPort = settings.socksPort.toString();
+    this.settingRemoteDns = settings.remoteDns;
+    this.settingDomesticDns = settings.domesticDns;
+    this.settingVpnDns = settings.vpnDns;
+    this.settingLogLevel = settings.logLevel;
+    this.settingDelayTestUrl = settings.delayTestUrl;
+    this.trafficMode = settings.trafficMode;
+    this.routingStrategy = settings.routingDomainStrategy;
+    this.refreshLocalizedStateText();
   }
 
   private async loadProfile(): Promise<void> {
@@ -1102,11 +1275,12 @@ struct Index {
       const context = getContext(this) as common.Context;
       const profile = await ProfileStore.load(context);
       this.outboundJson = profile.outboundJson;
-      this.profileUpdatedAt = profile.updatedAt > 0 ? `Saved ${this.formatTime(profile.updatedAt)}` : 'Not saved';
+      this.profileUpdatedAtValue = profile.updatedAt;
+      this.profileUpdatedAt = this.profileSavedText(profile.updatedAt);
       this.validateConfig();
-      this.appendLog('Profile loaded.');
+      this.appendLog(this.t('log.profileLoaded'));
     } catch (error) {
-      this.lastError = `加载配置失败：${JSON.stringify(error)}`;
+      this.lastError = this.f1('error.loadProfile', 'error', JSON.stringify(error));
       this.appendLog(this.lastError);
     }
   }
@@ -1123,7 +1297,7 @@ struct Index {
         this.validateConfig();
       }
     } catch (error) {
-      this.subscriptionMessage = `加载订阅失败：${JSON.stringify(error)}`;
+      this.subscriptionMessage = this.f1('error.loadSubscription', 'error', JSON.stringify(error));
       this.appendLog(this.subscriptionMessage);
     }
   }
@@ -1134,13 +1308,14 @@ struct Index {
     this.selectedNodeId = subscription.selectedNodeId;
     this.subscriptionGroups = subscription.groups;
     this.selectedGroupId = subscription.selectedGroupId;
-    this.subscriptionMessage = subscription.updatedAt > 0 ? `Updated ${this.formatTime(subscription.updatedAt)}` : 'No subscription loaded.';
+    this.subscriptionUpdatedAt = subscription.updatedAt;
+    this.subscriptionMessage = this.subscriptionStatusText(subscription.updatedAt);
   }
 
   private async saveProfileOnly(): Promise<void> {
     const saved = await this.saveProfile();
     if (saved !== null) {
-      this.appendLog('Profile saved.');
+      this.appendLog(this.t('log.profileSaved'));
     }
   }
 
@@ -1150,26 +1325,26 @@ struct Index {
       return;
     }
 
-    this.appendLog('Starting VPN extension.');
-    const snapshot = await this.controller.start(profile);
+    this.appendLog(this.t('log.startingVpn'));
+    const snapshot = await this.controller.start(profile, this.buildSettingsFromState());
     this.applySnapshot(snapshot);
-    this.appendLog(this.status === ConnectionStatus.RUNNING ? 'VPN extension started.' : 'VPN start did not complete.');
+    this.appendLog(this.status === ConnectionStatus.RUNNING ? this.t('log.vpnStarted') : this.t('log.vpnStartIncomplete'));
   }
 
   private async stopConnection(): Promise<void> {
-    this.appendLog('Stopping VPN extension.');
+    this.appendLog(this.t('log.stoppingVpn'));
     const snapshot = await this.controller.stop();
     this.applySnapshot(snapshot);
-    this.appendLog(this.status === ConnectionStatus.IDLE ? 'VPN extension stopped.' : 'VPN stop did not complete.');
+    this.appendLog(this.status === ConnectionStatus.IDLE ? this.t('log.vpnStopped') : this.t('log.vpnStopIncomplete'));
   }
 
   private async saveProfile(): Promise<ProxyProfile | null> {
     const validation = normalizeOutboundInput(this.outboundJson);
     this.validationOk = validation.valid;
-    this.validationMessage = validation.message;
+    this.validationMessage = this.localizeCoreMessage(validation.message);
     if (!validation.valid) {
-      this.lastError = validation.message;
-      this.appendLog(validation.message);
+      this.lastError = this.validationMessage;
+      this.appendLog(this.validationMessage);
       return null;
     }
 
@@ -1177,11 +1352,12 @@ struct Index {
       const context = getContext(this) as common.Context;
       const profile = await ProfileStore.save(context, validation.normalizedJson);
       this.outboundJson = validation.normalizedJson;
-      this.profileUpdatedAt = `Saved ${this.formatTime(profile.updatedAt)}`;
+      this.profileUpdatedAtValue = profile.updatedAt;
+      this.profileUpdatedAt = this.profileSavedText(profile.updatedAt);
       this.lastError = '';
       return profile;
     } catch (error) {
-      this.lastError = `保存配置失败：${JSON.stringify(error)}`;
+      this.lastError = this.f1('error.saveProfile', 'error', JSON.stringify(error));
       this.appendLog(this.lastError);
       return null;
     }
@@ -1193,21 +1369,21 @@ struct Index {
     }
     const url = this.subscriptionUrl.trim();
     if (url.length === 0) {
-      this.subscriptionMessage = '订阅链接为空。';
+      this.subscriptionMessage = this.t('error.emptySubscriptionUrl');
       this.appendLog(this.subscriptionMessage);
       return;
     }
 
     this.subscriptionUpdating = true;
-    this.subscriptionMessage = 'Updating subscription.';
-    this.appendLog('Updating subscription.');
+    this.subscriptionMessage = this.t('log.updatingSubscription');
+    this.appendLog(this.t('log.updatingSubscription'));
     try {
       const context = getContext(this) as common.Context;
       await SubscriptionStore.saveUrl(context, url);
       const result: SubscriptionUpdateResult = await SubscriptionManager.fetchAndParse(url);
       if (!result.ok) {
-        this.subscriptionMessage = result.message;
-        this.appendLog(result.message);
+        this.subscriptionMessage = this.localizeCoreMessage(result.message);
+        this.appendLog(this.subscriptionMessage);
         this.applySubscription(await SubscriptionStore.load(context));
         return;
       }
@@ -1218,15 +1394,15 @@ struct Index {
       }
       const subscription = await SubscriptionStore.saveNodes(context, url, result.nodes, selectedId);
       this.applySubscription(subscription);
-      this.subscriptionMessage = result.message;
-      this.appendLog(result.message);
+      this.subscriptionMessage = this.localizeCoreMessage(result.message);
+      this.appendLog(this.subscriptionMessage);
 
       const selected = this.findNode(selectedId);
       if (selected !== null) {
         await this.selectNode(selected);
       }
     } catch (error) {
-      this.subscriptionMessage = `订阅更新失败：${JSON.stringify(error)}`;
+      this.subscriptionMessage = this.f1('error.updateSubscription', 'error', JSON.stringify(error));
       this.appendLog(this.subscriptionMessage);
     } finally {
       this.subscriptionUpdating = false;
@@ -1236,7 +1412,7 @@ struct Index {
   private async saveSubscriptionGroup(): Promise<void> {
     const url = this.subscriptionUrl.trim();
     if (url.length === 0) {
-      this.subscriptionMessage = '订阅链接为空。';
+      this.subscriptionMessage = this.t('error.emptySubscriptionUrl');
       this.appendLog(this.subscriptionMessage);
       return;
     }
@@ -1244,10 +1420,10 @@ struct Index {
       const context = getContext(this) as common.Context;
       const subscription = await SubscriptionStore.saveUrl(context, url);
       this.applySubscription(subscription);
-      this.subscriptionMessage = 'Subscription group saved.';
+      this.subscriptionMessage = this.t('log.subscriptionGroupSaved');
       this.appendLog(this.subscriptionMessage);
     } catch (error) {
-      this.subscriptionMessage = `保存订阅组失败：${JSON.stringify(error)}`;
+      this.subscriptionMessage = this.f1('error.saveSubscriptionGroup', 'error', JSON.stringify(error));
       this.appendLog(this.subscriptionMessage);
     }
   }
@@ -1261,9 +1437,9 @@ struct Index {
       if (selected !== null) {
         await this.selectNode(selected);
       }
-      this.appendLog(`Opened subscription group: ${group.name}`);
+      this.appendLog(this.f1('log.openedSubscriptionGroup', 'name', group.name));
     } catch (error) {
-      this.subscriptionMessage = `选择订阅组失败：${JSON.stringify(error)}`;
+      this.subscriptionMessage = this.f1('error.selectSubscriptionGroup', 'error', JSON.stringify(error));
       this.appendLog(this.subscriptionMessage);
     }
   }
@@ -1273,9 +1449,9 @@ struct Index {
       const context = getContext(this) as common.Context;
       const subscription = await SubscriptionStore.toggleGroup(context, group.id);
       this.applySubscription(subscription);
-      this.appendLog(`${group.name}: ${group.enabled ? 'disabled' : 'enabled'}`);
+      this.appendLog(this.f2('log.subscriptionGroupToggled', 'name', group.name, 'status', group.enabled ? this.t('common.disabled') : this.t('common.enabled')));
     } catch (error) {
-      this.subscriptionMessage = `切换订阅组失败：${JSON.stringify(error)}`;
+      this.subscriptionMessage = this.f1('error.toggleSubscriptionGroup', 'error', JSON.stringify(error));
       this.appendLog(this.subscriptionMessage);
     }
   }
@@ -1285,9 +1461,9 @@ struct Index {
       const context = getContext(this) as common.Context;
       const subscription = await SubscriptionStore.removeGroup(context, group.id);
       this.applySubscription(subscription);
-      this.appendLog(`Removed subscription group: ${group.name}`);
+      this.appendLog(this.f1('log.removedSubscriptionGroup', 'name', group.name));
     } catch (error) {
-      this.subscriptionMessage = `删除订阅组失败：${JSON.stringify(error)}`;
+      this.subscriptionMessage = this.f1('error.removeSubscriptionGroup', 'error', JSON.stringify(error));
       this.appendLog(this.subscriptionMessage);
     }
   }
@@ -1300,12 +1476,13 @@ struct Index {
       this.applySubscription(subscription);
       this.selectedNodeId = node.id;
       this.outboundJson = node.outboundJson;
-      this.profileUpdatedAt = `Saved ${this.formatTime(profile.updatedAt)}`;
+      this.profileUpdatedAtValue = profile.updatedAt;
+      this.profileUpdatedAt = this.profileSavedText(profile.updatedAt);
       this.validateConfig();
       this.lastError = '';
-      this.appendLog(`Selected node: ${node.name}`);
+      this.appendLog(this.f1('log.selectedNode', 'name', node.name));
     } catch (error) {
-      this.lastError = `选择节点失败：${JSON.stringify(error)}`;
+      this.lastError = this.f1('error.selectNode', 'error', JSON.stringify(error));
       this.appendLog(this.lastError);
     }
   }
@@ -1326,28 +1503,28 @@ struct Index {
   private validateConfig(): void {
     const validation = normalizeOutboundInput(this.outboundJson);
     this.validationOk = validation.valid;
-    this.validationMessage = validation.message;
+    this.validationMessage = this.localizeCoreMessage(validation.message);
   }
 
   private normalizeConfigInput(): void {
     const validation = normalizeOutboundInput(this.outboundJson);
     this.validationOk = validation.valid;
-    this.validationMessage = validation.message;
+    this.validationMessage = this.localizeCoreMessage(validation.message);
     if (!validation.valid) {
-      this.lastError = validation.message;
-      this.appendLog(validation.message);
+      this.lastError = this.validationMessage;
+      this.appendLog(this.validationMessage);
       return;
     }
 
     this.outboundJson = validation.normalizedJson;
     this.lastError = '';
-    this.appendLog('Config imported and normalized.');
+    this.appendLog(this.t('log.configImported'));
   }
 
   private applySnapshot(snapshot: ConnectionSnapshot): void {
     this.status = snapshot.status;
     this.startedAt = snapshot.startedAt;
-    this.lastError = snapshot.lastError;
+    this.lastError = this.localizeCoreMessage(snapshot.lastError);
     this.refreshRuntime();
   }
 
@@ -1375,7 +1552,7 @@ struct Index {
       const context = getContext(this) as common.Context;
       DiagnosticLog.clear(context);
     } catch (error) {
-      this.appendLog(`清理诊断日志失败：${JSON.stringify(error)}`);
+      this.appendLog(this.f1('error.clearDiagnostics', 'error', JSON.stringify(error)));
     }
     this.logs = [];
     this.diagnosticLogs = [];
@@ -1427,7 +1604,7 @@ struct Index {
       return;
     }
     const message = event.details !== undefined && event.details.length > 0 ? `${event.message} ${event.details}` : event.message;
-    this.lastError = message;
+    this.lastError = this.localizeCoreMessage(message);
     if (this.status === ConnectionStatus.RUNNING || this.status === ConnectionStatus.STARTING) {
       this.status = ConnectionStatus.ERROR;
     }
@@ -1436,7 +1613,7 @@ struct Index {
   private activeScreenTitle(): string {
     for (let index = 0; index < SCREEN_ENTRIES.length; index++) {
       if (SCREEN_ENTRIES[index].id === this.activeScreen) {
-        return SCREEN_ENTRIES[index].title;
+        return this.t(SCREEN_ENTRIES[index].titleKey);
       }
     }
     return 'Hey VPN';
@@ -1458,10 +1635,48 @@ struct Index {
     return result;
   }
 
+  private nodeDelayText(node: ProxyNode): string {
+    if (node.delayStatus === 'testing') {
+      return this.t('node.delay.testing');
+    }
+    if (node.delayMs >= 0) {
+      return this.f1('node.delay.ms', 'value', node.delayMs.toString());
+    }
+    if (node.delayStatus.length > 0) {
+      return this.t('node.delay.failed');
+    }
+    return this.t('node.delay.pending');
+  }
+
+  private nodeDelayColor(node: ProxyNode): string {
+    if (node.delayStatus === 'testing') {
+      return '#1D4ED8';
+    }
+    if (node.delayMs >= 0) {
+      if (node.delayMs <= 300) {
+        return '#166534';
+      }
+      if (node.delayMs <= 900) {
+        return '#92400E';
+      }
+    }
+    if (node.delayStatus.length > 0) {
+      return '#B42318';
+    }
+    return '#6B7280';
+  }
+
+  private delayResultText(result: DelayTestResult): string {
+    if (result.ok) {
+      return this.f1('node.delay.ms', 'value', result.delayMs.toString());
+    }
+    return `${this.t('node.delay.failed')} ${result.status}`;
+  }
+
   private async importManualConfig(): Promise<void> {
     const value = this.importBuffer.trim();
     if (value.length === 0) {
-      this.lastError = '导入内容为空。';
+      this.lastError = this.t('error.emptyImport');
       this.appendLog(this.lastError);
       return;
     }
@@ -1481,6 +1696,64 @@ struct Index {
     await this.saveProfileOnly();
     this.importBuffer = this.outboundJson;
     this.activeScreen = AppScreen.SERVERS;
+  }
+
+  private async testVisibleNodeDelay(): Promise<void> {
+    if (this.delayTesting) {
+      return;
+    }
+    const targets = this.filteredNodes();
+    if (targets.length === 0) {
+      return;
+    }
+
+    this.delayTesting = true;
+    this.appendLog(this.t('log.delayQueued'));
+    try {
+      const context = getContext(this) as common.Context;
+      for (let index = 0; index < targets.length; index++) {
+        const node = targets[index];
+        const startedAt = Date.now();
+        this.markNodeDelay(node.id, -1, 'testing', startedAt);
+        this.appendLog(this.f1('log.delayTestingNode', 'name', node.name));
+        const result: DelayTestResult = await DelayTester.measure(this.settingDelayTestUrl, 8000);
+        const delayMs = result.ok ? result.delayMs : -1;
+        const status = result.ok ? 'ok' : result.status;
+        const subscription = await SubscriptionStore.saveNodeDelay(context, node.id, delayMs, status, Date.now());
+        this.applySubscription(subscription);
+        this.appendLog(this.f2('log.delayResult', 'name', node.name, 'result', this.delayResultText(result)));
+      }
+    } catch (error) {
+      this.lastError = this.f1('error.delayTest', 'error', JSON.stringify(error));
+      this.appendLog(this.lastError);
+    } finally {
+      this.delayTesting = false;
+    }
+  }
+
+  private markNodeDelay(nodeId: string, delayMs: number, delayStatus: string, delayTestAt: number): void {
+    const next = new Array<ProxyNode>();
+    for (let index = 0; index < this.nodes.length; index++) {
+      const node = this.nodes[index];
+      if (node.id === nodeId) {
+        const updated: ProxyNode = {
+          id: node.id,
+          name: node.name,
+          protocol: node.protocol,
+          outboundJson: node.outboundJson,
+          sourceUrl: node.sourceUrl,
+          rawLink: node.rawLink,
+          updatedAt: node.updatedAt,
+          delayMs,
+          delayTestAt,
+          delayStatus
+        };
+        next.push(updated);
+      } else {
+        next.push(node);
+      }
+    }
+    this.nodes = next;
   }
 
   private toggleSetting(action: string): void {
@@ -1515,22 +1788,262 @@ struct Index {
       default:
         break;
     }
-    this.appendLog(`Setting changed: ${action}`);
+    this.appendLog(this.f1('log.settingsChanged', 'action', action));
+    this.persistSettings(false);
+  }
+
+  private updateSettingInput(action: string, value: string): void {
+    switch (action) {
+      case 'socksPort':
+        this.settingSocksPort = value;
+        break;
+      case 'vpnDns':
+        this.settingVpnDns = value;
+        break;
+      case 'remoteDns':
+        this.settingRemoteDns = value;
+        break;
+      case 'domesticDns':
+        this.settingDomesticDns = value;
+        break;
+      case 'delayTestUrl':
+        this.settingDelayTestUrl = value;
+        break;
+      case 'logLevel':
+        this.settingLogLevel = value;
+        break;
+      default:
+        break;
+    }
+  }
+
+  private async persistSettings(showMessage: boolean = true): Promise<void> {
+    try {
+      const context = getContext(this) as common.Context;
+      const saved = await SettingsStore.save(context, this.buildSettingsFromState());
+      this.applySettings(saved);
+      if (showMessage) {
+        this.appendLog(this.t('log.settingsSaved'));
+      }
+    } catch (error) {
+      this.lastError = this.f1('error.saveSettings', 'error', JSON.stringify(error));
+      this.appendLog(this.lastError);
+    }
+  }
+
+  private async changeLanguage(language: AppLanguage): Promise<void> {
+    if (this.language === language) {
+      return;
+    }
+    this.language = language;
+    try {
+      const context = getContext(this) as common.Context;
+      const saved = await SettingsStore.save(context, this.buildSettingsFromState());
+      this.applySettings(saved);
+      const label = this.language === 'zh' ? this.t('settings.language.zh') : this.t('settings.language.en');
+      this.appendLog(this.f1('log.languageChanged', 'language', label));
+    } catch (error) {
+      this.lastError = this.f1('error.saveSettings', 'error', JSON.stringify(error));
+      this.appendLog(this.lastError);
+    }
+  }
+
+  private buildSettingsFromState(): AppSettings {
+    return {
+      language: this.language,
+      sniffingEnabled: this.settingSniffing,
+      routeOnlyEnabled: this.settingRouteOnly,
+      perAppProxyEnabled: this.settingPerAppProxy,
+      localDnsEnabled: this.settingLocalDns,
+      fakeDnsEnabled: this.settingFakeDns,
+      appendHttpProxy: DEFAULT_APP_SETTINGS.appendHttpProxy,
+      muxEnabled: this.settingMux,
+      muxConcurrency: DEFAULT_APP_SETTINGS.muxConcurrency,
+      muxXudpConcurrency: DEFAULT_APP_SETTINGS.muxXudpConcurrency,
+      muxXudpQuic: DEFAULT_APP_SETTINGS.muxXudpQuic,
+      fragmentEnabled: this.settingFragment,
+      fragmentPackets: DEFAULT_APP_SETTINGS.fragmentPackets,
+      fragmentLength: DEFAULT_APP_SETTINGS.fragmentLength,
+      fragmentInterval: DEFAULT_APP_SETTINGS.fragmentInterval,
+      preferIpv6: DEFAULT_APP_SETTINGS.preferIpv6,
+      proxySharingEnabled: this.settingProxySharing,
+      allowInsecure: this.settingAllowInsecure,
+      socksPort: this.parsePortSetting(this.settingSocksPort, DEFAULT_APP_SETTINGS.socksPort),
+      localDnsPort: DEFAULT_APP_SETTINGS.localDnsPort,
+      vpnDns: this.settingVpnDns.trim(),
+      remoteDns: this.settingRemoteDns.trim(),
+      domesticDns: this.settingDomesticDns.trim(),
+      dnsHosts: DEFAULT_APP_SETTINGS.dnsHosts,
+      delayTestUrl: this.settingDelayTestUrl.trim(),
+      logLevel: this.settingLogLevel.trim().length > 0 ? this.settingLogLevel.trim() : DEFAULT_APP_SETTINGS.logLevel,
+      mode: DEFAULT_APP_SETTINGS.mode,
+      trafficMode: this.trafficMode,
+      routingDomainStrategy: this.routingStrategy
+    };
+  }
+
+  private parsePortSetting(value: string, fallback: number): number {
+    const parsed = Number(value);
+    if (Number.isNaN(parsed) || parsed < 1 || parsed > 65535 || Math.floor(parsed) !== parsed) {
+      return fallback;
+    }
+    return parsed;
+  }
+
+  private refreshLocalizedStateText(): void {
+    this.profileUpdatedAt = this.profileSavedText(this.profileUpdatedAtValue);
+    if (!this.subscriptionUpdating) {
+      this.subscriptionMessage = this.subscriptionStatusText(this.subscriptionUpdatedAt);
+    }
+    this.validateConfig();
+  }
+
+  private profileSavedText(updatedAt: number): string {
+    return updatedAt > 0 ? this.f1('profile.savedAt', 'time', this.formatTime(updatedAt)) : this.t('profile.notSaved');
+  }
+
+  private subscriptionStatusText(updatedAt: number): string {
+    return updatedAt > 0 ? this.f1('subscription.updatedAt', 'time', this.formatTime(updatedAt)) : this.t('subscription.none');
+  }
+
+  private localizeCoreMessage(message: string): string {
+    if (message.length === 0) {
+      return '';
+    }
+    if (message === 'Native bridge not queried yet.' ||
+      message === translate('zh', 'runtime.nativeBridgeNotQueried') ||
+      message === translate('en', 'runtime.nativeBridgeNotQueried')) {
+      return this.t('runtime.nativeBridgeNotQueried');
+    }
+    if (message === 'VPN extension owns the native bridge. Wire IPC stats after real libXray/tun2socks integration.' ||
+      message === translate('zh', 'runtime.vpnOwnsBridge') ||
+      message === translate('en', 'runtime.vpnOwnsBridge')) {
+      return this.t('runtime.vpnOwnsBridge');
+    }
+    if (message === '请先粘贴 Xray outbound JSON。') {
+      return this.t('core.emptyOutbound');
+    }
+    if (message === 'outbound 缺少 protocol 字段。') {
+      return this.t('core.missingProtocol');
+    }
+    if (message === 'outbound 缺少 settings 字段。') {
+      return this.t('core.missingSettings');
+    }
+    if (message === '暂只支持 vless://、vmess://、trojan://、ss://、socks://、http://、wireguard:// 和 hysteria2:// 分享链接。') {
+      return this.t('core.unsupportedShareLink');
+    }
+    if (message === 'VLESS 链接缺少用户 ID。') {
+      return this.t('core.vlessMissingId');
+    }
+    if (message === 'VMess 链接缺少服务器、端口或用户 ID。') {
+      return this.t('core.vmessMissingServer');
+    }
+    if (message === 'VMess 链接缺少用户 ID。') {
+      return this.t('core.vmessMissingId');
+    }
+    if (message === 'Trojan 链接缺少密码。') {
+      return this.t('core.trojanMissingPassword');
+    }
+    if (message === 'Shadowsocks 链接缺少加密方法或密码。') {
+      return this.t('core.ssMissingMethod');
+    }
+    if (message === 'Shadowsocks legacy 链接格式不正确。') {
+      return this.t('core.ssLegacyInvalid');
+    }
+    if (message === 'WireGuard 链接缺少私钥。') {
+      return this.t('core.wgMissingPrivateKey');
+    }
+    if (message === 'WireGuard 链接缺少 publickey。') {
+      return this.t('core.wgMissingPublicKey');
+    }
+    if (message === 'Hysteria2 链接缺少认证密码。') {
+      return this.t('core.hy2MissingPassword');
+    }
+    if (message === '订阅链接必须是 http:// 或 https://。') {
+      return this.t('subscription.urlMustHttp');
+    }
+    if (message === '订阅内容里没有识别到支持的节点。') {
+      return this.t('subscription.noSupportedNodes');
+    }
+    if (message === '启动 VPN 超时：系统 VPN 授权服务没有响应。若 hilog 中出现 com.huawei.hmos.vpndialog bundle not exist，说明当前系统镜像缺少 VPN 授权组件，请改用真机测试。') {
+      return this.t('vpn.startTimeout');
+    }
+
+    const unsupportedPrefix = '暂不支持 ';
+    const unsupportedEnd = '，当前支持 VLESS、VMess、Trojan、Shadowsocks、SOCKS、HTTP、WireGuard 和 Hysteria2。';
+    if (message.startsWith(unsupportedPrefix) && message.endsWith(unsupportedEnd)) {
+      const protocol = message.substring(unsupportedPrefix.length, message.length - unsupportedEnd.length);
+      return this.f1('core.unsupportedProtocol', 'protocol', protocol);
+    }
+
+    const validSuffix = ' outbound 校验通过。';
+    if (message.endsWith(validSuffix)) {
+      const protocol = message.substring(0, message.length - validSuffix.length);
+      return this.f1('core.validOutbound', 'protocol', protocol);
+    }
+
+    const shareSuffix = ' 分享链接导入成功。';
+    if (message.endsWith(shareSuffix)) {
+      const protocol = message.substring(0, message.length - shareSuffix.length);
+      return this.f1('core.shareImported', 'protocol', protocol);
+    }
+
+    const updatePrefix = '订阅更新完成，共 ';
+    const updateSuffix = ' 个可用节点。';
+    if (message.startsWith(updatePrefix) && message.endsWith(updateSuffix)) {
+      const count = message.substring(updatePrefix.length, message.length - updateSuffix.length);
+      return this.f1('subscription.updateComplete', 'count', count);
+    }
+
+    return this.localizePrefixMessage(message, 'JSON 解析失败：', 'core.jsonParseFailed') ??
+      this.localizePrefixMessage(message, '分享链接解析失败：', 'core.shareParseFailed') ??
+      this.localizePrefixMessage(message, '启动 VPN 失败：', 'vpn.startFailed') ??
+      this.localizePrefixMessage(message, '停止 VPN 失败：', 'vpn.stopFailed') ??
+      message;
+  }
+
+  private localizePrefixMessage(message: string, prefix: string, key: string): string | null {
+    if (!message.startsWith(prefix)) {
+      return null;
+    }
+    return this.f1(key, 'error', message.substring(prefix.length));
   }
 
   private statusLabel(): string {
     switch (this.status) {
       case ConnectionStatus.STARTING:
-        return 'Starting';
+        return this.t('status.starting');
       case ConnectionStatus.RUNNING:
-        return 'Running';
+        return this.t('status.running');
       case ConnectionStatus.STOPPING:
-        return 'Stopping';
+        return this.t('status.stopping');
       case ConnectionStatus.ERROR:
-        return 'Error';
+        return this.t('status.error');
       default:
-        return 'Idle';
+        return this.t('status.idle');
     }
+  }
+
+  private t(key: string): string {
+    return translate(this.language, key);
+  }
+
+  private f1(key: string, name: string, value: string): string {
+    const names = new Array<string>();
+    const values = new Array<string>();
+    names.push(name);
+    values.push(value);
+    return formatTranslation(this.language, key, names, values);
+  }
+
+  private f2(key: string, name1: string, value1: string, name2: string, value2: string): string {
+    const names = new Array<string>();
+    const values = new Array<string>();
+    names.push(name1);
+    values.push(value1);
+    names.push(name2);
+    values.push(value2);
+    return formatTranslation(this.language, key, names, values);
   }
 
   private statusColor(): string {

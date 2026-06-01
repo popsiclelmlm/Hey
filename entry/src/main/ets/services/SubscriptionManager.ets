@@ -116,7 +116,10 @@ export class SubscriptionManager {
       outboundJson: validation.normalizedJson,
       sourceUrl,
       rawLink: line,
-      updatedAt: now
+      updatedAt: now,
+      delayMs: -1,
+      delayTestAt: 0,
+      delayStatus: ''
     };
   }
 

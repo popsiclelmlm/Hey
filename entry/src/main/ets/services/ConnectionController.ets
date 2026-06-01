@@ -1,8 +1,8 @@
 import { vpnExtension } from '@kit.NetworkKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
-import { ConnectionStatus, GeneratedXrayConfig, ProxyProfile, RuntimeStats } from '../core/Profile';
-import { buildXrayConfig, validateOutboundJson } from '../core/XrayConfig';
+import { AppSettings, ConnectionStatus, GeneratedXrayConfig, ProxyProfile, RuntimeStats } from '../core/Profile';
+import { buildXrayConfig, buildXrayConfigWithSettings, validateOutboundJson } from '../core/XrayConfig';
 import { createStopVpnWant, createVpnWant } from '../vpn/VpnConstants';
 import { getNativeStats } from '../native/HeyNative';
 
@@ -46,7 +46,7 @@ export class ConnectionController {
     return stats;
   }
 
-  async start(profile: ProxyProfile): Promise<ConnectionSnapshot> {
+  async start(profile: ProxyProfile, settings?: AppSettings): Promise<ConnectionSnapshot> {
     if (this.status === ConnectionStatus.STARTING || this.status === ConnectionStatus.RUNNING) {
       return this.getSnapshot();
     }
@@ -60,7 +60,7 @@ export class ConnectionController {
 
     this.status = ConnectionStatus.STARTING;
     this.lastError = '';
-    this.generatedConfig = buildXrayConfig(profile.outboundJson);
+    this.generatedConfig = settings === undefined ? buildXrayConfig(profile.outboundJson) : buildXrayConfigWithSettings(profile.outboundJson, settings);
 
     try {
       hilog.info(LOG_DOMAIN, LOG_TAG, 'Calling startVpnExtensionAbility, configBytes=%{public}d, socks=%{public}s:%{public}d',

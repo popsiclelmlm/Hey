@@ -1,4 +1,4 @@
-import { GeneratedXrayConfig, ValidationResult } from './Profile';
+import { AppSettings, GeneratedXrayConfig, ValidationResult } from './Profile';
 import { isSupportedShareLink, parseShareLinkToOutboundJson } from './ShareLinkParser';
 
 interface XrayOutbound {
@@ -6,11 +6,23 @@ interface XrayOutbound {
   tag?: string;
   settings?: Object;
   streamSettings?: Object;
-  mux?: Object;
+  mux?: XrayMuxConfig;
 }
 
 interface XrayLogConfig {
   loglevel: string;
+}
+
+interface XrayMuxConfig {
+  enabled: boolean;
+  concurrency: number;
+  xudpConcurrency: number;
+  xudpProxyUDP443: string;
+}
+
+interface XraySniffingConfig {
+  enabled: boolean;
+  destOverride: Array<string>;
 }
 
 interface XrayInboundConfig {
@@ -19,15 +31,30 @@ interface XrayInboundConfig {
   port: number;
   protocol: string;
   settings: Object;
+  sniffing?: XraySniffingConfig;
+}
+
+interface XrayDnsConfig {
+  servers: Array<string>;
+  hosts?: Object;
+}
+
+interface XrayRoutingRule {
+  type: string;
+  outboundTag: string;
+  ip?: Array<string>;
+  domain?: Array<string>;
+  network?: string;
 }
 
 interface XrayRoutingConfig {
   domainStrategy: string;
-  rules: Array<Object>;
+  rules: Array<XrayRoutingRule>;
 }
 
 interface XrayFullConfig {
   log: XrayLogConfig;
+  dns?: XrayDnsConfig;
   inbounds: Array<XrayInboundConfig>;
   outbounds: Array<XrayOutbound>;
   routing: XrayRoutingConfig;
@@ -46,6 +73,8 @@ const SUPPORTED_PROTOCOLS: Array<string> = ['vless', 'vmess', 'trojan', 'shadows
 
 export const DEFAULT_SOCKS_HOST: string = '127.0.0.1';
 export const DEFAULT_SOCKS_PORT: number = 10808;
+const DEFAULT_LOG_LEVEL: string = 'warning';
+const DEFAULT_ROUTING_DOMAIN_STRATEGY: string = 'AsIs';
 
 function isSupportedProtocol(protocol: string): boolean {
   return SUPPORTED_PROTOCOLS.indexOf(protocol.toLowerCase()) >= 0;
@@ -141,6 +170,14 @@ export function normalizeOutboundInput(input: string): ValidationResult {
 }
 
 export function buildXrayConfig(outboundJson: string, socksPort: number = DEFAULT_SOCKS_PORT): GeneratedXrayConfig {
+  return buildXrayConfigInternal(outboundJson, socksPort, undefined);
+}
+
+export function buildXrayConfigWithSettings(outboundJson: string, settings: AppSettings): GeneratedXrayConfig {
+  return buildXrayConfigInternal(outboundJson, settings.socksPort, settings);
+}
+
+function buildXrayConfigInternal(outboundJson: string, socksPort: number, settings: AppSettings | undefined): GeneratedXrayConfig {
   const validation = validateOutboundJson(outboundJson);
   if (!validation.valid) {
     throw new Error(validation.message);
@@ -150,6 +187,15 @@ export function buildXrayConfig(outboundJson: string, socksPort: number = DEFAUL
   if (outbound.tag === undefined || outbound.tag.length === 0) {
     outbound.tag = 'proxy';
   }
+  if (settings !== undefined && settings.muxEnabled) {
+    const mux: XrayMuxConfig = {
+      enabled: true,
+      concurrency: settings.muxConcurrency,
+      xudpConcurrency: settings.muxXudpConcurrency,
+      xudpProxyUDP443: settings.muxXudpQuic
+    };
+    outbound.mux = mux;
+  }
 
   const socksInbound: XrayInboundConfig = {
     tag: 'socks-in',
@@ -158,6 +204,13 @@ export function buildXrayConfig(outboundJson: string, socksPort: number = DEFAUL
     protocol: 'socks',
     settings: new SocksInboundSettings()
   };
+  if (settings === undefined || settings.sniffingEnabled) {
+    const sniffing: XraySniffingConfig = {
+      enabled: true,
+      destOverride: ['http', 'tls', 'quic']
+    };
+    socksInbound.sniffing = sniffing;
+  }
   const directOutbound: XrayOutbound = {
     tag: 'direct',
     protocol: 'freedom',
@@ -171,13 +224,14 @@ export function buildXrayConfig(outboundJson: string, socksPort: number = DEFAUL
 
   const config: XrayFullConfig = {
     log: {
-      loglevel: 'warning'
+      loglevel: settings?.logLevel ?? DEFAULT_LOG_LEVEL
     },
+    dns: buildDnsConfig(settings),
     inbounds: [socksInbound],
     outbounds: [outbound, directOutbound, blockOutbound],
     routing: {
-      domainStrategy: 'AsIs',
-      rules: new Array<Object>()
+      domainStrategy: settings?.routingDomainStrategy ?? DEFAULT_ROUTING_DOMAIN_STRATEGY,
+      rules: buildRoutingRules(settings)
     }
   };
 
@@ -186,4 +240,68 @@ export function buildXrayConfig(outboundJson: string, socksPort: number = DEFAUL
     socksHost: DEFAULT_SOCKS_HOST,
     socksPort
   };
+}
+
+function buildDnsConfig(settings: AppSettings | undefined): XrayDnsConfig {
+  if (settings === undefined) {
+    const defaultDns: XrayDnsConfig = {
+      servers: ['1.1.1.1', '8.8.8.8']
+    };
+    return defaultDns;
+  }
+  const servers: Array<string> = [];
+  addCsvValues(servers, settings.remoteDns);
+  addCsvValues(servers, settings.domesticDns);
+  if (servers.length === 0) {
+    servers.push('1.1.1.1');
+  }
+  const dns: XrayDnsConfig = {
+    servers
+  };
+  if (settings.dnsHosts.length > 0) {
+    try {
+      dns.hosts = JSON.parse(settings.dnsHosts) as Object;
+    } catch (error) {
+      dns.hosts = new EmptySettings();
+    }
+  }
+  return dns;
+}
+
+function buildRoutingRules(settings: AppSettings | undefined): Array<XrayRoutingRule> {
+  const rules = new Array<XrayRoutingRule>();
+  if (settings === undefined) {
+    return rules;
+  }
+
+  if (settings.trafficMode === 'direct') {
+    const directAll: XrayRoutingRule = {
+      type: 'field',
+      outboundTag: 'direct',
+      network: 'tcp,udp'
+    };
+    rules.push(directAll);
+    return rules;
+  }
+
+  if (settings.trafficMode === 'rules' && settings.routeOnlyEnabled) {
+    const rule: XrayRoutingRule = {
+      type: 'field',
+      outboundTag: 'direct',
+      ip: ['geoip:private', 'geoip:cn'],
+      domain: ['geosite:cn']
+    };
+    rules.push(rule);
+  }
+  return rules;
+}
+
+function addCsvValues(target: Array<string>, value: string): void {
+  const parts = value.split(',');
+  for (let index = 0; index < parts.length; index++) {
+    const item = parts[index].trim();
+    if (item.length > 0) {
+      target.push(item);
+    }
+  }
 }
