@@ -4,6 +4,8 @@ import { AppSettings } from '../main/ets/core/Profile';
 import { buildXrayConfig, buildXrayConfigWithSettings, normalizeOutboundInput, validateOutboundJson } from '../main/ets/core/XrayConfig';
 import { parseShareLinkToOutboundJson } from '../main/ets/core/ShareLinkParser';
 import { SubscriptionManager } from '../main/ets/services/SubscriptionManager';
+import { formatBytes, formatDuration } from '../main/ets/utils/Formatters';
+import { formatOne, localizedProfileSavedText, localizeCoreMessage } from '../main/ets/utils/LocalizationPresenter';
 
 const VLESS_REALITY_OUTBOUND: string =
   '{"protocol":"vless","tag":"proxy","settings":{"vnext":[{"address":"example.com","port":443,"users":[{"id":"00000000-0000-0000-0000-000000000000","encryption":"none","flow":"xtls-rprx-vision"}]}]},"streamSettings":{"network":"tcp","security":"reality","realitySettings":{"serverName":"www.example.com","publicKey":"test-public-key","shortId":"abcd","fingerprint":"chrome"}}}';
@@ -86,9 +88,18 @@ export default function localUnitTest() {
       expect(translate('en', 'screen.settings.title')).assertEqual('Settings');
       expect(translate('zh', 'missing.translation.key')).assertEqual('missing.translation.key');
       expect(formatTranslation('en', 'subscription.updateComplete', ['count'], ['3'])).assertContain('3');
+      expect(formatOne('zh', 'subscription.updateComplete', 'count', '3')).assertContain('3');
+      expect(localizedProfileSavedText('en', 0)).assertEqual('Not saved');
+      expect(localizeCoreMessage('en', '请先粘贴 Xray outbound JSON。')).assertEqual('Paste Xray outbound JSON first.');
       expect(normalizeLanguage('en')).assertEqual('en');
       expect(normalizeLanguage('zh')).assertEqual('zh');
       expect(normalizeLanguage('fr')).assertEqual('zh');
+    });
+
+    it('formats runtime values through shared helpers', 0, () => {
+      expect(formatBytes(512)).assertEqual('512 B');
+      expect(formatBytes(2048)).assertEqual('2.0 KB');
+      expect(formatDuration(65)).assertEqual('01:05');
     });
 
     it('imports vless reality share link as outbound json', 0, () => {

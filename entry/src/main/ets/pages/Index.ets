@@ -1,5 +1,5 @@
 import { common } from '@kit.AbilityKit';
-import { DEFAULT_LANGUAGE, formatTranslation, normalizeLanguage, translate } from '../core/I18n';
+import { DEFAULT_LANGUAGE, normalizeLanguage, translate } from '../core/I18n';
 import { AppLanguage, AppSettings, ConnectionStatus, ProxyNode, ProxyProfile, RuntimeStats, SubscriptionGroup, SubscriptionProfile } from '../core/Profile';
 import { normalizeOutboundInput } from '../core/XrayConfig';
 import { ConnectionController, ConnectionSnapshot } from '../services/ConnectionController';
@@ -9,6 +9,21 @@ import { SubscriptionManager, SubscriptionUpdateResult } from '../services/Subsc
 import { ProfileStore } from '../storage/ProfileStore';
 import { DEFAULT_APP_SETTINGS, SettingsStore } from '../storage/SettingsStore';
 import { SubscriptionStore } from '../storage/SubscriptionStore';
+import {
+  connectionStatusBackground,
+  connectionStatusColor,
+  formatBytes,
+  formatClockTime,
+  formatDuration
+} from '../utils/Formatters';
+import {
+  formatOne,
+  formatTwo,
+  localizedConnectionStatus,
+  localizedProfileSavedText,
+  localizedSubscriptionStatusText,
+  localizeCoreMessage
+} from '../utils/LocalizationPresenter';
 
 const EMPTY_STATS: RuntimeStats = {
   uploadBytes: 0,
@@ -1133,8 +1148,8 @@ struct Index {
 
       Row({ space: 10 }) {
         this.MetricTile(this.t('runtime.duration'), this.elapsedText)
-        this.MetricTile(this.t('runtime.upload'), this.formatBytes(this.stats.uploadBytes))
-        this.MetricTile(this.t('runtime.download'), this.formatBytes(this.stats.downloadBytes))
+        this.MetricTile(this.t('runtime.upload'), formatBytes(this.stats.uploadBytes))
+        this.MetricTile(this.t('runtime.download'), formatBytes(this.stats.downloadBytes))
       }
       .width('100%')
 
@@ -1536,13 +1551,11 @@ struct Index {
       return;
     }
     const seconds = Math.max(0, Math.floor((Date.now() - this.startedAt) / 1000));
-    const minutes = Math.floor(seconds / 60);
-    const remain = seconds % 60;
-    this.elapsedText = `${this.pad2(minutes)}:${this.pad2(remain)}`;
+    this.elapsedText = formatDuration(seconds);
   }
 
   private appendLog(message: string): void {
-    const line = `${this.formatTime(Date.now())}  ${message}`;
+    const line = `${formatClockTime(Date.now())}  ${message}`;
     const next = [line].concat(this.logs);
     this.logs = next.slice(0, 80);
   }
@@ -1571,7 +1584,7 @@ struct Index {
     try {
       const context = getContext(this) as common.Context;
       const events = await DiagnosticLog.read(context, 80);
-      this.diagnosticLogs = events.map((event: DiagnosticEvent) => DiagnosticLog.format(event, (value: number) => this.formatTime(value)));
+      this.diagnosticLogs = events.map((event: DiagnosticEvent) => DiagnosticLog.format(event, (value: number) => formatClockTime(value)));
       this.applyDiagnosticStats(events);
       this.applyDiagnosticError(events);
     } finally {
@@ -1899,129 +1912,19 @@ struct Index {
   }
 
   private profileSavedText(updatedAt: number): string {
-    return updatedAt > 0 ? this.f1('profile.savedAt', 'time', this.formatTime(updatedAt)) : this.t('profile.notSaved');
+    return localizedProfileSavedText(this.language, updatedAt);
   }
 
   private subscriptionStatusText(updatedAt: number): string {
-    return updatedAt > 0 ? this.f1('subscription.updatedAt', 'time', this.formatTime(updatedAt)) : this.t('subscription.none');
+    return localizedSubscriptionStatusText(this.language, updatedAt);
   }
 
   private localizeCoreMessage(message: string): string {
-    if (message.length === 0) {
-      return '';
-    }
-    if (message === 'Native bridge not queried yet.' ||
-      message === translate('zh', 'runtime.nativeBridgeNotQueried') ||
-      message === translate('en', 'runtime.nativeBridgeNotQueried')) {
-      return this.t('runtime.nativeBridgeNotQueried');
-    }
-    if (message === 'VPN extension owns the native bridge. Wire IPC stats after real libXray/tun2socks integration.' ||
-      message === translate('zh', 'runtime.vpnOwnsBridge') ||
-      message === translate('en', 'runtime.vpnOwnsBridge')) {
-      return this.t('runtime.vpnOwnsBridge');
-    }
-    if (message === '请先粘贴 Xray outbound JSON。') {
-      return this.t('core.emptyOutbound');
-    }
-    if (message === 'outbound 缺少 protocol 字段。') {
-      return this.t('core.missingProtocol');
-    }
-    if (message === 'outbound 缺少 settings 字段。') {
-      return this.t('core.missingSettings');
-    }
-    if (message === '暂只支持 vless://、vmess://、trojan://、ss://、socks://、http://、wireguard:// 和 hysteria2:// 分享链接。') {
-      return this.t('core.unsupportedShareLink');
-    }
-    if (message === 'VLESS 链接缺少用户 ID。') {
-      return this.t('core.vlessMissingId');
-    }
-    if (message === 'VMess 链接缺少服务器、端口或用户 ID。') {
-      return this.t('core.vmessMissingServer');
-    }
-    if (message === 'VMess 链接缺少用户 ID。') {
-      return this.t('core.vmessMissingId');
-    }
-    if (message === 'Trojan 链接缺少密码。') {
-      return this.t('core.trojanMissingPassword');
-    }
-    if (message === 'Shadowsocks 链接缺少加密方法或密码。') {
-      return this.t('core.ssMissingMethod');
-    }
-    if (message === 'Shadowsocks legacy 链接格式不正确。') {
-      return this.t('core.ssLegacyInvalid');
-    }
-    if (message === 'WireGuard 链接缺少私钥。') {
-      return this.t('core.wgMissingPrivateKey');
-    }
-    if (message === 'WireGuard 链接缺少 publickey。') {
-      return this.t('core.wgMissingPublicKey');
-    }
-    if (message === 'Hysteria2 链接缺少认证密码。') {
-      return this.t('core.hy2MissingPassword');
-    }
-    if (message === '订阅链接必须是 http:// 或 https://。') {
-      return this.t('subscription.urlMustHttp');
-    }
-    if (message === '订阅内容里没有识别到支持的节点。') {
-      return this.t('subscription.noSupportedNodes');
-    }
-    if (message === '启动 VPN 超时：系统 VPN 授权服务没有响应。若 hilog 中出现 com.huawei.hmos.vpndialog bundle not exist，说明当前系统镜像缺少 VPN 授权组件，请改用真机测试。') {
-      return this.t('vpn.startTimeout');
-    }
-
-    const unsupportedPrefix = '暂不支持 ';
-    const unsupportedEnd = '，当前支持 VLESS、VMess、Trojan、Shadowsocks、SOCKS、HTTP、WireGuard 和 Hysteria2。';
-    if (message.startsWith(unsupportedPrefix) && message.endsWith(unsupportedEnd)) {
-      const protocol = message.substring(unsupportedPrefix.length, message.length - unsupportedEnd.length);
-      return this.f1('core.unsupportedProtocol', 'protocol', protocol);
-    }
-
-    const validSuffix = ' outbound 校验通过。';
-    if (message.endsWith(validSuffix)) {
-      const protocol = message.substring(0, message.length - validSuffix.length);
-      return this.f1('core.validOutbound', 'protocol', protocol);
-    }
-
-    const shareSuffix = ' 分享链接导入成功。';
-    if (message.endsWith(shareSuffix)) {
-      const protocol = message.substring(0, message.length - shareSuffix.length);
-      return this.f1('core.shareImported', 'protocol', protocol);
-    }
-
-    const updatePrefix = '订阅更新完成，共 ';
-    const updateSuffix = ' 个可用节点。';
-    if (message.startsWith(updatePrefix) && message.endsWith(updateSuffix)) {
-      const count = message.substring(updatePrefix.length, message.length - updateSuffix.length);
-      return this.f1('subscription.updateComplete', 'count', count);
-    }
-
-    return this.localizePrefixMessage(message, 'JSON 解析失败：', 'core.jsonParseFailed') ??
-      this.localizePrefixMessage(message, '分享链接解析失败：', 'core.shareParseFailed') ??
-      this.localizePrefixMessage(message, '启动 VPN 失败：', 'vpn.startFailed') ??
-      this.localizePrefixMessage(message, '停止 VPN 失败：', 'vpn.stopFailed') ??
-      message;
-  }
-
-  private localizePrefixMessage(message: string, prefix: string, key: string): string | null {
-    if (!message.startsWith(prefix)) {
-      return null;
-    }
-    return this.f1(key, 'error', message.substring(prefix.length));
+    return localizeCoreMessage(this.language, message);
   }
 
   private statusLabel(): string {
-    switch (this.status) {
-      case ConnectionStatus.STARTING:
-        return this.t('status.starting');
-      case ConnectionStatus.RUNNING:
-        return this.t('status.running');
-      case ConnectionStatus.STOPPING:
-        return this.t('status.stopping');
-      case ConnectionStatus.ERROR:
-        return this.t('status.error');
-      default:
-        return this.t('status.idle');
-    }
+    return localizedConnectionStatus(this.language, this.status);
   }
 
   private t(key: string): string {
@@ -2029,47 +1932,19 @@ struct Index {
   }
 
   private f1(key: string, name: string, value: string): string {
-    const names = new Array<string>();
-    const values = new Array<string>();
-    names.push(name);
-    values.push(value);
-    return formatTranslation(this.language, key, names, values);
+    return formatOne(this.language, key, name, value);
   }
 
   private f2(key: string, name1: string, value1: string, name2: string, value2: string): string {
-    const names = new Array<string>();
-    const values = new Array<string>();
-    names.push(name1);
-    values.push(value1);
-    names.push(name2);
-    values.push(value2);
-    return formatTranslation(this.language, key, names, values);
+    return formatTwo(this.language, key, name1, value1, name2, value2);
   }
 
   private statusColor(): string {
-    if (this.status === ConnectionStatus.RUNNING) {
-      return '#166534';
-    }
-    if (this.status === ConnectionStatus.ERROR) {
-      return '#B42318';
-    }
-    if (this.status === ConnectionStatus.STARTING || this.status === ConnectionStatus.STOPPING) {
-      return '#92400E';
-    }
-    return '#374151';
+    return connectionStatusColor(this.status);
   }
 
   private statusBackground(): string {
-    if (this.status === ConnectionStatus.RUNNING) {
-      return '#DCFCE7';
-    }
-    if (this.status === ConnectionStatus.ERROR) {
-      return '#FEF3F2';
-    }
-    if (this.status === ConnectionStatus.STARTING || this.status === ConnectionStatus.STOPPING) {
-      return '#FEF3C7';
-    }
-    return '#F3F4F6';
+    return connectionStatusBackground(this.status);
   }
 
   private isRunning(): boolean {
@@ -2080,22 +1955,4 @@ struct Index {
     return this.status === ConnectionStatus.STARTING || this.status === ConnectionStatus.STOPPING;
   }
 
-  private formatBytes(value: number): string {
-    if (value >= 1024 * 1024) {
-      return `${(value / 1024 / 1024).toFixed(1)} MB`;
-    }
-    if (value >= 1024) {
-      return `${(value / 1024).toFixed(1)} KB`;
-    }
-    return `${value} B`;
-  }
-
-  private formatTime(value: number): string {
-    const date = new Date(value);
-    return `${this.pad2(date.getHours())}:${this.pad2(date.getMinutes())}:${this.pad2(date.getSeconds())}`;
-  }
-
-  private pad2(value: number): string {
-    return value < 10 ? `0${value}` : value.toString();
-  }
 }
