@@ -1,5 +1,5 @@
 import { common } from '@kit.AbilityKit';
-import { ConnectionStatus, ProxyNode, ProxyProfile, RuntimeStats } from '../core/Profile';
+import { ConnectionStatus, ProxyNode, ProxyProfile, RuntimeStats, SubscriptionGroup, SubscriptionProfile } from '../core/Profile';
 import { normalizeOutboundInput } from '../core/XrayConfig';
 import { ConnectionController, ConnectionSnapshot } from '../services/ConnectionController';
 import { DiagnosticEvent, DiagnosticLog } from '../services/DiagnosticLog';
@@ -69,6 +69,8 @@ struct Index {
   @State private selectedNodeId: string = '';
   @State private subscriptionMessage: string = 'No subscription loaded.';
   @State private subscriptionUpdating: boolean = false;
+  @State private subscriptionGroups: Array<SubscriptionGroup> = [];
+  @State private selectedGroupId: string = '';
   @State private activeScreen: AppScreen = AppScreen.SERVERS;
   @State private searchQuery: string = '';
   @State private importBuffer: string = '';
@@ -745,12 +747,12 @@ struct Index {
   private SubscriptionPanel() {
     Column({ space: 12 }) {
       Row() {
-        Text('Subscription')
+        Text('Subscription Groups')
           .fontSize(18)
           .fontWeight(FontWeight.Bold)
           .fontColor('#111827')
           .layoutWeight(1)
-        Text(`${this.nodes.length} nodes`)
+        Text(`${this.subscriptionGroups.length} groups / ${this.nodes.length} nodes`)
           .fontSize(12)
           .fontColor('#6B7280')
       }
@@ -773,9 +775,20 @@ struct Index {
         })
 
       Row({ space: 8 }) {
+        Button('Save Group')
+          .height(38)
+          .width(116)
+          .fontSize(14)
+          .enabled(!this.subscriptionUpdating && !this.isBusy())
+          .backgroundColor('#E5E7EB')
+          .fontColor('#374151')
+          .borderRadius(8)
+          .onClick(() => {
+            this.saveSubscriptionGroup();
+          })
         Button(this.subscriptionUpdating ? 'Updating' : 'Update')
           .height(38)
-          .width(104)
+          .width(96)
           .fontSize(14)
           .enabled(!this.subscriptionUpdating && !this.isBusy())
           .backgroundColor('#1D4ED8')
@@ -792,6 +805,15 @@ struct Index {
       .width('100%')
       .alignItems(VerticalAlign.Center)
 
+      if (this.subscriptionGroups.length > 0) {
+        Column({ space: 8 }) {
+          ForEach(this.subscriptionGroups, (group: SubscriptionGroup) => {
+            this.SubscriptionGroupRow(group)
+          }, (group: SubscriptionGroup) => group.id)
+        }
+        .width('100%')
+      }
+
       if (this.nodes.length > 0) {
         Column({ space: 8 }) {
           ForEach(this.nodes, (node: ProxyNode) => {
@@ -805,6 +827,59 @@ struct Index {
     .padding(16)
     .backgroundColor('#FFFFFF')
     .borderRadius(8)
+  }
+
+  @Builder
+  private SubscriptionGroupRow(group: SubscriptionGroup) {
+    Row({ space: 8 }) {
+      Column({ space: 3 }) {
+        Text(group.name)
+          .fontSize(14)
+          .fontWeight(FontWeight.Medium)
+          .fontColor('#111827')
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+        Text(`${group.enabled ? 'Enabled' : 'Disabled'} / ${group.nodes.length} nodes`)
+          .fontSize(12)
+          .fontColor('#6B7280')
+      }
+      .layoutWeight(1)
+
+      Button(group.id === this.selectedGroupId ? 'Current' : 'Open')
+        .height(32)
+        .width(76)
+        .fontSize(12)
+        .backgroundColor(group.id === this.selectedGroupId ? '#166534' : '#E5E7EB')
+        .fontColor(group.id === this.selectedGroupId ? '#FFFFFF' : '#374151')
+        .borderRadius(6)
+        .onClick(() => {
+          this.selectSubscriptionGroup(group);
+        })
+      Button(group.enabled ? 'On' : 'Off')
+        .height(32)
+        .width(58)
+        .fontSize(12)
+        .backgroundColor(group.enabled ? '#EEF2FF' : '#F3F4F6')
+        .fontColor(group.enabled ? '#3730A3' : '#6B7280')
+        .borderRadius(6)
+        .onClick(() => {
+          this.toggleSubscriptionGroup(group);
+        })
+      Button('Del')
+        .height(32)
+        .width(54)
+        .fontSize(12)
+        .backgroundColor('#FEF3F2')
+        .fontColor('#B42318')
+        .borderRadius(6)
+        .onClick(() => {
+          this.removeSubscriptionGroup(group);
+        })
+    }
+    .width('100%')
+    .padding(10)
+    .backgroundColor(group.id === this.selectedGroupId ? '#F0FDF4' : '#F9FAFB')
+    .borderRadius(6)
   }
 
   @Builder
@@ -1040,10 +1115,7 @@ struct Index {
     try {
       const context = getContext(this) as common.Context;
       const subscription = await SubscriptionStore.load(context);
-      this.subscriptionUrl = subscription.url;
-      this.nodes = subscription.nodes;
-      this.selectedNodeId = subscription.selectedNodeId;
-      this.subscriptionMessage = subscription.updatedAt > 0 ? `Updated ${this.formatTime(subscription.updatedAt)}` : 'No subscription loaded.';
+      this.applySubscription(subscription);
 
       const selected = this.findNode(subscription.selectedNodeId);
       if (selected !== null) {
@@ -1054,6 +1126,15 @@ struct Index {
       this.subscriptionMessage = `加载订阅失败：${JSON.stringify(error)}`;
       this.appendLog(this.subscriptionMessage);
     }
+  }
+
+  private applySubscription(subscription: SubscriptionProfile): void {
+    this.subscriptionUrl = subscription.url;
+    this.nodes = subscription.nodes;
+    this.selectedNodeId = subscription.selectedNodeId;
+    this.subscriptionGroups = subscription.groups;
+    this.selectedGroupId = subscription.selectedGroupId;
+    this.subscriptionMessage = subscription.updatedAt > 0 ? `Updated ${this.formatTime(subscription.updatedAt)}` : 'No subscription loaded.';
   }
 
   private async saveProfileOnly(): Promise<void> {
@@ -1110,17 +1191,24 @@ struct Index {
     if (this.subscriptionUpdating) {
       return;
     }
+    const url = this.subscriptionUrl.trim();
+    if (url.length === 0) {
+      this.subscriptionMessage = '订阅链接为空。';
+      this.appendLog(this.subscriptionMessage);
+      return;
+    }
 
     this.subscriptionUpdating = true;
     this.subscriptionMessage = 'Updating subscription.';
     this.appendLog('Updating subscription.');
     try {
       const context = getContext(this) as common.Context;
-      await SubscriptionStore.saveUrl(context, this.subscriptionUrl.trim());
-      const result: SubscriptionUpdateResult = await SubscriptionManager.fetchAndParse(this.subscriptionUrl);
+      await SubscriptionStore.saveUrl(context, url);
+      const result: SubscriptionUpdateResult = await SubscriptionManager.fetchAndParse(url);
       if (!result.ok) {
         this.subscriptionMessage = result.message;
         this.appendLog(result.message);
+        this.applySubscription(await SubscriptionStore.load(context));
         return;
       }
 
@@ -1128,9 +1216,8 @@ struct Index {
       if (this.findNodeInList(result.nodes, selectedId) === null) {
         selectedId = result.nodes[0].id;
       }
-      await SubscriptionStore.saveNodes(context, this.subscriptionUrl.trim(), result.nodes, selectedId);
-      this.nodes = result.nodes;
-      this.selectedNodeId = selectedId;
+      const subscription = await SubscriptionStore.saveNodes(context, url, result.nodes, selectedId);
+      this.applySubscription(subscription);
       this.subscriptionMessage = result.message;
       this.appendLog(result.message);
 
@@ -1146,11 +1233,71 @@ struct Index {
     }
   }
 
+  private async saveSubscriptionGroup(): Promise<void> {
+    const url = this.subscriptionUrl.trim();
+    if (url.length === 0) {
+      this.subscriptionMessage = '订阅链接为空。';
+      this.appendLog(this.subscriptionMessage);
+      return;
+    }
+    try {
+      const context = getContext(this) as common.Context;
+      const subscription = await SubscriptionStore.saveUrl(context, url);
+      this.applySubscription(subscription);
+      this.subscriptionMessage = 'Subscription group saved.';
+      this.appendLog(this.subscriptionMessage);
+    } catch (error) {
+      this.subscriptionMessage = `保存订阅组失败：${JSON.stringify(error)}`;
+      this.appendLog(this.subscriptionMessage);
+    }
+  }
+
+  private async selectSubscriptionGroup(group: SubscriptionGroup): Promise<void> {
+    try {
+      const context = getContext(this) as common.Context;
+      const subscription = await SubscriptionStore.selectGroup(context, group.id);
+      this.applySubscription(subscription);
+      const selected = this.findNode(subscription.selectedNodeId);
+      if (selected !== null) {
+        await this.selectNode(selected);
+      }
+      this.appendLog(`Opened subscription group: ${group.name}`);
+    } catch (error) {
+      this.subscriptionMessage = `选择订阅组失败：${JSON.stringify(error)}`;
+      this.appendLog(this.subscriptionMessage);
+    }
+  }
+
+  private async toggleSubscriptionGroup(group: SubscriptionGroup): Promise<void> {
+    try {
+      const context = getContext(this) as common.Context;
+      const subscription = await SubscriptionStore.toggleGroup(context, group.id);
+      this.applySubscription(subscription);
+      this.appendLog(`${group.name}: ${group.enabled ? 'disabled' : 'enabled'}`);
+    } catch (error) {
+      this.subscriptionMessage = `切换订阅组失败：${JSON.stringify(error)}`;
+      this.appendLog(this.subscriptionMessage);
+    }
+  }
+
+  private async removeSubscriptionGroup(group: SubscriptionGroup): Promise<void> {
+    try {
+      const context = getContext(this) as common.Context;
+      const subscription = await SubscriptionStore.removeGroup(context, group.id);
+      this.applySubscription(subscription);
+      this.appendLog(`Removed subscription group: ${group.name}`);
+    } catch (error) {
+      this.subscriptionMessage = `删除订阅组失败：${JSON.stringify(error)}`;
+      this.appendLog(this.subscriptionMessage);
+    }
+  }
+
   private async selectNode(node: ProxyNode): Promise<void> {
     try {
       const context = getContext(this) as common.Context;
-      await SubscriptionStore.selectNode(context, node.id);
+      const subscription = await SubscriptionStore.selectNode(context, node.id);
       const profile = await ProfileStore.save(context, node.outboundJson);
+      this.applySubscription(subscription);
       this.selectedNodeId = node.id;
       this.outboundJson = node.outboundJson;
       this.profileUpdatedAt = `Saved ${this.formatTime(profile.updatedAt)}`;

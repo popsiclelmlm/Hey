@@ -11,7 +11,7 @@ XML layouts, drawable assets, launcher artwork, strings, or package branding.
 | MainActivity / MainRecyclerAdapter | Nodes | Present. Lists subscription nodes, search, select current node, start/stop/restart VPN. |
 | Add config menu | Add | Present. Imports share links, outbound JSON, or subscription URL; protocol tabs are scaffolded. |
 | ScannerActivity / ScScannerActivity | Scan | Present. Paste/import path is wired; camera QR capture still pending. |
-| SubSettingActivity / SubEditActivity | Subs | Present for one subscription profile; multi-group CRUD pending. |
+| SubSettingActivity / SubEditActivity | Subs | Multi-group model present. Save/update/select/enable-disable/delete are wired; dedicated edit form and reorder pending. |
 | ServerActivity protocol editors | Add | Scaffolded for VLESS, VMess, Shadowsocks, SOCKS, HTTP, Trojan, WireGuard, Hysteria2. Field-level editors pending. |
 | ServerCustomConfigActivity | Add | Raw outbound JSON import works. Full custom config import pending. |
 | RoutingSettingActivity / RoutingEditActivity | Route | Scaffolded. Strategy selection is local; ruleset persistence and config generation pending. |
@@ -38,7 +38,7 @@ XML layouts, drawable assets, launcher artwork, strings, or package branding.
 | Delay test / real ping / sort by delay | Pending. |
 | Delete all / duplicate / invalid configs | Pending. |
 | Export/share configs and QR generation | Pending. |
-| Multi-subscription groups | Pending. |
+| Multi-subscription groups | Present with legacy single-subscription migration. Rename/reorder and batch update all pending. |
 | Routing rulesets and geo assets | Pending. |
 | Per-app proxy | Pending. |
 | Auto subscription update | Pending. |

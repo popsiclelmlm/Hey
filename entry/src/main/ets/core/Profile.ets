@@ -17,11 +17,23 @@ export interface ProxyNode {
   updatedAt: number;
 }
 
+export interface SubscriptionGroup {
+  id: string;
+  name: string;
+  url: string;
+  enabled: boolean;
+  selectedNodeId: string;
+  nodes: Array<ProxyNode>;
+  updatedAt: number;
+}
+
 export interface SubscriptionProfile {
   url: string;
   selectedNodeId: string;
   nodes: Array<ProxyNode>;
   updatedAt: number;
+  selectedGroupId: string;
+  groups: Array<SubscriptionGroup>;
 }
 
 export interface ValidationResult {

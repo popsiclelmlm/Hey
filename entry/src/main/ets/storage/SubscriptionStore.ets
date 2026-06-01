@@ -1,6 +1,6 @@
 import { common } from '@kit.AbilityKit';
 import { preferences } from '@kit.ArkData';
-import { ProxyNode, SubscriptionProfile } from '../core/Profile';
+import { ProxyNode, SubscriptionGroup, SubscriptionProfile } from '../core/Profile';
 
 const PREFERENCES_NAME: string = 'hey_vpn_subscription';
 const SUBSCRIPTION_KEY: string = 'subscription_profile';
@@ -15,11 +15,7 @@ export class SubscriptionStore {
     }
 
     try {
-      const profile = JSON.parse(raw) as SubscriptionProfile;
-      if (profile.nodes === undefined) {
-        return SubscriptionStore.createEmpty();
-      }
-      return profile;
+      return SubscriptionStore.normalize(JSON.parse(raw) as SubscriptionProfile);
     } catch (error) {
       return SubscriptionStore.createEmpty();
     }
@@ -27,27 +23,92 @@ export class SubscriptionStore {
 
   static async saveUrl(context: common.Context, url: string): Promise<SubscriptionProfile> {
     const profile = await SubscriptionStore.load(context);
-    profile.url = url;
-    await SubscriptionStore.save(context, profile);
-    return profile;
+    let group = SubscriptionStore.activeGroup(profile);
+    if (group === null) {
+      group = SubscriptionStore.createGroup(url, SubscriptionStore.nameFromUrl(url));
+      profile.groups.push(group);
+      profile.selectedGroupId = group.id;
+    }
+    group.url = url;
+    if (group.name.length === 0 || group.name.startsWith('Subscription ')) {
+      group.name = SubscriptionStore.nameFromUrl(url);
+    }
+    group.updatedAt = Date.now();
+    await SubscriptionStore.save(context, SubscriptionStore.normalize(profile));
+    return SubscriptionStore.load(context);
   }
 
   static async saveNodes(context: common.Context, url: string, nodes: Array<ProxyNode>, selectedNodeId: string): Promise<SubscriptionProfile> {
-    const profile: SubscriptionProfile = {
-      url,
-      selectedNodeId,
-      nodes,
-      updatedAt: Date.now()
-    };
-    await SubscriptionStore.save(context, profile);
-    return profile;
+    const profile = await SubscriptionStore.load(context);
+    let group = SubscriptionStore.findGroupByUrl(profile.groups, url);
+    if (group === null) {
+      group = SubscriptionStore.activeGroup(profile);
+    }
+    if (group === null) {
+      group = SubscriptionStore.createGroup(url, SubscriptionStore.nameFromUrl(url));
+      profile.groups.push(group);
+    }
+
+    group.url = url;
+    group.nodes = nodes;
+    group.selectedNodeId = selectedNodeId;
+    group.updatedAt = Date.now();
+    profile.selectedGroupId = group.id;
+    await SubscriptionStore.save(context, SubscriptionStore.normalize(profile));
+    return SubscriptionStore.load(context);
   }
 
   static async selectNode(context: common.Context, selectedNodeId: string): Promise<SubscriptionProfile> {
     const profile = await SubscriptionStore.load(context);
+    for (let index = 0; index < profile.groups.length; index++) {
+      const group = profile.groups[index];
+      if (SubscriptionStore.findNode(group.nodes, selectedNodeId) !== null) {
+        group.selectedNodeId = selectedNodeId;
+        profile.selectedGroupId = group.id;
+        await SubscriptionStore.save(context, SubscriptionStore.normalize(profile));
+        return SubscriptionStore.load(context);
+      }
+    }
+
     profile.selectedNodeId = selectedNodeId;
-    await SubscriptionStore.save(context, profile);
-    return profile;
+    await SubscriptionStore.save(context, SubscriptionStore.normalize(profile));
+    return SubscriptionStore.load(context);
+  }
+
+  static async selectGroup(context: common.Context, groupId: string): Promise<SubscriptionProfile> {
+    const profile = await SubscriptionStore.load(context);
+    if (SubscriptionStore.findGroup(profile.groups, groupId) !== null) {
+      profile.selectedGroupId = groupId;
+      await SubscriptionStore.save(context, SubscriptionStore.normalize(profile));
+    }
+    return SubscriptionStore.load(context);
+  }
+
+  static async toggleGroup(context: common.Context, groupId: string): Promise<SubscriptionProfile> {
+    const profile = await SubscriptionStore.load(context);
+    const group = SubscriptionStore.findGroup(profile.groups, groupId);
+    if (group !== null) {
+      group.enabled = !group.enabled;
+      group.updatedAt = Date.now();
+      await SubscriptionStore.save(context, SubscriptionStore.normalize(profile));
+    }
+    return SubscriptionStore.load(context);
+  }
+
+  static async removeGroup(context: common.Context, groupId: string): Promise<SubscriptionProfile> {
+    const profile = await SubscriptionStore.load(context);
+    const groups: Array<SubscriptionGroup> = [];
+    for (let index = 0; index < profile.groups.length; index++) {
+      if (profile.groups[index].id !== groupId) {
+        groups.push(profile.groups[index]);
+      }
+    }
+    profile.groups = groups;
+    if (SubscriptionStore.findGroup(profile.groups, profile.selectedGroupId) === null) {
+      profile.selectedGroupId = profile.groups.length > 0 ? profile.groups[0].id : '';
+    }
+    await SubscriptionStore.save(context, SubscriptionStore.normalize(profile));
+    return SubscriptionStore.load(context);
   }
 
   private static async save(context: common.Context, profile: SubscriptionProfile): Promise<void> {
@@ -56,12 +117,135 @@ export class SubscriptionStore {
     await store.flush();
   }
 
+  private static normalize(raw: SubscriptionProfile): SubscriptionProfile {
+    const profile: SubscriptionProfile = {
+      url: raw.url ?? '',
+      selectedNodeId: raw.selectedNodeId ?? '',
+      nodes: raw.nodes ?? [],
+      updatedAt: raw.updatedAt ?? 0,
+      selectedGroupId: raw.selectedGroupId ?? '',
+      groups: raw.groups ?? []
+    };
+
+    const normalizedGroups: Array<SubscriptionGroup> = [];
+    for (let index = 0; index < profile.groups.length; index++) {
+      normalizedGroups.push(SubscriptionStore.normalizeGroup(profile.groups[index], index));
+    }
+
+    if (normalizedGroups.length === 0 && (profile.url.length > 0 || profile.nodes.length > 0)) {
+      normalizedGroups.push({
+        id: SubscriptionStore.makeGroupId(profile.url.length > 0 ? profile.url : 'legacy'),
+        name: SubscriptionStore.nameFromUrl(profile.url),
+        url: profile.url,
+        enabled: true,
+        selectedNodeId: profile.selectedNodeId,
+        nodes: profile.nodes,
+        updatedAt: profile.updatedAt
+      });
+    }
+
+    profile.groups = normalizedGroups;
+    if (SubscriptionStore.findGroup(profile.groups, profile.selectedGroupId) === null) {
+      profile.selectedGroupId = profile.groups.length > 0 ? profile.groups[0].id : '';
+    }
+
+    const active = SubscriptionStore.activeGroup(profile);
+    if (active !== null) {
+      profile.url = active.url;
+      profile.nodes = active.nodes;
+      profile.selectedNodeId = active.selectedNodeId;
+      profile.updatedAt = active.updatedAt;
+    } else {
+      profile.url = '';
+      profile.nodes = [];
+      profile.selectedNodeId = '';
+      profile.updatedAt = 0;
+    }
+    return profile;
+  }
+
+  private static normalizeGroup(group: SubscriptionGroup, index: number): SubscriptionGroup {
+    const url = group.url ?? '';
+    return {
+      id: group.id ?? SubscriptionStore.makeGroupId(`${url}-${index}`),
+      name: group.name ?? SubscriptionStore.nameFromUrl(url),
+      url,
+      enabled: group.enabled ?? true,
+      selectedNodeId: group.selectedNodeId ?? '',
+      nodes: group.nodes ?? [],
+      updatedAt: group.updatedAt ?? 0
+    };
+  }
+
+  private static activeGroup(profile: SubscriptionProfile): SubscriptionGroup | null {
+    return SubscriptionStore.findGroup(profile.groups, profile.selectedGroupId);
+  }
+
+  private static findGroup(groups: Array<SubscriptionGroup>, groupId: string): SubscriptionGroup | null {
+    for (let index = 0; index < groups.length; index++) {
+      if (groups[index].id === groupId) {
+        return groups[index];
+      }
+    }
+    return null;
+  }
+
+  private static findGroupByUrl(groups: Array<SubscriptionGroup>, url: string): SubscriptionGroup | null {
+    for (let index = 0; index < groups.length; index++) {
+      if (groups[index].url === url) {
+        return groups[index];
+      }
+    }
+    return null;
+  }
+
+  private static findNode(nodes: Array<ProxyNode>, nodeId: string): ProxyNode | null {
+    for (let index = 0; index < nodes.length; index++) {
+      if (nodes[index].id === nodeId) {
+        return nodes[index];
+      }
+    }
+    return null;
+  }
+
+  private static createGroup(url: string, name: string): SubscriptionGroup {
+    return {
+      id: SubscriptionStore.makeGroupId(url.length > 0 ? url : Date.now().toString()),
+      name,
+      url,
+      enabled: true,
+      selectedNodeId: '',
+      nodes: [],
+      updatedAt: 0
+    };
+  }
+
   private static createEmpty(): SubscriptionProfile {
     return {
       url: '',
       selectedNodeId: '',
       nodes: [],
-      updatedAt: 0
+      updatedAt: 0,
+      selectedGroupId: '',
+      groups: []
     };
+  }
+
+  private static nameFromUrl(url: string): string {
+    if (url.length === 0) {
+      return 'Subscription';
+    }
+    const stripped = url.replace('https://', '').replace('http://', '');
+    const slash = stripped.indexOf('/');
+    return slash >= 0 ? stripped.substring(0, slash) : stripped;
+  }
+
+  private static makeGroupId(value: string): string {
+    let hash = 2166136261;
+    for (let index = 0; index < value.length; index++) {
+      hash = (hash ^ value.charCodeAt(index)) * 16777619;
+      hash = hash >>> 0;
+    }
+    return `sub-${hash.toString(16)}`;
   }
 }
