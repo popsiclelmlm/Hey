@@ -11,8 +11,9 @@ import { SubscriptionManager, SubscriptionUpdateResult } from '../services/Subsc
 import { ProfileStore } from '../storage/ProfileStore';
 import { DEFAULT_APP_SETTINGS, SettingsStore } from '../storage/SettingsStore';
 import { SubscriptionStore } from '../storage/SubscriptionStore';
+import { AppNavigationRail } from '../shell/AppNavigationRail';
 import { AppTopBar } from '../shell/AppTopBar';
-import { AppScreen, SCREEN_ENTRIES, ScreenEntry } from '../shell/AppScreen';
+import { AppScreen, SCREEN_ENTRIES } from '../shell/AppScreen';
 import {
   connectionStatusBackground,
   connectionStatusColor,
@@ -104,7 +105,12 @@ struct Index {
 
   build() {
     Row() {
-      this.NavigationRail()
+      AppNavigationRail({
+        activeScreen: $activeScreen,
+        entries: SCREEN_ENTRIES,
+        language: this.language,
+        brand: 'Hey'
+      })
       Column() {
         AppTopBar({
           title: this.activeScreenTitle(),
@@ -130,36 +136,6 @@ struct Index {
     .height('100%')
     .width('100%')
     .backgroundColor('#F6F8FA')
-  }
-
-  @Builder
-  private NavigationRail() {
-    Column({ space: 8 }) {
-      Text('Hey')
-        .fontSize(22)
-        .fontWeight(FontWeight.Bold)
-        .fontColor('#FFFFFF')
-        .width('100%')
-        .textAlign(TextAlign.Center)
-        .margin({ bottom: 8 })
-
-      ForEach(SCREEN_ENTRIES, (entry: ScreenEntry) => {
-        Button(this.t(entry.labelKey))
-          .height(36)
-          .width('100%')
-          .fontSize(12)
-          .fontColor(this.activeScreen === entry.id ? '#111827' : '#D1D5DB')
-          .backgroundColor(this.activeScreen === entry.id ? '#FFFFFF' : '#111827')
-          .borderRadius(6)
-          .onClick(() => {
-            this.activeScreen = entry.id;
-          })
-      }, (entry: ScreenEntry) => entry.id)
-    }
-    .height('100%')
-    .width(92)
-    .padding({ left: 10, right: 10, top: 18, bottom: 18 })
-    .backgroundColor('#111827')
   }
 
   @Builder
