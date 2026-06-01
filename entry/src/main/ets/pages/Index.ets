@@ -2,6 +2,7 @@ import { common } from '@kit.AbilityKit';
 import { ConnectionStatus, ProxyNode, ProxyProfile, RuntimeStats } from '../core/Profile';
 import { normalizeOutboundInput } from '../core/XrayConfig';
 import { ConnectionController, ConnectionSnapshot } from '../services/ConnectionController';
+import { DiagnosticEvent, DiagnosticLog } from '../services/DiagnosticLog';
 import { SubscriptionManager, SubscriptionUpdateResult } from '../services/SubscriptionManager';
 import { ProfileStore } from '../storage/ProfileStore';
 import { SubscriptionStore } from '../storage/SubscriptionStore';
@@ -28,6 +29,7 @@ struct Index {
   @State private validationOk: boolean = false;
   @State private lastError: string = '';
   @State private logs: Array<string> = ['Ready. Paste one Xray outbound JSON or share link to begin.'];
+  @State private diagnosticLogs: Array<string> = [];
   @State private stats: RuntimeStats = EMPTY_STATS;
   @State private profileUpdatedAt: string = 'Not saved';
   @State private subscriptionUrl: string = '';
@@ -35,6 +37,7 @@ struct Index {
   @State private selectedNodeId: string = '';
   @State private subscriptionMessage: string = 'No subscription loaded.';
   @State private subscriptionUpdating: boolean = false;
+  private diagnosticRefreshing: boolean = false;
 
   aboutToAppear(): void {
     this.loadInitialState();
@@ -392,13 +395,13 @@ struct Index {
           .fontColor('#374151')
           .borderRadius(6)
           .onClick(() => {
-            this.logs = [];
+            this.clearLogs();
           })
       }
       .width('100%')
 
       Column({ space: 6 }) {
-        ForEach(this.logs, (item: string, index: number) => {
+        ForEach(this.allLogs(), (item: string, index: number) => {
           Text(item)
             .fontSize(12)
             .fontColor(index === 0 ? '#111827' : '#4B5563')
@@ -606,6 +609,7 @@ struct Index {
 
   private refreshRuntime(): void {
     this.stats = this.controller.getStats();
+    this.refreshDiagnostics();
     if (this.startedAt <= 0 || this.status !== ConnectionStatus.RUNNING) {
       this.elapsedText = '00:00';
       return;
@@ -620,6 +624,69 @@ struct Index {
     const line = `${this.formatTime(Date.now())}  ${message}`;
     const next = [line].concat(this.logs);
     this.logs = next.slice(0, 80);
+  }
+
+  private clearLogs(): void {
+    try {
+      const context = getContext(this) as common.Context;
+      DiagnosticLog.clear(context);
+    } catch (error) {
+      this.appendLog(`清理诊断日志失败：${JSON.stringify(error)}`);
+    }
+    this.logs = [];
+    this.diagnosticLogs = [];
+  }
+
+  private allLogs(): Array<string> {
+    return this.diagnosticLogs.concat(this.logs).slice(0, 120);
+  }
+
+  private async refreshDiagnostics(): Promise<void> {
+    if (this.diagnosticRefreshing) {
+      return;
+    }
+    this.diagnosticRefreshing = true;
+
+    try {
+      const context = getContext(this) as common.Context;
+      const events = await DiagnosticLog.read(context, 80);
+      this.diagnosticLogs = events.map((event: DiagnosticEvent) => DiagnosticLog.format(event, (value: number) => this.formatTime(value)));
+      this.applyDiagnosticStats(events);
+      this.applyDiagnosticError(events);
+    } finally {
+      this.diagnosticRefreshing = false;
+    }
+  }
+
+  private applyDiagnosticStats(events: Array<DiagnosticEvent>): void {
+    for (let index = 0; index < events.length; index++) {
+      const event = events[index];
+      if (event.uploadBytes !== undefined || event.downloadBytes !== undefined) {
+        this.stats = {
+          uploadBytes: event.uploadBytes ?? 0,
+          downloadBytes: event.downloadBytes ?? 0,
+          xrayRunning: event.xrayRunning ?? false,
+          tun2SocksRunning: event.tun2SocksRunning ?? false,
+          lastMessage: event.details ?? event.message
+        };
+        return;
+      }
+    }
+  }
+
+  private applyDiagnosticError(events: Array<DiagnosticEvent>): void {
+    if (events.length === 0) {
+      return;
+    }
+    const event = events[0];
+    if (event.level !== 'error') {
+      return;
+    }
+    const message = event.details !== undefined && event.details.length > 0 ? `${event.message} ${event.details}` : event.message;
+    this.lastError = message;
+    if (this.status === ConnectionStatus.RUNNING || this.status === ConnectionStatus.STARTING) {
+      this.status = ConnectionStatus.ERROR;
+    }
   }
 
   private statusLabel(): string {

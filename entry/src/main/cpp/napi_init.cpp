@@ -4,11 +4,15 @@
 #include <cstdint>
 #include <cstdlib>
 #include <dlfcn.h>
+#include <hilog/log.h>
 #include <sstream>
 #include <string>
 #include <vector>
 
 namespace {
+
+constexpr unsigned int LOG_DOMAIN_ID = 0x0001;
+constexpr const char* LOG_TAG_NAME = "HeyNative";
 
 using XrayRunFromJsonFn = char* (*)(const char*);
 using XrayStopFn = char* (*)();
@@ -39,6 +43,27 @@ XraySymbols g_xray;
 TunSymbols g_tun;
 
 const char* BASE64_TABLE = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+void LogInfo(const std::string& message)
+{
+    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_DOMAIN_ID, LOG_TAG_NAME, "%{public}s", message.c_str());
+}
+
+void LogWarn(const std::string& message)
+{
+    OH_LOG_Print(LOG_APP, LOG_WARN, LOG_DOMAIN_ID, LOG_TAG_NAME, "%{public}s", message.c_str());
+}
+
+void LogError(const std::string& message)
+{
+    OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_DOMAIN_ID, LOG_TAG_NAME, "%{public}s", message.c_str());
+}
+
+std::string LastDlError()
+{
+    const char* error = dlerror();
+    return error == nullptr ? "unknown dlerror" : std::string(error);
+}
 
 std::string GetStringArg(napi_env env, napi_value value)
 {
@@ -85,6 +110,11 @@ napi_value CreateResult(napi_env env, bool ok, const std::string& message)
     napi_set_named_property(env, result, "ok", CreateBool(env, ok));
     napi_set_named_property(env, result, "message", CreateString(env, message));
     g_lastMessage = message;
+    if (ok) {
+        LogInfo(message);
+    } else {
+        LogError(message);
+    }
     return result;
 }
 
@@ -195,13 +225,22 @@ bool LoadXray()
         return g_xray.runFromJson != nullptr && g_xray.stop != nullptr;
     }
 
+    LogInfo("Loading libxray.so.");
     g_xray.handle = dlopen("libxray.so", RTLD_NOW | RTLD_LOCAL);
     if (g_xray.handle == nullptr) {
+        g_lastMessage = "dlopen libxray.so failed: " + LastDlError();
+        LogError(g_lastMessage);
         return false;
     }
     g_xray.runFromJson = reinterpret_cast<XrayRunFromJsonFn>(dlsym(g_xray.handle, "CGoRunXrayFromJSON"));
     g_xray.stop = reinterpret_cast<XrayStopFn>(dlsym(g_xray.handle, "CGoStopXray"));
-    return g_xray.runFromJson != nullptr && g_xray.stop != nullptr;
+    if (g_xray.runFromJson == nullptr || g_xray.stop == nullptr) {
+        g_lastMessage = "dlsym libxray.so failed: " + LastDlError();
+        LogError(g_lastMessage);
+        return false;
+    }
+    LogInfo("libxray.so loaded.");
+    return true;
 }
 
 bool LoadTun2Socks()
@@ -210,15 +249,27 @@ bool LoadTun2Socks()
         return g_tun.start != nullptr && g_tun.stop != nullptr;
     }
 
+    LogInfo("Loading libheytun2socks.so.");
     g_tun.handle = dlopen("libheytun2socks.so", RTLD_NOW | RTLD_LOCAL);
     if (g_tun.handle == nullptr) {
+        g_lastMessage = "dlopen libheytun2socks.so failed: " + LastDlError();
+        LogError(g_lastMessage);
         return false;
     }
     g_tun.start = reinterpret_cast<TunStartFn>(dlsym(g_tun.handle, "HeyTun2SocksStart"));
     g_tun.stop = reinterpret_cast<TunStopFn>(dlsym(g_tun.handle, "HeyTun2SocksStop"));
     g_tun.uploadBytes = reinterpret_cast<TunStatsFn>(dlsym(g_tun.handle, "HeyTun2SocksUploadBytes"));
     g_tun.downloadBytes = reinterpret_cast<TunStatsFn>(dlsym(g_tun.handle, "HeyTun2SocksDownloadBytes"));
-    return g_tun.start != nullptr && g_tun.stop != nullptr;
+    if (g_tun.start == nullptr || g_tun.stop == nullptr) {
+        g_lastMessage = "dlsym libheytun2socks.so failed: " + LastDlError();
+        LogError(g_lastMessage);
+        return false;
+    }
+    if (g_tun.uploadBytes == nullptr || g_tun.downloadBytes == nullptr) {
+        LogWarn("tun2socks adapter stats symbols missing; forwarding can still start.");
+    }
+    LogInfo("libheytun2socks.so loaded.");
+    return true;
 }
 
 std::string CallXrayRunFromJson(const std::string& config)
@@ -251,7 +302,7 @@ napi_value ValidateConfig(napi_env env, napi_callback_info info)
     if (LoadXray()) {
         return CreateResult(env, true, "Native config preflight passed. libXray is available.");
     }
-    return CreateResult(env, true, "Native config preflight passed. libxray.so is not packaged yet.");
+    return CreateResult(env, false, g_lastMessage);
 }
 
 napi_value StartXray(napi_env env, napi_callback_info info)
@@ -272,13 +323,14 @@ napi_value StartXray(napi_env env, napi_callback_info info)
     }
 
     if (!LoadXray()) {
-        g_xrayRunning.store(true);
-        return CreateResult(env, true, "libxray.so not found. Xray fallback bridge marked running; package a Harmony-built libxray.so to enable real core.");
+        g_xrayRunning.store(false);
+        return CreateResult(env, false, g_lastMessage);
     }
 
     std::string message;
     bool ok = ResponseOk(CallXrayRunFromJson(config), message);
     if (!ok) {
+        g_xrayRunning.store(false);
         return CreateResult(env, false, "libXray start failed: " + message);
     }
     g_xrayRunning.store(true);
@@ -336,12 +388,13 @@ napi_value StartTun2Socks(napi_env env, napi_callback_info info)
     g_uploadBytes.store(0);
     g_downloadBytes.store(0);
     if (!LoadTun2Socks()) {
-        g_tunRunning.store(true);
-        return CreateResult(env, true, "libheytun2socks.so not found. TUN bridge fallback marked running; package a tun2socks adapter to enable real forwarding.");
+        g_tunRunning.store(false);
+        return CreateResult(env, false, g_lastMessage);
     }
 
     int result = g_tun.start(tunFd, host.c_str(), port, mtu);
     if (result != 0) {
+        g_tunRunning.store(false);
         return CreateResult(env, false, "tun2socks adapter start failed.");
     }
     g_tunRunning.store(true);
