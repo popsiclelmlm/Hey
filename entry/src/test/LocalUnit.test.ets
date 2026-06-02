@@ -209,6 +209,55 @@ export default function localUnitTest() {
       expect(nodes[0].outboundJson).assertContain('"protocol": "vless"');
       expect(nodes[1].outboundJson).assertContain('"protocol": "trojan"');
     });
+
+    it('parses data url wrapped subscription content into selectable nodes', 0, () => {
+      const content = 'data:application/octet-stream;base64,dmxlc3M6Ly8wMDAwMDAwMC0wMDAwLTAwMDAtMDAwMC0wMDAwMDAwMDAwMDBAZXhhbXBsZS5jb206NDQzP2VuY3J5cHRpb249bm9uZSNkYXRhLWRlbW8=';
+      const nodes = SubscriptionManager.parseSubscriptionContent(content, 'https://sub.example/data');
+      expect(nodes.length).assertEqual(1);
+      expect(nodes[0].name).assertEqual('data-demo');
+      expect(nodes[0].outboundJson).assertContain('"protocol": "vless"');
+    });
+
+    it('parses clash yaml subscription content into selectable nodes', 0, () => {
+      const content = 'proxies:\n' +
+        '  - name: clash-vmess\n' +
+        '    type: vmess\n' +
+        '    server: example.com\n' +
+        '    port: 443\n' +
+        '    uuid: 00000000-0000-0000-0000-000000000000\n' +
+        '    cipher: auto\n' +
+        '    tls: true\n' +
+        '    network: ws\n' +
+        '    ws-opts:\n' +
+        '      path: /ws\n' +
+        '      headers:\n' +
+        '        Host: cdn.example\n' +
+        '  - {name: clash-ss, type: ss, server: ss.example.com, port: 8388, cipher: aes-128-gcm, password: secret}\n';
+      const nodes = SubscriptionManager.parseSubscriptionContent(content, 'https://sub.example/clash');
+      expect(nodes.length).assertEqual(2);
+      expect(nodes[0].name).assertEqual('clash-vmess');
+      expect(nodes[0].outboundJson).assertContain('"wsSettings"');
+      expect(nodes[0].outboundJson).assertContain('"serverName": "cdn.example"');
+      expect(nodes[1].outboundJson).assertContain('"protocol": "shadowsocks"');
+    });
+
+    it('parses sip008 shadowsocks json subscription content into selectable nodes', 0, () => {
+      const content = '{"version":1,"servers":[{"remarks":"sip-node","server":"ss.example.com","server_port":8388,"method":"aes-128-gcm","password":"secret"}]}';
+      const nodes = SubscriptionManager.parseSubscriptionContent(content, 'https://sub.example/sip008');
+      expect(nodes.length).assertEqual(1);
+      expect(nodes[0].name).assertEqual('sip-node');
+      expect(nodes[0].outboundJson).assertContain('"protocol": "shadowsocks"');
+      expect(nodes[0].outboundJson).assertContain('"method": "aes-128-gcm"');
+    });
+
+    it('parses xray json outbounds subscription content into selectable nodes', 0, () => {
+      const content = '{"outbounds":[{"protocol":"freedom","tag":"direct","settings":{}},{"protocol":"vless","tag":"json-node","settings":{"vnext":[{"address":"example.com","port":443,"users":[{"id":"00000000-0000-0000-0000-000000000000","encryption":"none"}]}]}}]}';
+      const nodes = SubscriptionManager.parseSubscriptionContent(content, 'https://sub.example/xray');
+      expect(nodes.length).assertEqual(1);
+      expect(nodes[0].name).assertEqual('json-node');
+      expect(nodes[0].outboundJson).assertContain('"protocol": "vless"');
+      expect(nodes[0].outboundJson).assertContain('"address": "example.com"');
+    });
   });
 }
 

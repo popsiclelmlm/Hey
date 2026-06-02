@@ -30,7 +30,7 @@ export class SubscriptionsController {
       const subscription = await SubscriptionStore.saveUrl(context, url);
       return this.buildState(subscription, language, translate(language, 'log.subscriptionGroupSaved'));
     } catch (error) {
-      return this.buildState(await SubscriptionStore.load(context), language, formatOne(language, 'error.saveSubscriptionGroup', 'error', JSON.stringify(error)));
+      return this.buildState(await SubscriptionStore.load(context), language, formatOne(language, 'error.saveSubscriptionGroup', 'error', this.stringifyError(error)));
     }
   }
 
@@ -58,7 +58,7 @@ export class SubscriptionsController {
       }
       return this.buildState(subscription, language, localizeCoreMessage(language, result.message));
     } catch (error) {
-      return this.buildState(await SubscriptionStore.load(context), language, formatOne(language, 'error.updateSubscription', 'error', JSON.stringify(error)));
+      return this.buildState(await SubscriptionStore.load(context), language, formatOne(language, 'error.updateSubscription', 'error', this.stringifyError(error)));
     }
   }
 
@@ -71,7 +71,7 @@ export class SubscriptionsController {
       }
       return this.buildState(subscription, language, formatOne(language, 'log.openedSubscriptionGroup', 'name', group.name));
     } catch (error) {
-      return this.buildState(await SubscriptionStore.load(context), language, formatOne(language, 'error.selectSubscriptionGroup', 'error', JSON.stringify(error)));
+      return this.buildState(await SubscriptionStore.load(context), language, formatOne(language, 'error.selectSubscriptionGroup', 'error', this.stringifyError(error)));
     }
   }
 
@@ -81,7 +81,7 @@ export class SubscriptionsController {
       const status = group.enabled ? translate(language, 'common.disabled') : translate(language, 'common.enabled');
       return this.buildState(subscription, language, formatTwo(language, 'log.subscriptionGroupToggled', 'name', group.name, 'status', status));
     } catch (error) {
-      return this.buildState(await SubscriptionStore.load(context), language, formatOne(language, 'error.toggleSubscriptionGroup', 'error', JSON.stringify(error)));
+      return this.buildState(await SubscriptionStore.load(context), language, formatOne(language, 'error.toggleSubscriptionGroup', 'error', this.stringifyError(error)));
     }
   }
 
@@ -90,12 +90,12 @@ export class SubscriptionsController {
       const subscription = await SubscriptionStore.removeGroup(context, group.id);
       return this.buildState(subscription, language, formatOne(language, 'log.removedSubscriptionGroup', 'name', group.name));
     } catch (error) {
-      return this.buildState(await SubscriptionStore.load(context), language, formatOne(language, 'error.removeSubscriptionGroup', 'error', JSON.stringify(error)));
+      return this.buildState(await SubscriptionStore.load(context), language, formatOne(language, 'error.removeSubscriptionGroup', 'error', this.stringifyError(error)));
     }
   }
 
   private buildState(subscription: SubscriptionProfile, language: AppLanguage, message: string): SubscriptionsControllerState {
-    return {
+    const state: SubscriptionsControllerState = {
       subscriptionUrl: subscription.url,
       nodes: subscription.nodes,
       selectedNodeId: subscription.selectedNodeId,
@@ -104,6 +104,7 @@ export class SubscriptionsController {
       subscriptionGroups: subscription.groups,
       selectedGroupId: subscription.selectedGroupId
     };
+    return state;
   }
 
   private findNode(nodes: Array<ProxyNode>, nodeId: string): ProxyNode | null {
@@ -113,6 +114,16 @@ export class SubscriptionsController {
       }
     }
     return null;
+  }
+
+  private stringifyError(error: Error): string {
+    if (error.message.length > 0) {
+      return error.message;
+    }
+    if (error.name.length > 0) {
+      return error.name;
+    }
+    return `${error}`;
   }
 }
 
