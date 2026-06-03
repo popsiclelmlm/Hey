@@ -151,10 +151,7 @@ struct ImportPage {
       PageHeader({
         title: this.t('screen.import.title'),
         summary: this.validationMessage,
-        showBack: true,
-        statusLabel: SHARED_RUNTIME_CONTROLLER.statusLabel(this.language),
-        statusColor: SHARED_RUNTIME_CONTROLLER.statusColor(),
-        statusBackground: SHARED_RUNTIME_CONTROLLER.statusBackground()
+        showBack: true
       })
       Scroll() {
         Column({ space: 12 }) {

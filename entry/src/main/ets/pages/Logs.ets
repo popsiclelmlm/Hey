@@ -49,10 +49,7 @@ struct LogsPage {
       PageHeader({
         title: this.t('screen.logs.title'),
         summary: this.t('logs.title'),
-        showBack: true,
-        statusLabel: SHARED_RUNTIME_CONTROLLER.statusLabel(this.language),
-        statusColor: SHARED_RUNTIME_CONTROLLER.statusColor(),
-        statusBackground: SHARED_RUNTIME_CONTROLLER.statusBackground()
+        showBack: true
       })
       Scroll() {
         Column({ space: 12 }) {

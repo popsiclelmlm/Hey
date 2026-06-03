@@ -44,10 +44,7 @@ struct SettingsPage {
       PageHeader({
         title: this.t('screen.settings.title'),
         summary: this.t('settings.advanced.detail'),
-        showBack: true,
-        statusLabel: SHARED_RUNTIME_CONTROLLER.statusLabel(this.language),
-        statusColor: SHARED_RUNTIME_CONTROLLER.statusColor(),
-        statusBackground: SHARED_RUNTIME_CONTROLLER.statusBackground()
+        showBack: true
       })
       Scroll() {
         Column({ space: 0 }) {

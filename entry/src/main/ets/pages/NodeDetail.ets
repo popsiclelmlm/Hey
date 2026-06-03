@@ -43,10 +43,7 @@ struct NodeDetailPage {
       PageHeader({
         title: this.t('node.detail.title'),
         summary: this.node.name,
-        showBack: true,
-        statusLabel: SHARED_RUNTIME_CONTROLLER.statusLabel(this.language),
-        statusColor: SHARED_RUNTIME_CONTROLLER.statusColor(),
-        statusBackground: SHARED_RUNTIME_CONTROLLER.statusBackground()
+        showBack: true
       })
       Scroll() {
         Column({ space: 12 }) {

@@ -4,7 +4,6 @@ import { DEFAULT_LANGUAGE, translate } from '../core/I18n';
 import { AppLanguage, SubscriptionGroup } from '../core/Profile';
 import { SUBSCRIPTIONS_CONTROLLER, SubscriptionsControllerState } from '../features/subscriptions/SubscriptionsController';
 import { SETTINGS_CONTROLLER } from '../features/settings/SettingsController';
-import { SHARED_RUNTIME_CONTROLLER } from '../features/runtime/RuntimeController';
 import { AppRoute } from '../shell/AppRoute';
 import { PageHeader } from '../shell/PageHeader';
 import { router, promptAction } from '@kit.ArkUI';

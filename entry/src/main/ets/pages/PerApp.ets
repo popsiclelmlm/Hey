@@ -24,10 +24,7 @@ struct PerAppPage {
       PageHeader({
         title: this.t('screen.perApp.title'),
         summary: this.t('settings.vpn.detail'),
-        showBack: true,
-        statusLabel: SHARED_RUNTIME_CONTROLLER.statusLabel(this.language),
-        statusColor: SHARED_RUNTIME_CONTROLLER.statusColor(),
-        statusBackground: SHARED_RUNTIME_CONTROLLER.statusBackground()
+        showBack: true
       })
       Scroll() {
         Column({ space: 12 }) {

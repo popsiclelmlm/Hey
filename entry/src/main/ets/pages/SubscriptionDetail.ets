@@ -49,10 +49,7 @@ struct SubscriptionDetailPage {
       PageHeader({
         title: this.groupName,
         summary: `${this.nodes.length} 个节点`,
-        showBack: true,
-        statusLabel: SHARED_RUNTIME_CONTROLLER.statusLabel(this.language),
-        statusColor: SHARED_RUNTIME_CONTROLLER.statusColor(),
-        statusBackground: SHARED_RUNTIME_CONTROLLER.statusBackground()
+        showBack: true
       })
 
       Scroll() {

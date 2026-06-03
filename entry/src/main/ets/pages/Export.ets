@@ -26,10 +26,7 @@ struct ExportPage {
       PageHeader({
         title: this.t('export.title'),
         summary: this.f1('export.summary', 'count', this.exportCount.toString()),
-        showBack: true,
-        statusLabel: SHARED_RUNTIME_CONTROLLER.statusLabel(this.language),
-        statusColor: SHARED_RUNTIME_CONTROLLER.statusColor(),
-        statusBackground: SHARED_RUNTIME_CONTROLLER.statusBackground()
+        showBack: true
       })
       Scroll() {
         Column({ space: 12 }) {
