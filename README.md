@@ -8,7 +8,17 @@ device TUN flow through a local SOCKS bridge.
 The current native path is:
 
 ```text
-VpnExtensionAbility -> TUN fd -> libheytun2socks.so -> 127.0.0.1:10808 SOCKS -> libxray.so outbound
+User connects
+  -> vpnExtension.startVpnExtensionAbility(...)
+  -> HeyVpnAbility.onCreate(want)
+  -> vpnExtension.createVpnConnection(context)
+  -> vpnConnection.create(vpnConfig)
+  -> TUN fd
+  -> libheyvpn.so dlopen(libxray.so)
+  -> CGoRunXrayFromJSON(config)
+  -> HeyTun2SocksStart(tunFd, 127.0.0.1, 10808, mtu)
+  -> tun2socks forwards TUN flow to the local Xray SOCKS inbound
+  -> Xray outbound
 ```
 
 ## Status
@@ -27,7 +37,8 @@ VPN authorization component.
 - Share-link parsing for `vless://`, `vmess://`, `trojan://`, and `ss://`.
 - Xray config generation with local SOCKS inbound plus proxy/direct/block
   outbounds.
-- Native N-API bridge for packaged `libxray.so` and `libheytun2socks.so`.
+- Native N-API bridge for packaged combined `libxray.so`, which exports both
+  Xray and tun2socks entry points.
 - Diagnostic log panel and native runtime stat display.
 - Scaffolded pages for routing, settings, per-app proxy, user assets, scanner,
   subscriptions, logs, and about.
@@ -47,8 +58,8 @@ docs/                             Real-device test documentation
 
 - DevEco Studio / HarmonyOS SDK 6.1.1, API 24.
 - A HarmonyOS phone or tablet for end-to-end VPN testing.
-- Go and DevEco native toolchains when rebuilding the Xray or tun2socks shared
-  libraries.
+- Go and DevEco native toolchains when rebuilding the combined Xray/tun2socks
+  shared library.
 
 ## Build
 
@@ -64,15 +75,17 @@ The output HAP is expected at:
 entry/build/default/outputs/default/app/entry-default.hap
 ```
 
-Rebuild native core libraries when needed:
+Rebuild the combined native core when needed:
 
 ```bash
 ./scripts/build_libxray_ohos.sh
-./scripts/build_tun2socks_ohos.sh
 ```
 
-The scripts place native outputs under
-`entry/src/main/cpp/prebuilt/arm64-v8a/`.
+The script places `libxray.so` and `libxray.h` under
+`entry/src/main/cpp/prebuilt/arm64-v8a/`. The standalone
+`scripts/build_tun2socks_ohos.sh` script is kept as a reference build path, but
+the current VPN runtime does not package or call an independent
+`libheytun2socks.so`.
 
 ## Install And Test
 
@@ -99,8 +112,9 @@ For the manual closed-loop checklist, see
 
 ## Native Core
 
-The native bridge expects packaged Xray and tun2socks shared libraries with the
-exported symbols documented in
+The native bridge builds `libheyvpn.so` and loads one packaged Go shared
+library, `libxray.so`. That combined library exports the Xray control symbols
+and the tun2socks adapter symbols documented in
 [`entry/src/main/cpp/README.md`](entry/src/main/cpp/README.md).
 
 ## Roadmap
