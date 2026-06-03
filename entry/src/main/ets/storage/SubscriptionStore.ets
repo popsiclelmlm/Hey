@@ -22,9 +22,15 @@ export class SubscriptionStore {
     }
   }
 
-  static async saveUrl(context: common.Context, url: string): Promise<SubscriptionProfile> {
+  static async saveUrl(context: common.Context, url: string, groupId?: string): Promise<SubscriptionProfile> {
     const profile = await SubscriptionStore.load(context);
-    let group = SubscriptionStore.activeGroup(profile);
+    let group: SubscriptionGroup | null = null;
+    if (groupId && groupId.length > 0) {
+      group = SubscriptionStore.findGroup(profile.groups, groupId);
+    }
+    if (group === null) {
+      group = SubscriptionStore.activeGroup(profile);
+    }
     if (group === null) {
       group = SubscriptionStore.createGroup(url, SubscriptionStore.nameFromUrl(url));
       profile.groups.push(group);
@@ -39,9 +45,15 @@ export class SubscriptionStore {
     return SubscriptionStore.load(context);
   }
 
-  static async saveNodes(context: common.Context, url: string, nodes: Array<ProxyNode>, selectedNodeId: string): Promise<SubscriptionProfile> {
+  static async saveNodes(context: common.Context, groupId: string, url: string, nodes: Array<ProxyNode>, selectedNodeId: string): Promise<SubscriptionProfile> {
     const profile = await SubscriptionStore.load(context);
-    let group = SubscriptionStore.findGroupByUrl(profile.groups, url);
+    let group: SubscriptionGroup | null = null;
+    if (groupId.length > 0) {
+      group = SubscriptionStore.findGroup(profile.groups, groupId);
+    }
+    if (group === null) {
+      group = SubscriptionStore.findGroupByUrl(profile.groups, url);
+    }
     if (group === null) {
       group = SubscriptionStore.activeGroup(profile);
     }
@@ -324,7 +336,7 @@ export class SubscriptionStore {
     return merged;
   }
 
-  private static activeGroup(profile: SubscriptionProfile): SubscriptionGroup | null {
+  public static activeGroup(profile: SubscriptionProfile): SubscriptionGroup | null {
     return SubscriptionStore.findGroup(profile.groups, profile.selectedGroupId);
   }
 
@@ -337,7 +349,7 @@ export class SubscriptionStore {
     return null;
   }
 
-  private static findGroupByUrl(groups: Array<SubscriptionGroup>, url: string): SubscriptionGroup | null {
+  public static findGroupByUrl(groups: Array<SubscriptionGroup>, url: string): SubscriptionGroup | null {
     for (let index = 0; index < groups.length; index++) {
       if (groups[index].url === url) {
         return groups[index];
@@ -392,8 +404,9 @@ export class SubscriptionStore {
   }
 
   private static createGroup(url: string, name: string): SubscriptionGroup {
+    const seed = `${url}-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
     return {
-      id: SubscriptionStore.makeGroupId(url.length > 0 ? url : Date.now().toString()),
+      id: SubscriptionStore.makeGroupId(seed),
       name,
       url,
       enabled: true,

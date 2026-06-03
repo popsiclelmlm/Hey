@@ -579,7 +579,7 @@ struct Index {
     SHARED_RUNTIME_CONTROLLER.appendLog(this.subscriptionMessage);
     try {
       const context = getContext(this) as common.Context;
-      const state = await SUBSCRIPTIONS_CONTROLLER.update(context, this.subscriptionUrl, this.selectedNodeId, this.language);
+      const state = await SUBSCRIPTIONS_CONTROLLER.update(context, this.selectedGroupId, this.subscriptionUrl, this.selectedNodeId, this.language);
       this.applySubscriptionsState(state);
       SHARED_RUNTIME_CONTROLLER.appendLog(state.subscriptionMessage);
       this.applyNodesState(await NODES_CONTROLLER.load(context, this.language));

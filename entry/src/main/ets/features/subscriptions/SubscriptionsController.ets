@@ -34,14 +34,32 @@ export class SubscriptionsController {
     }
   }
 
-  async update(context: common.Context, urlValue: string, selectedNodeId: string, language: AppLanguage): Promise<SubscriptionsControllerState> {
+  async update(context: common.Context, groupId: string, urlValue: string, selectedNodeId: string, language: AppLanguage): Promise<SubscriptionsControllerState> {
     const url = urlValue.trim();
     if (url.length === 0) {
       return this.buildState(await SubscriptionStore.load(context), language, translate(language, 'error.emptySubscriptionUrl'));
     }
 
     try {
-      await SubscriptionStore.saveUrl(context, url);
+      let targetGroupId = groupId.trim();
+      if (targetGroupId.length === 0) {
+        const profile = await SubscriptionStore.load(context);
+        const active = SubscriptionStore.activeGroup(profile);
+        if (active !== null && active.url === url) {
+          targetGroupId = active.id;
+        } else {
+          const matched = SubscriptionStore.findGroupByUrl(profile.groups, url);
+          if (matched !== null) {
+            targetGroupId = matched.id;
+          }
+        }
+      }
+
+      const subscriptionBeforeUpdate = await SubscriptionStore.saveUrl(context, url, targetGroupId);
+      if (targetGroupId.length === 0) {
+        targetGroupId = subscriptionBeforeUpdate.selectedGroupId;
+      }
+
       const result: SubscriptionUpdateResult = await SubscriptionManager.fetchAndParse(url);
       if (!result.ok) {
         return this.buildState(await SubscriptionStore.load(context), language, localizeCoreMessage(language, result.message));
@@ -51,7 +69,7 @@ export class SubscriptionsController {
       if (this.findNode(result.nodes, nextSelectedId) === null) {
         nextSelectedId = result.nodes[0].id;
       }
-      const subscription = await SubscriptionStore.saveNodes(context, url, result.nodes, nextSelectedId);
+      const subscription = await SubscriptionStore.saveNodes(context, targetGroupId, url, result.nodes, nextSelectedId);
       const selected = this.findNode(subscription.nodes, nextSelectedId);
       if (selected !== null) {
         await ProfileStore.save(context, selected.outboundJson);
@@ -102,7 +120,7 @@ export class SubscriptionsController {
         try {
           const result = await SubscriptionManager.fetchAndParse(url);
           if (result.ok) {
-            subscription = await SubscriptionStore.saveNodes(context, url, result.nodes, group.selectedNodeId);
+            subscription = await SubscriptionStore.saveNodes(context, group.id, url, result.nodes, group.selectedNodeId);
             successCount++;
           } else {
             failedCount++;

@@ -421,7 +421,7 @@ struct ImportPage {
     try {
       if (value.toLowerCase().startsWith('http://') || value.toLowerCase().startsWith('https://')) {
         const context = getContext(this) as common.Context;
-        const state = await SUBSCRIPTIONS_CONTROLLER.update(context, value, this.selectedNodeId, this.language);
+        const state = await SUBSCRIPTIONS_CONTROLLER.update(context, '', value, this.selectedNodeId, this.language);
         SHARED_RUNTIME_CONTROLLER.appendLog(state.subscriptionMessage);
         router.pushUrl({ url: AppRoute.SUBSCRIPTIONS });
         return;
