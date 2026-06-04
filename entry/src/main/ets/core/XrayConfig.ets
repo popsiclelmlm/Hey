@@ -202,6 +202,17 @@ function buildXrayConfigInternal(outboundJson: string, settings: AppSettings | u
     };
     outbound.mux = mux;
   }
+  if (settings !== undefined && settings.fragmentEnabled) {
+    const streamSettings = (outbound.streamSettings ?? {}) as Record<string, Object | undefined>;
+    const sockopt = (streamSettings['sockopt'] ?? {}) as Record<string, Object | undefined>;
+    sockopt['fragment'] = {
+      packets: settings.fragmentPackets,
+      length: settings.fragmentLength,
+      interval: settings.fragmentInterval
+    };
+    streamSettings['sockopt'] = sockopt;
+    outbound.streamSettings = streamSettings;
+  }
 
   const tunInbound: XrayInboundConfig = {
     tag: 'tun-in',
