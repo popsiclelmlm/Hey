@@ -5,9 +5,10 @@ import { DEFAULT_LANGUAGE, translate } from '../core/I18n';
 import { AppLanguage } from '../core/Profile';
 import { SETTINGS_CONTROLLER } from '../features/settings/SettingsController';
 import { SHARED_RUNTIME_CONTROLLER } from '../features/runtime/RuntimeController';
+import { SectionHeader } from '../components/SectionHeader';
 import { PageHeader } from '../shell/PageHeader';
 import { formatOne } from '../utils/LocalizationPresenter';
-import { AppColor } from '../theme/Theme';
+import { AppColor, FontSz, Radius, Space } from '../theme/Theme';
 
 @Entry
 @Component
@@ -27,9 +28,9 @@ struct AboutPage {
         showBack: true
       })
       Scroll() {
-        Column({ space: 16 }) {
-          // Header Logo & Version Section
-          Column({ space: 8 }) {
+        Column({ space: Space.lg }) {
+          // Logo 与版本区
+          Column({ space: Space.sm }) {
             Column() {
               Image($r('app.media.startIcon'))
                 .width(64)
@@ -39,28 +40,28 @@ struct AboutPage {
             .width(88)
             .height(88)
             .backgroundColor(AppColor.surface)
-            .borderRadius(20)
+            .borderRadius(Radius.xl)
             .justifyContent(FlexAlign.Center)
             .alignItems(HorizontalAlign.Center)
-            .shadow({ radius: 12, color: AppColor.shadowCard, offsetX: 0, offsetY: 6 })
-            .margin({ bottom: 8 })
+            .margin({ bottom: Space.sm })
 
             Text('Hey')
-              .fontSize(24)
+              .fontSize(FontSz.title)
               .fontWeight(FontWeight.Bold)
               .fontColor(AppColor.textPrimary)
 
             Text(this.t('about.section.detail'))
-              .fontSize(14)
+              .fontSize(FontSz.body)
               .fontColor(AppColor.textSecondary)
               .textAlign(TextAlign.Center)
-              .padding({ left: 24, right: 24 })
+              .padding({ left: Space.xxl, right: Space.xxl })
           }
           .width('100%')
           .alignItems(HorizontalAlign.Center)
-          .padding({ top: 24, bottom: 16 })
+          .padding({ top: Space.xxl, bottom: Space.sm })
 
-          // Section 1: Official Resources & Actions
+          // 资源与更新
+          SectionHeader({ title: '资源与更新' })
           Column() {
             AboutItem({
               title: this.t('about.official.title'),
@@ -69,7 +70,7 @@ struct AboutPage {
                 this.openUrl('https://github.com/popsiclelmlm/Hey', this.t('about.official.title'));
               }
             })
-            Divider().color(AppColor.divider).strokeWidth(1).margin({ left: 16, right: 16 })
+            this.RowDivider()
             AboutItem({
               title: this.t('about.issues.title'),
               detail: this.t('about.issues.detail'),
@@ -77,7 +78,7 @@ struct AboutPage {
                 this.openUrl('https://github.com/popsiclelmlm/Hey/issues', this.t('about.issues.title'));
               }
             })
-            Divider().color(AppColor.divider).strokeWidth(1).margin({ left: 16, right: 16 })
+            this.RowDivider()
             AboutItem({
               title: this.t('about.update.title'),
               detail: this.t('about.update.detail'),
@@ -88,12 +89,13 @@ struct AboutPage {
             })
           }
           .backgroundColor(AppColor.surface)
-          .borderRadius(16)
+          .borderRadius(Radius.lg)
           .width('100%')
-          .shadow({ radius: 8, color: AppColor.shadowCard, offsetX: 0, offsetY: 2 })
           .clip(true)
+          .margin({ left: Space.lg, right: Space.lg })
 
-          // Section 2: Technical Specifications & Parity
+          // 技术规格
+          SectionHeader({ title: '技术规格' })
           Column() {
             AboutItem({
               title: this.t('about.source.title'),
@@ -102,7 +104,7 @@ struct AboutPage {
                 this.openUrl('https://github.com/2rayng/v2rayNG', this.t('about.source.title'));
               }
             })
-            Divider().color(AppColor.divider).strokeWidth(1).margin({ left: 16, right: 16 })
+            this.RowDivider()
             AboutItem({
               title: this.t('about.core.title'),
               detail: this.t('about.core.detail'),
@@ -110,7 +112,7 @@ struct AboutPage {
                 this.openUrl('https://github.com/XTLS/Xray-core', this.t('about.core.title'));
               }
             })
-            Divider().color(AppColor.divider).strokeWidth(1).margin({ left: 16, right: 16 })
+            this.RowDivider()
             AboutItem({
               title: this.t('about.license.title'),
               detail: this.t('about.license.detail'),
@@ -121,12 +123,13 @@ struct AboutPage {
             })
           }
           .backgroundColor(AppColor.surface)
-          .borderRadius(16)
+          .borderRadius(Radius.lg)
           .width('100%')
-          .shadow({ radius: 8, color: AppColor.shadowCard, offsetX: 0, offsetY: 2 })
           .clip(true)
+          .margin({ left: Space.lg, right: Space.lg })
 
-          // Section 3: Community & Developer
+          // 社区与开发者
+          SectionHeader({ title: '社区与开发者' })
           Column() {
             AboutItem({
               title: this.t('about.telegram.title'),
@@ -135,7 +138,7 @@ struct AboutPage {
                 this.openUrl('https://t.me/HeyClient', this.t('about.telegram.title'));
               }
             })
-            Divider().color(AppColor.divider).strokeWidth(1).margin({ left: 16, right: 16 })
+            this.RowDivider()
             AboutItem({
               title: this.t('about.author.title'),
               detail: this.t('about.author.detail'),
@@ -145,26 +148,26 @@ struct AboutPage {
             })
           }
           .backgroundColor(AppColor.surface)
-          .borderRadius(16)
+          .borderRadius(Radius.lg)
           .width('100%')
-          .shadow({ radius: 8, color: AppColor.shadowCard, offsetX: 0, offsetY: 2 })
           .clip(true)
+          .margin({ left: Space.lg, right: Space.lg })
 
-          // Footer Copyright
-          Column({ space: 4 }) {
+          // 版权信息
+          Column({ space: Space.xs }) {
             Text('Made with ❤️ for HarmonyOS NEXT')
-              .fontSize(11)
+              .fontSize(FontSz.caption)
               .fontColor(AppColor.textTertiary)
             Text('Copyright © 2026 Hey Team. All rights reserved.')
-              .fontSize(10)
+              .fontSize(FontSz.caption)
               .fontColor(AppColor.textTertiary)
           }
           .width('100%')
           .alignItems(HorizontalAlign.Center)
-          .margin({ top: 16, bottom: 24 })
+          .margin({ top: Space.sm, bottom: Space.lg })
         }
         .width('100%')
-        .padding({ left: 16, right: 16, top: 8, bottom: 8 })
+        .padding({ top: Space.sm, bottom: Space.xxl })
       }
       .layoutWeight(1)
       .width('100%')
@@ -172,6 +175,14 @@ struct AboutPage {
     .height('100%')
     .width('100%')
     .backgroundColor(AppColor.bg)
+  }
+
+  @Builder
+  private RowDivider() {
+    Divider()
+      .strokeWidth(0.5)
+      .color(AppColor.divider)
+      .margin({ left: Space.lg })
   }
 
   private async openUrl(url: string, title: string): Promise<void> {
@@ -232,16 +243,16 @@ struct AboutItem {
   @State private isPressed: boolean = false;
 
   build() {
-    Row() {
-      Column({ space: 4 }) {
+    Row({ space: Space.md }) {
+      Column({ space: 3 }) {
         Text(this.title)
-          .fontSize(15)
+          .fontSize(FontSz.callout)
           .fontWeight(FontWeight.Medium)
           .fontColor(AppColor.textPrimary)
         if (this.detail) {
           Text(this.detail)
-            .fontSize(12)
-            .fontColor(AppColor.textSecondary)
+            .fontSize(FontSz.footnote)
+            .fontColor(AppColor.textTertiary)
             .maxLines(2)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
         }
@@ -256,13 +267,13 @@ struct AboutItem {
           .color(AppColor.brand)
       } else {
         Image($r('app.media.ic_chevron_right'))
-          .width(18)
-          .height(18)
+          .width(20)
+          .height(20)
           .fillColor(AppColor.textTertiary)
       }
     }
     .width('100%')
-    .padding({ left: 16, right: 16, top: 14, bottom: 14 })
+    .padding(Space.lg)
     .backgroundColor(this.isPressed ? AppColor.surfaceAlt : AppColor.surface)
     .onTouch((event: TouchEvent) => {
       if (event.type === TouchType.Down) {

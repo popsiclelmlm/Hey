@@ -1,9 +1,8 @@
 import { FlagTile, MetricTile } from '../../components/StatusTiles';
-import { AppColor } from '../../theme/Theme';
+import { AppColor, FontSz, Radius, Space } from '../../theme/Theme';
 
 @Component
 export struct RuntimeStatusPanel {
-  title: string = '';
   durationLabel: string = '';
   durationValue: string = '';
   uploadLabel: string = '';
@@ -15,34 +14,29 @@ export struct RuntimeStatusPanel {
   lastMessage: string = '';
 
   build() {
-    Column({ space: 12 }) {
-      Text(this.title)
-        .fontSize(18)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(AppColor.textPrimary)
-        .width('100%')
-
-      Row({ space: 10 }) {
+    Column({ space: Space.md }) {
+      Row({ space: Space.sm }) {
         MetricTile({ label: this.durationLabel, value: this.durationValue })
         MetricTile({ label: this.uploadLabel, value: this.uploadValue })
         MetricTile({ label: this.downloadLabel, value: this.downloadValue })
       }
       .width('100%')
 
-      Row({ space: 8 }) {
+      Row({ space: Space.sm }) {
         FlagTile({ label: 'Xray', active: this.xrayActive })
         FlagTile({ label: 'TUN', active: this.tunActive })
       }
       .width('100%')
 
       Text(this.lastMessage)
-        .fontSize(12)
-        .fontColor(AppColor.textSecondary)
+        .fontSize(FontSz.footnote)
+        .fontColor(AppColor.textTertiary)
         .width('100%')
     }
     .width('100%')
-    .padding(16)
+    .padding(Space.lg)
     .backgroundColor(AppColor.surface)
-    .borderRadius(8)
+    .borderRadius(Radius.lg)
+    .margin({ left: Space.lg, right: Space.lg })
   }
 }

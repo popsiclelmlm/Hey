@@ -1,52 +1,48 @@
-import { AppColor } from '../../theme/Theme';
+import { AppColor, FontSz, Radius, Space } from '../../theme/Theme';
 
 export type ClearLogHandler = () => void;
 
 @Component
 export struct RuntimeLogPanel {
-  title: string = '';
   clearLabel: string = '';
   items: Array<string> = [];
   onClear: ClearLogHandler = () => {};
 
   build() {
-    Column({ space: 10 }) {
+    Column({ space: Space.md }) {
       Row() {
-        Text(this.title)
-          .fontSize(18)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(AppColor.textPrimary)
-          .layoutWeight(1)
+        Blank()
         Button(this.clearLabel)
-          .height(32)
-          .width(72)
-          .fontSize(13)
+          .height(30)
+          .fontSize(FontSz.footnote)
           .backgroundColor(AppColor.surfaceAlt)
           .fontColor(AppColor.textSecondary)
-          .borderRadius(6)
+          .borderRadius(Radius.sm)
+          .padding({ left: Space.md, right: Space.md })
           .onClick(() => {
             this.onClear();
           })
       }
       .width('100%')
 
-      Column({ space: 6 }) {
+      Column({ space: Space.sm }) {
         ForEach(this.items, (item: string, index: number) => {
           Text(item)
-            .fontSize(12)
-            .fontColor(index === 0 ? AppColor.textPrimary : AppColor.textSecondary)
+            .fontSize(FontSz.footnote)
+            .fontColor(index === 0 ? AppColor.textPrimary : AppColor.textTertiary)
             .width('100%')
         }, (item: string, index: number) => `${index}-${item}`)
       }
       .width('100%')
-      .padding(12)
+      .padding(Space.md)
       .backgroundColor(AppColor.surfaceAlt)
-      .borderRadius(6)
+      .borderRadius(Radius.md)
       .constraintSize({ minHeight: 120 })
     }
     .width('100%')
-    .padding(16)
+    .padding(Space.lg)
     .backgroundColor(AppColor.surface)
-    .borderRadius(8)
+    .borderRadius(Radius.lg)
+    .margin({ left: Space.lg, right: Space.lg })
   }
 }

@@ -5,10 +5,11 @@ import { RuntimeLogPanel } from '../features/logs/LogPanel';
 import { RuntimeStatusPanel } from '../features/runtime/RuntimePanel';
 import { RuntimeViewState, SHARED_RUNTIME_CONTROLLER } from '../features/runtime/RuntimeController';
 import { SETTINGS_CONTROLLER } from '../features/settings/SettingsController';
+import { SectionHeader } from '../components/SectionHeader';
 import { PageHeader } from '../shell/PageHeader';
 import { formatBytes } from '../utils/Formatters';
 import { localizeCoreMessage } from '../utils/LocalizationPresenter';
-import { AppColor } from '../theme/Theme';
+import { AppColor, Space } from '../theme/Theme';
 
 const EMPTY_STATS: RuntimeStats = {
   uploadBytes: 0,
@@ -53,9 +54,9 @@ struct LogsPage {
         showBack: true
       })
       Scroll() {
-        Column({ space: 12 }) {
+        Column({ space: Space.lg }) {
+          SectionHeader({ title: this.t('runtime.title') })
           RuntimeStatusPanel({
-            title: this.t('runtime.title'),
             durationLabel: this.t('runtime.duration'),
             durationValue: this.elapsedText,
             uploadLabel: this.t('runtime.upload'),
@@ -66,8 +67,9 @@ struct LogsPage {
             tunActive: this.stats.tunRunning,
             lastMessage: this.localizeCoreMessage(this.stats.lastMessage)
           })
+
+          SectionHeader({ title: this.t('logs.title') })
           RuntimeLogPanel({
-            title: this.t('logs.title'),
             clearLabel: this.t('action.clear'),
             items: this.logs,
             onClear: () => {
@@ -76,7 +78,7 @@ struct LogsPage {
           })
         }
         .width('100%')
-        .padding({ left: 14, right: 14, top: 14, bottom: 24 })
+        .padding({ top: Space.sm, bottom: Space.xxl })
       }
       .layoutWeight(1)
       .width('100%')
