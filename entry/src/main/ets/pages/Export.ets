@@ -5,9 +5,10 @@ import { buildNodeExportModel, NodeExportModel } from '../features/nodes/NodeOpe
 import { NODES_CONTROLLER } from '../features/nodes/NodesController';
 import { SETTINGS_CONTROLLER } from '../features/settings/SettingsController';
 import { SHARED_RUNTIME_CONTROLLER } from '../features/runtime/RuntimeController';
+import { SectionHeader } from '../components/SectionHeader';
 import { PageHeader } from '../shell/PageHeader';
 import { formatOne } from '../utils/LocalizationPresenter';
-import { AppColor } from '../theme/Theme';
+import { AppColor, FontSz, Radius, Space } from '../theme/Theme';
 
 @Entry
 @Component
@@ -30,34 +31,39 @@ struct ExportPage {
         showBack: true
       })
       Scroll() {
-        Column({ space: 12 }) {
-          Text(this.exportTitle)
-            .fontSize(18)
-            .fontWeight(FontWeight.Bold)
-            .fontColor(AppColor.textPrimary)
-            .width('100%')
-
-          TextArea({
-            placeholder: this.t('export.empty'),
-            text: this.exportContent
-          })
-            .height(420)
-            .fontSize(12)
-            .fontColor(AppColor.textPrimary)
-            .backgroundColor(AppColor.surface)
-            .borderRadius(8)
-            .padding(10)
-            .onChange((value: string) => {
-              this.exportContent = value;
+        Column({ space: Space.lg }) {
+          SectionHeader({ title: this.exportTitle })
+          Column() {
+            TextArea({
+              placeholder: this.t('export.empty'),
+              text: this.exportContent
             })
+              .height(420)
+              .width('100%')
+              .fontSize(FontSz.footnote)
+              .fontColor(AppColor.textPrimary)
+              .fontFamily('monospace')
+              .backgroundColor(Color.Transparent)
+              .borderRadius(0)
+              .padding(Space.lg)
+              .onChange((value: string) => {
+                this.exportContent = value;
+              })
+          }
+          .width('100%')
+          .backgroundColor(AppColor.surface)
+          .borderRadius(Radius.lg)
+          .clip(true)
+          .margin({ left: Space.lg, right: Space.lg })
 
           Text(this.t('export.copyHint'))
-            .fontSize(12)
-            .fontColor(AppColor.textSecondary)
+            .fontSize(FontSz.footnote)
+            .fontColor(AppColor.textTertiary)
             .width('100%')
+            .padding({ left: Space.lg + Space.xs, right: Space.lg + Space.xs })
         }
         .width('100%')
-        .padding({ left: 14, right: 14, top: 14, bottom: 24 })
+        .padding({ top: Space.sm, bottom: Space.xxl })
       }
       .layoutWeight(1)
       .width('100%')

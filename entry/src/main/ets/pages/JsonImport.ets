@@ -7,8 +7,9 @@ import { NODES_CONTROLLER } from '../features/nodes/NodesController';
 import { SETTINGS_CONTROLLER } from '../features/settings/SettingsController';
 import { SHARED_RUNTIME_CONTROLLER } from '../features/runtime/RuntimeController';
 import { SubscriptionStore } from '../storage/SubscriptionStore';
+import { SectionHeader } from '../components/SectionHeader';
 import { PageHeader } from '../shell/PageHeader';
-import { AppColor } from '../theme/Theme';
+import { AppColor, FontSz, Radius, Space } from '../theme/Theme';
 
 @Entry
 @Component
@@ -19,7 +20,6 @@ struct JsonImportPage {
   @State private validationOk: boolean = false;
   @State private isBusy: boolean = false;
   @State private lastError: string = '';
-  @State private isPressed: boolean = false;
 
   aboutToAppear(): void {
     this.loadState();
@@ -34,80 +34,75 @@ struct JsonImportPage {
 
       Stack({ alignContent: Alignment.Bottom }) {
         Scroll() {
-          Column({ space: 16 }) {
+          Column({ space: Space.lg }) {
             // 输入卡片
-            Column({ space: 12 }) {
-              Row() {
-                Text('Outbound JSON 配置')
-                  .fontSize(15)
-                  .fontWeight(FontWeight.Bold)
-                  .fontColor(AppColor.textPrimary)
-                
+            SectionHeader({ title: 'Outbound JSON 配置' })
+            Column() {
+              // 粘贴 / 清空 操作行
+              Row({ space: Space.sm }) {
                 Blank()
-                
-                // 粘贴与清空操作按钮
-                Row({ space: 8 }) {
-                  Button('粘贴')
-                    .fontSize(12)
-                    .fontColor(AppColor.textSecondary)
-                    .backgroundColor(AppColor.border)
-                    .height(28)
-                    .padding({ left: 10, right: 10 })
-                    .borderRadius(6)
-                    .onClick(() => {
-                      this.pasteFromClipboard();
-                    })
+                Button('粘贴')
+                  .fontSize(FontSz.footnote)
+                  .fontColor(AppColor.brand)
+                  .backgroundColor(AppColor.brandTint)
+                  .height(30)
+                  .padding({ left: Space.md, right: Space.md })
+                  .borderRadius(Radius.sm)
+                  .onClick(() => {
+                    this.pasteFromClipboard();
+                  })
 
-                  if (this.outboundJson.length > 0) {
-                    Button('清空')
-                      .fontSize(12)
-                      .fontColor(AppColor.danger)
-                      .backgroundColor(AppColor.dangerTint)
-                      .height(28)
-                      .padding({ left: 10, right: 10 })
-                      .borderRadius(6)
-                      .onClick(() => {
-                        this.outboundJson = '';
-                        this.validateConfig();
-                      })
-                  }
+                if (this.outboundJson.length > 0) {
+                  Button('清空')
+                    .fontSize(FontSz.footnote)
+                    .fontColor(AppColor.danger)
+                    .backgroundColor(AppColor.dangerTint)
+                    .height(30)
+                    .padding({ left: Space.md, right: Space.md })
+                    .borderRadius(Radius.sm)
+                    .onClick(() => {
+                      this.outboundJson = '';
+                      this.validateConfig();
+                    })
                 }
               }
               .width('100%')
-              .alignItems(VerticalAlign.Center)
+              .padding({ left: Space.lg, right: Space.lg, top: Space.md })
 
               TextArea({
                 placeholder: '请粘贴完整的 Xray outbound JSON 配置，例如：\n{\n  "protocol": "vless",\n  "settings": { ... }\n}',
                 text: this.outboundJson
               })
                 .height(260)
-                .fontSize(13)
+                .width('100%')
+                .fontSize(FontSz.body)
                 .fontColor(AppColor.textPrimary)
                 .fontFamily('monospace')
-                .backgroundColor(AppColor.surfaceAlt)
-                .borderRadius(10)
-                .padding(12)
+                .backgroundColor(Color.Transparent)
+                .borderRadius(0)
+                .padding(Space.lg)
                 .onChange((value: string) => {
                   this.outboundJson = value;
                   this.validateConfig();
                 })
-
-              Text('注意：填入的配置必须符合标准的 Xray 出站协议格式，需包含 protocol 和 settings 核心字段。')
-                .fontSize(12)
-                .fontColor(AppColor.textTertiary)
-                .width('100%')
-                .lineHeight(16)
             }
             .width('100%')
-            .padding(16)
             .backgroundColor(AppColor.surface)
-            .borderRadius(16)
-            .shadow({ radius: 8, color: AppColor.shadowCard, offsetX: 0, offsetY: 2 })
+            .borderRadius(Radius.lg)
+            .clip(true)
+            .margin({ left: Space.lg, right: Space.lg })
+
+            Text('注意：填入的配置必须符合标准的 Xray 出站协议格式，需包含 protocol 和 settings 核心字段。')
+              .fontSize(FontSz.footnote)
+              .fontColor(AppColor.textTertiary)
+              .width('100%')
+              .lineHeight(16)
+              .padding({ left: Space.lg + Space.xs, right: Space.lg + Space.xs })
 
             // 校验结果指示板
             if (this.outboundJson.trim().length > 0) {
-              Column({ space: 8 }) {
-                Row({ space: 6 }) {
+              Column({ space: Space.sm }) {
+                Row({ space: Space.sm }) {
                   Column()
                     .width(6)
                     .height(6)
@@ -115,39 +110,39 @@ struct JsonImportPage {
                     .backgroundColor(this.validationOk ? AppColor.success : AppColor.danger)
 
                   Text(this.validationOk ? '配置格式有效' : '配置格式无效')
-                    .fontSize(14)
-                    .fontWeight(FontWeight.Bold)
+                    .fontSize(FontSz.body)
+                    .fontWeight(FontWeight.Medium)
                     .fontColor(this.validationOk ? AppColor.success : AppColor.danger)
                 }
                 .width('100%')
                 .alignItems(VerticalAlign.Center)
 
                 Text(this.validationMessage)
-                  .fontSize(12)
+                  .fontSize(FontSz.footnote)
                   .fontColor(this.validationOk ? AppColor.success : AppColor.danger)
                   .width('100%')
                   .lineHeight(16)
               }
               .width('100%')
-              .padding(14)
+              .padding(Space.lg)
               .backgroundColor(this.validationOk ? AppColor.successTint : AppColor.dangerTint)
-              .borderRadius(12)
-              .borderWidth(1)
-              .borderColor(this.validationOk ? AppColor.success : AppColor.danger)
+              .borderRadius(Radius.md)
+              .margin({ left: Space.lg, right: Space.lg })
             }
 
             if (this.lastError.length > 0) {
               Text(this.lastError)
-                .fontSize(12)
+                .fontSize(FontSz.footnote)
                 .fontColor(AppColor.danger)
                 .width('100%')
-                .padding(10)
+                .padding(Space.md)
                 .backgroundColor(AppColor.dangerTint)
-                .borderRadius(6)
+                .borderRadius(Radius.md)
+                .margin({ left: Space.lg, right: Space.lg })
             }
           }
           .width('100%')
-          .padding({ left: 16, right: 16, top: 16, bottom: 100 })
+          .padding({ top: Space.sm, bottom: 100 })
         }
         .width('100%')
         .height('100%')
@@ -162,44 +157,26 @@ struct JsonImportPage {
                   .width(20)
                   .height(20)
                   .color(AppColor.onBrand)
-                  .margin({ right: 8 })
+                  .margin({ right: Space.sm })
               }
               Text('导入此 JSON 节点')
-                .fontSize(16)
-                .fontWeight(FontWeight.Bold)
+                .fontSize(FontSz.headline)
+                .fontWeight(FontWeight.Medium)
                 .fontColor(this.isSaveEnabled() ? AppColor.onBrand : AppColor.textTertiary)
             }
           }
           .width('100%')
-          .height(50)
-          .borderRadius(12)
+          .height(48)
+          .borderRadius(Radius.pill)
           .enabled(this.isSaveEnabled())
-          .opacity(this.isSaveEnabled() ? 1.0 : 0.65)
-          .linearGradient(this.isSaveEnabled() ? {
-            angle: 90,
-            colors: [[AppColor.brandStrong, 0.0], [AppColor.brand, 1.0]]
-          } : {
-            angle: 90,
-            colors: [[AppColor.border, 0.0], [AppColor.border, 1.0]]
-          })
-          .shadow(this.isSaveEnabled() ? { radius: 10, color: AppColor.shadowBrand, offsetX: 0, offsetY: 4 } : undefined)
-          .scale({ x: this.isPressed ? 0.97 : 1.0, y: this.isPressed ? 0.97 : 1.0 })
-          .animation({ duration: 150, curve: Curve.EaseOut })
-          .onTouch((event) => {
-            if (event.type === TouchType.Down) {
-              this.isPressed = true;
-            } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
-              this.isPressed = false;
-            }
-          })
+          .backgroundColor(this.isSaveEnabled() ? AppColor.brand : AppColor.surfaceAlt)
           .onClick(() => {
             this.importJsonNode();
           })
         }
         .width('100%')
-        .padding({ left: 16, right: 16, top: 16, bottom: 24 })
+        .padding({ left: Space.lg, right: Space.lg, top: Space.md, bottom: Space.xxl })
         .backgroundColor(AppColor.bg)
-        .backgroundBlurStyle(BlurStyle.Thin)
       }
       .layoutWeight(1)
       .width('100%')
@@ -245,7 +222,7 @@ struct JsonImportPage {
         this.lastError = validation.message;
         return;
       }
-      
+
       const normalizedJson = validation.normalizedJson;
       // 提取 JSON 中 tag 字段作为节点名，若无则使用默认名称
       let nodeName = 'JSON导入';
