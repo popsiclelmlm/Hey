@@ -121,6 +121,50 @@
 
 ---
 
+## 七、继续工作指引（新会话从这里接手）
+
+> 新会话没有上一段对话的上下文，**先读完本文件再动手**。以下是接手所需的全部约定与状态。
+
+### 当前状态
+- **分支**：`redesign/home-ios-minimal`（基于 `main`），已有 6 个提交，未推送。
+- 已完成 ✅：底部 3-Tab 首页（连接/节点/设置）、节点卡片+列表左滑、设置页、订阅页、通用页头 PageHeader、共享组件令牌化、**全站子页面深色模式令牌化**、**配色统一为暖橙（无蓝）**、**App Logo 暖橙重设计**。
+- **尚未在 DevEco 编译/真机验证**——所有 ArkTS 均为人工逐行核对。每次改完用括号/圆括号配对自检，但仍需真机走查（见上方各「待验证」清单）。
+
+### 下一步（按优先级）
+1. **路由页 `pages/Routing.ets` 的 iOS 分组重排**（当前仅令牌化 🌓，未重排）。
+2. 其余 🌓 页面逐个 iOS 重排：`PerApp.ets` → `Assets.ets`(+`assets/*`) → `NodeDetail/NodeEdit` → `Import/JsonImport/Export` → `SubscriptionDetail/SubscriptionEdit` → `About` → `Logs`。
+3. 安全区 inset 统一处理（若真机发现大标题被状态栏遮挡）。
+
+### iOS 分组重排的样板（务必照此保持一致）
+参照已完成的 `pages/Settings.ets`，模式固定为：
+- 页面根：`.backgroundColor(AppColor.bg)`（灰底）；顶部 `PageHeader`；内容放 `Scroll > Column({ space: Space.lg })`。
+- 每组：`SectionHeader({ title })`（iOS 灰色小标签）+ 一个分组卡片 `Column(){...}.backgroundColor(AppColor.surface).borderRadius(Radius.lg).clip(true).margin({left:Space.lg,right:Space.lg})`。
+- 组内每行之间用细分割线 `Divider().strokeWidth(0.5).color(AppColor.divider).margin({left:Space.lg})`。
+- 可选行：右侧用 `ic_check`（`AppColor.brand`）表示选中；导航行右侧用 `ic_chevron_right`。
+- 颜色/间距/圆角/字号**只用令牌**（`AppColor/Space/Radius/FontSz`），禁止硬编码 hex。
+- 列表项的「分享/编辑/删除」等操作优先用 `List + ListItem.swipeAction` 左滑（参照 `Index.ets` 的 `NodeList`、`Subscriptions.ets`）。
+
+### 提交约定（用户要求，务必遵守）
+- 提交信息：**英文、一句话、无任何协作者尾注**（不要 `Co-Authored-By`）。
+- **按功能拆分**多个提交，一个功能一个 commit。
+- 用 `git add <显式文件清单>` 精确暂存，**不要 `git add -A/.`**。
+
+### 不要触碰 / 不要提交的文件（非本次 UI 工作，属他人改动）
+```
+docs/roadmap.md
+docs/v2rayng-feature-map.md
+docs/development-plan.md
+docs/v2rayng-analysis/
+entry/src/main/ets/core/XrayConfig.ets
+```
+
+### 已知保留项（非 bug，勿"修复"）
+- `info` / `info_tint` 令牌现已闲置（配色统一后无引用），保留备用，**勿删**。
+- 延迟状态色链（`SubscriptionDetail.nodeDelayColor()` / `SubscriptionRows` 的 `delayColor: string`）为 string 类型，仍是硬编码中间调色——深色下可接受。
+- `promptAction.Button` 系统弹窗里的颜色字段为数据字段，保留硬编码。
+
+---
+
 ## 变更记录
 
 | 日期 | 变更 |
