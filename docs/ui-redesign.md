@@ -75,7 +75,7 @@
 | 日志页 | `pages/Logs.ets` `LogPanel`/`RuntimePanel` | 🌓 | 深色已适配；iOS 重排待做 |
 | 扫码页 | `pages/Scanner.ets` | 🌓 | 深色已适配；系统扫码 UI 不重排 |
 | 关于页 | `pages/About.ets` | 🌓 | 深色已适配；iOS 重排待做 |
-| 节点详情/编辑 | `pages/NodeDetail.ets` `NodeEdit.ets` | 🌓 | 深色已适配；iOS 重排待做 |
+| 节点详情/编辑 | `pages/NodeDetail.ets` `NodeEdit.ets` | ✅ | NodeDetail 改信息组+JSON 组+危险删除行；NodeEdit 卡片标题→SectionHeader、子控件令牌化、保存按钮简化为品牌 pill |
 | 导入/JSON/导出 | `pages/Import.ets` `JsonImport.ets` `Export.ets` | 🌓 | 深色已适配；iOS 重排待做 |
 | 订阅详情/编辑 | `pages/SubscriptionDetail.ets` `SubscriptionEdit.ets` + 面板 | 🌓 | 深色已适配；iOS 重排待做 |
 
@@ -132,7 +132,7 @@
 
 ### 下一步（按优先级）
 1. ~~路由页 `pages/Routing.ets` 的 iOS 分组重排~~ ✅ 已完成。
-2. 其余 🌓 页面逐个 iOS 重排：~~`PerApp.ets`~~ ✅ → ~~`Assets.ets`(+`assets/*`)~~ ✅ → `NodeDetail/NodeEdit`（下一个） → `Import/JsonImport/Export` → `SubscriptionDetail/SubscriptionEdit` → `About` → `Logs`。
+2. 其余 🌓 页面逐个 iOS 重排：~~`PerApp.ets`~~ ✅ → ~~`Assets.ets`(+`assets/*`)~~ ✅ → ~~`NodeDetail/NodeEdit`~~ ✅ → `Import/JsonImport/Export`（下一个） → `SubscriptionDetail/SubscriptionEdit` → `About` → `Logs`。
 3. 安全区 inset 统一处理（若真机发现大标题被状态栏遮挡）。
 
 ### iOS 分组重排的样板（务必照此保持一致）
@@ -176,6 +176,7 @@ entry/src/main/ets/core/XrayConfig.ets
 | 2026-06-05 | 真机修复三连：①Index 加 `onPageShow` 刷新（加订阅后节点列表实时更新）②PageHeader 覆盖层 `hitTestBehavior(Transparent)` 修复返回键被遮挡失效 ③节点搜索改为 header 内就地展开（搜索框+取消，带动画），不再在下方另开输入框 |
 | 2026-06-05 | **子页面深色模式适配**：20 个子页面/组件的硬编码 hex 全量令牌化（~500 处），深色模式自动适配；新增 `infoTint` 令牌（base+dark）。已知保留的 3 处硬编码：①`nodeDelayColor()`/`delayColor` 的延迟状态色链（string 类型约束，中间调在深色下仍清晰）②`promptAction.Button` 系统弹窗色（BuiltinGeoCard） |
 | 2026-06-05 | **配色统一为单一暖橙**：全站 `info`/`infoTint` 蓝 → `brand`/`brandTint` 橙；左滑次要操作改中性灰；延迟「测速中」蓝改橙。无蓝色残留 |
+| 2026-06-05 | **节点详情/编辑页 iOS 分组重排**：`NodeDetail` 改灰底 + 节点信息组（名称/协议/来源信息行）+ 使用按钮（品牌/成功 pill）+ Outbound/原始链接分组卡 + 底部危险「删除」行；TextArea 透明融入卡片。`NodeEdit` 各表单卡片的品牌色标题条 → `SectionHeader`，卡片去阴影、改纯分组卡；`SegmentedControl`/`ToggleRow`/`PickerRow`/`EditorRow` 全令牌化（输入框 surfaceAlt + Radius.md，开关补 brand 选中色）；底部保存按钮由渐变+阴影+按压缩放简化为品牌 pill（禁用态 surfaceAlt），移除未用的 `isPressed` 状态与 blur。表单拼装与校验逻辑（saveManualNode 等）原样保留 |
 | 2026-06-05 | **资源文件页 iOS 分组重排**：`Assets.ets` 三张品牌色卡片 → 灰底 + `SectionHeader` 四组（快捷操作/内置 Geo/自定义资源/备份还原），统一 `EntryRow`（图标圈+标题+副标题+可选 chevron）。`BuiltinGeoCard` 去掉内部标题/阴影，改为纯分组卡内容（下载源行 + geosite/geoip 行 + 0.5px 细分割线）。`CustomAssetList` 自定义头改用统一 `PageHeader`（新增可选 `onBack` 回调），列表行内三按钮 → iOS 左滑（更新/覆盖导入·编辑·删除），底部「添加」改品牌 pill。`AssetAddEditDialog` 数值令牌化、按钮改 pill + i18n 文案。promptAction 删除按钮 hex 按既定约定保留 |
 | 2026-06-05 | **PageHeader 增强**：新增可选 `onBack: () => void`（默认 `router.back()`），向后兼容；供在页内子视图（如 CustomAssetList）复用统一页头并自定义返回行为 |
 | 2026-06-05 | **分应用代理页 iOS 分组重排**：单层固定布局 → 启用时整页 `Scroll` + 分组卡片（主开关 / 过滤策略黑白名单单选行 + 系统应用可见性开关 / 应用列表：圆形首字母头像+包名+勾选 / 手动添加：输入行 + 品牌按钮），关闭时居中占位。`SettingToggleRow` 改传空键名隐藏开发者键；黑白名单/系统可见性改用既有 `perApp.*` 中英文案；移除未用的 `bundleManager`/`ActionListItem` 导入与 `InputLabelPair` 子组件。逻辑（开关/名单/勾选/手动追加/persist）原样保留 |
