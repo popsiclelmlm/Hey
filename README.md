@@ -1,9 +1,29 @@
+<div align="center">
+
+<img src="design/app-icon/startIcon.png" alt="Hey VPN" width="160" height="160" />
+
 # Hey VPN
 
-Hey VPN is a HarmonyOS VPN client MVP built with ArkTS, Stage model abilities,
-and a native Xray core. It is designed to import proxy nodes,
-generate an Xray runtime config, start a HarmonyOS VPN Extension, and route the
-device TUN flow through Xray's native TUN inbound.
+**A HarmonyOS VPN client powered by a native Xray core.**
+
+<p>
+  <img src="https://img.shields.io/badge/platform-HarmonyOS%20NEXT-0A0A0A" alt="platform" />
+  <img src="https://img.shields.io/badge/ArkTS-API%2024-1E88E5" alt="ArkTS API 24" />
+  <img src="https://img.shields.io/badge/core-Xray-6E56CF" alt="Xray core" />
+  <img src="https://img.shields.io/badge/version-1.0.0-E85D04" alt="version 1.0.0" />
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-3DA639" alt="license GPL-3.0" /></a>
+</p>
+
+English · [简体中文](README.zh-CN.md)
+
+</div>
+
+---
+
+Hey VPN is a HarmonyOS VPN client built with ArkTS, Stage model abilities,
+and a native Xray core. It imports proxy nodes and subscriptions,
+generates an Xray runtime config, starts a HarmonyOS VPN Extension, and routes
+the device TUN flow through Xray's native TUN inbound.
 
 The current native path is:
 
@@ -23,25 +43,31 @@ User connects
 
 ## Status
 
-This repository is an active MVP. The UI, share-link import, subscription
-loading, Xray config generation, native bridge packaging, and VPN extension
-startup path are present. Full closed-loop traffic validation should be done on
-a real HarmonyOS device because some emulator/system images do not include the
-VPN authorization component.
+The client is feature-complete across the UI and config layers: node and
+subscription management, share-link and JSON import, Xray config generation,
+native delay testing, routing, geo-asset management, per-app proxy, and the
+full VPN extension startup path are all implemented and wired to the native
+bridge. The remaining gap is end-to-end traffic validation, which should be
+done on a real HarmonyOS device because some emulator/system images do not
+include the VPN authorization component.
 
 ## Features
 
 - HarmonyOS Stage app with `EntryAbility`, `HeyVpnAbility`, and backup ability.
 - Node list, search, selection, start/stop/restart controls, and runtime status.
-- Import of subscription URLs, Xray outbound JSON, and share links.
-- Share-link parsing for `vless://`, `vmess://`, `trojan://`, and `ss://`.
+- Import of subscription URLs, Xray outbound JSON, and share links, with
+  multi-subscription groups and per-node detail/edit pages.
+- Share-link parsing for `vless://`, `vmess://`, `trojan://`, `ss://`,
+  `socks://`, `http(s)://`, `wireguard://`, and `hysteria2://` / `hy2://`.
 - Xray config generation with native TUN inbound plus proxy/direct/block
-  outbounds.
-- Native N-API bridge for packaged `libxray.so`, including TUN fd setup and
-  Xray lifecycle entry points.
-- Diagnostic log panel and native runtime stat display.
-- Scaffolded pages for routing, settings, per-app proxy, user assets, scanner,
-  subscriptions, logs, and about.
+  outbounds, and routing rules (bypass LAN/CN).
+- Native N-API bridge for packaged `libxray.so`, including TUN fd setup,
+  Xray lifecycle entry points, and real per-node delay testing (`CGoPing`).
+- Geo-asset management (geoip/geosite download, custom URLs, backup/restore).
+- Per-app proxy with allow/deny modes, a preset app list, and manual package
+  entry (HarmonyOS NEXT restricts global app enumeration).
+- Scan/import and export pages, diagnostic log panel, native runtime stat
+  display, settings, and an about page — with full English/Chinese i18n.
 
 ## Project Layout
 
@@ -122,9 +148,22 @@ per-node delay tests, but it is separate from VPN traffic forwarding.
 ## Roadmap
 
 - Real-device VPN traffic validation across more HarmonyOS versions.
-- Delay testing, sorting, duplicate cleanup, export/share, and QR generation.
-- Protocol editors for SOCKS, HTTP, WireGuard, Hysteria2, TUIC, and advanced
-  VLESS/VMess/Trojan/Shadowsocks fields.
-- Multi-subscription groups and automatic subscription refresh.
-- Routing rulesets, geo asset management, and per-app proxy persistence.
+- Node sorting, duplicate cleanup, and automatic subscription refresh.
+- Camera-based QR scanning and QR code generation for share/export.
+- Protocol editors for advanced VLESS/VMess/Trojan/Shadowsocks/WireGuard/
+  Hysteria2 fields, plus TUIC support.
+- Expanded routing rulesets, including ad-blocking and custom rule editing.
 - HarmonyOS deep-link import, shortcuts, and platform-specific automation.
+
+## License
+
+Copyright (C) 2026 popsiclelmlm
+
+Hey VPN is licensed under the [GNU General Public License v3.0](LICENSE).
+You may use, modify, and redistribute it — including commercially — provided
+derivative works remain under GPL-3.0 and you make the corresponding source
+available.
+
+It bundles the Xray native core (Xray-core, MPL-2.0) and builds on libXray
+(MIT). Those components keep their own licenses; see
+[`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md) for details.

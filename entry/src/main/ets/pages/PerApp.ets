@@ -17,7 +17,7 @@ interface AppItem {
 
 const SELF_BUNDLE_NAME: string = 'com.lmlm.hey';
 
-const PRESET_MOCK_APPS: AppItem[] = [
+const PRESET_APPS: AppItem[] = [
   { bundleName: 'com.huawei.hbrowser', label: '华为浏览器', isSystem: true },
   { bundleName: 'com.tencent.mm', label: '微信', isSystem: false },
   { bundleName: 'com.eg.android.AlipayGphone', label: '支付宝', isSystem: false },
@@ -61,8 +61,8 @@ struct PerAppPage {
     // 我们在此配合预设应用和自定义录入包名，从而实现完整的黑白名单规则定制。
     SHARED_RUNTIME_CONTROLLER.appendLog("已载入分应用代理列表，可通过底部手动输入追加特定包名。");
 
-    // 将预置大厂包名合并，并在此处显式排除掉当前应用自身，防止本应用出现在可选列表中
-    PRESET_MOCK_APPS.forEach(preset => {
+    // 将预置常用应用包名合并，并在此处显式排除掉当前应用自身，防止本应用出现在可选列表中
+    PRESET_APPS.forEach(preset => {
       if (preset.bundleName !== SELF_BUNDLE_NAME && !list.some(item => item.bundleName === preset.bundleName)) {
         list.push(preset);
       }
