@@ -50,7 +50,6 @@ struct LogsPage {
     Column() {
       PageHeader({
         title: this.t('screen.logs.title'),
-        summary: this.t('logs.title'),
         showBack: true
       })
       Scroll() {
