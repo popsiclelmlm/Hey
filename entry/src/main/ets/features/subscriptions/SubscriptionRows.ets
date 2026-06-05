@@ -1,7 +1,7 @@
 import { ProxyNode, SubscriptionGroup } from '../../core/Profile';
 import { IconButton } from '../../components/IconButton';
 import { ProxyNodeHandler } from '../servers/ServerCard';
-import { AppColor } from '../../theme/Theme';
+import { AppColor, FontSz, Space } from '../../theme/Theme';
 
 export type SubscriptionGroupHandler = (group: SubscriptionGroup) => void;
 
@@ -112,19 +112,19 @@ export struct SubscriptionNodeListRow {
       Row({ space: 12 }) {
         Column({ space: 4 }) {
           Text(this.node.name)
-            .fontSize(16)
+            .fontSize(FontSz.callout)
             .fontWeight(FontWeight.Medium)
             .fontColor(AppColor.textPrimary)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
           Text(this.node.protocol.toUpperCase())
-            .fontSize(13)
+            .fontSize(FontSz.footnote)
             .fontColor(AppColor.brand)
         }
         .layoutWeight(1)
 
         Text(this.delayText)
-          .fontSize(13)
+          .fontSize(FontSz.footnote)
           .fontColor(this.delayColor)
           .width(82)
           .textAlign(TextAlign.Center)
@@ -142,11 +142,11 @@ export struct SubscriptionNodeListRow {
         })
       }
       .width('100%')
-      .padding({ left: 24, right: 12, top: 14, bottom: 14 })
+      .padding({ left: Space.lg, right: Space.md, top: Space.md, bottom: Space.md })
       Divider()
-        .strokeWidth(1)
+        .strokeWidth(0.5)
         .color(AppColor.divider)
-        .margin({ left: 24 })
+        .margin({ left: Space.lg })
     }
     .width('100%')
     .backgroundColor(this.isSelected ? AppColor.brandTint : AppColor.surface)

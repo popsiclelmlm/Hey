@@ -1,5 +1,4 @@
 import { common } from '@kit.AbilityKit';
-import { IconButton } from '../components/IconButton';
 import { DEFAULT_LANGUAGE, translate } from '../core/I18n';
 import { AppLanguage, ProxyNode, SubscriptionGroup } from '../core/Profile';
 import { NODES_CONTROLLER, NodesControllerState } from '../features/nodes/NodesController';
@@ -9,9 +8,10 @@ import { SUBSCRIPTIONS_CONTROLLER, SubscriptionsControllerState } from '../featu
 import { SETTINGS_CONTROLLER } from '../features/settings/SettingsController';
 import { SHARED_RUNTIME_CONTROLLER } from '../features/runtime/RuntimeController';
 import { AppRoute } from '../shell/AppRoute';
-import { AppColor } from '../theme/Theme';
+import { SectionHeader } from '../components/SectionHeader';
+import { AppColor, FontSz, Radius, Space } from '../theme/Theme';
 import { PageHeader } from '../shell/PageHeader';
-import { formatOne, formatTwo } from '../utils/LocalizationPresenter';
+import { formatOne } from '../utils/LocalizationPresenter';
 import { router, promptAction } from '@kit.ArkUI';
 import { pasteboard } from '@kit.BasicServicesKit';
 
@@ -54,27 +54,27 @@ struct SubscriptionDetailPage {
       })
 
       Scroll() {
-        Column({ space: 16 }) {
-          // URL 编辑与操作面板
-          Column({ space: 16 }) {
-            // 输入行
+        Column({ space: Space.lg }) {
+          // 订阅链接组
+          SectionHeader({ title: '订阅链接' })
+          Column() {
             Row() {
               Image($r('app.media.ic_link'))
                 .width(20)
                 .height(20)
                 .fillColor(AppColor.textSecondary)
-                .margin({ left: 12, right: 8 })
+                .margin({ left: Space.lg, right: Space.sm })
 
               TextInput({
                 placeholder: this.t('placeholder.subscriptionUrl'),
                 text: this.subscriptionUrl
               })
                 .layoutWeight(1)
-                .height(44)
-                .fontSize(14)
+                .height(48)
+                .fontSize(FontSz.body)
                 .fontColor(AppColor.textPrimary)
                 .placeholderColor(AppColor.textTertiary)
-                .backgroundColor('#00000000')
+                .backgroundColor(Color.Transparent)
                 .onChange((value: string) => {
                   this.subscriptionUrl = value;
                 })
@@ -82,11 +82,11 @@ struct SubscriptionDetailPage {
               if (this.subscriptionUrl.length > 0) {
                 Button() {
                   Text('✕')
-                    .fontSize(14)
+                    .fontSize(FontSz.body)
                     .fontColor(AppColor.textTertiary)
                     .fontWeight(FontWeight.Bold)
                 }
-                .backgroundColor('#00000000')
+                .backgroundColor(Color.Transparent)
                 .width(36)
                 .height(36)
                 .onClick(() => {
@@ -100,7 +100,7 @@ struct SubscriptionDetailPage {
                   .height(20)
                   .fillColor(AppColor.textSecondary)
               }
-              .backgroundColor('#00000000')
+              .backgroundColor(Color.Transparent)
               .width(36)
               .height(36)
               .onClick(() => {
@@ -113,96 +113,83 @@ struct SubscriptionDetailPage {
                   .height(20)
                   .fillColor(AppColor.textSecondary)
               }
-              .backgroundColor('#00000000')
+              .backgroundColor(Color.Transparent)
               .width(36)
               .height(36)
-              .margin({ right: 6 })
+              .margin({ right: Space.sm })
               .onClick(() => {
                 router.pushUrl({ url: AppRoute.SCANNER });
               })
             }
             .width('100%')
-            .height(48)
-            .backgroundColor(AppColor.surfaceAlt)
-            .borderRadius(12)
-            .border({ width: 1, color: AppColor.border })
             .alignItems(VerticalAlign.Center)
+          }
+          .width('100%')
+          .backgroundColor(AppColor.surface)
+          .borderRadius(Radius.lg)
+          .clip(true)
+          .margin({ left: Space.lg, right: Space.lg })
 
-            // 获取并更新按钮
-            Button() {
-              Row({ space: 8 }) {
-                if (this.isUpdating) {
-                  LoadingProgress()
-                    .width(20)
-                    .height(20)
-                    .color(AppColor.onBrand)
-                }
-                Text(this.isUpdating ? '正在获取并更新节点...' : '获取并更新节点')
-                  .fontSize(15)
-                  .fontWeight(FontWeight.Bold)
-                  .fontColor(this.isButtonEnabled() ? AppColor.onBrand : AppColor.textTertiary)
+          // 获取并更新按钮
+          Button() {
+            Row({ space: Space.sm }) {
+              if (this.isUpdating) {
+                LoadingProgress()
+                  .width(20)
+                  .height(20)
+                  .color(AppColor.onBrand)
               }
-            }
-            .width('100%')
-            .height(44)
-            .borderRadius(12)
-            .enabled(this.isButtonEnabled())
-            .opacity(this.isButtonEnabled() ? 1.0 : 0.65)
-            .linearGradient(this.isButtonEnabled() ? {
-              angle: 90,
-              colors: [[AppColor.brandStrong, 0.0], [AppColor.brand, 1.0]]
-            } : {
-              angle: 90,
-              colors: [[AppColor.border, 0.0], [AppColor.border, 1.0]]
-            })
-            .shadow(this.isButtonEnabled() ? { radius: 8, color: AppColor.shadowBrand, offsetX: 0, offsetY: 4 } : undefined)
-            .onClick(() => {
-              this.updateSubscription();
-            })
-
-            // 成功/失败状态反馈卡片
-            if (this.showCard) {
-              Row({ space: 10 }) {
-                Image(this.cardType === 'success' ? $r('app.media.ic_check') : $r('app.media.ic_info'))
-                  .width(18)
-                  .height(18)
-                  .fillColor(this.cardType === 'success' ? AppColor.success : this.cardType === 'error' ? AppColor.danger : AppColor.brand)
-
-                Text(this.subscriptionMessage)
-                  .fontSize(13)
-                  .fontColor(this.cardType === 'success' ? AppColor.success : this.cardType === 'error' ? AppColor.danger : AppColor.brand)
-                  .layoutWeight(1)
-
-                Button() {
-                  Text('✕')
-                    .fontSize(12)
-                    .fontColor(this.cardType === 'success' ? AppColor.success : this.cardType === 'error' ? AppColor.danger : AppColor.brand)
-                    .fontWeight(FontWeight.Bold)
-                }
-                .backgroundColor('#00000000')
-                .width(28)
-                .height(28)
-                .onClick(() => {
-                  this.showCard = false;
-                })
-              }
-              .width('100%')
-              .padding({ left: 12, right: 8, top: 10, bottom: 10 })
-              .borderRadius(10)
-              .backgroundColor(this.cardType === 'success' ? AppColor.successTint : this.cardType === 'error' ? AppColor.dangerTint : AppColor.brandTint)
-              .border({
-                width: 1,
-                color: this.cardType === 'success' ? AppColor.success : this.cardType === 'error' ? AppColor.danger : AppColor.brand
-              })
+              Text(this.isUpdating ? '正在获取并更新节点...' : '获取并更新节点')
+                .fontSize(FontSz.callout)
+                .fontWeight(FontWeight.Medium)
+                .fontColor(this.isButtonEnabled() ? AppColor.onBrand : AppColor.textTertiary)
             }
           }
           .width('100%')
-          .padding(16)
-          .backgroundColor(AppColor.surface)
-          .borderRadius(12)
-          .shadow({ radius: 8, color: AppColor.shadowCard, offsetX: 0, offsetY: 2 })
+          .height(46)
+          .borderRadius(Radius.pill)
+          .enabled(this.isButtonEnabled())
+          .backgroundColor(this.isButtonEnabled() ? AppColor.brand : AppColor.surfaceAlt)
+          .margin({ left: Space.lg, right: Space.lg })
+          .onClick(() => {
+            this.updateSubscription();
+          })
 
-          // 节点列表卡片
+          // 成功/失败状态反馈卡片
+          if (this.showCard) {
+            Row({ space: Space.sm }) {
+              Image(this.cardType === 'success' ? $r('app.media.ic_check') : $r('app.media.ic_info'))
+                .width(18)
+                .height(18)
+                .fillColor(this.cardType === 'success' ? AppColor.success : this.cardType === 'error' ? AppColor.danger : AppColor.brand)
+
+              Text(this.subscriptionMessage)
+                .fontSize(FontSz.body)
+                .fontColor(this.cardType === 'success' ? AppColor.success : this.cardType === 'error' ? AppColor.danger : AppColor.brand)
+                .layoutWeight(1)
+
+              Button() {
+                Text('✕')
+                  .fontSize(FontSz.footnote)
+                  .fontColor(this.cardType === 'success' ? AppColor.success : this.cardType === 'error' ? AppColor.danger : AppColor.brand)
+                  .fontWeight(FontWeight.Bold)
+              }
+              .backgroundColor(Color.Transparent)
+              .width(28)
+              .height(28)
+              .onClick(() => {
+                this.showCard = false;
+              })
+            }
+            .width('100%')
+            .padding({ left: Space.md, right: Space.sm, top: Space.md, bottom: Space.md })
+            .borderRadius(Radius.md)
+            .backgroundColor(this.cardType === 'success' ? AppColor.successTint : this.cardType === 'error' ? AppColor.dangerTint : AppColor.brandTint)
+            .margin({ left: Space.lg, right: Space.lg })
+          }
+
+          // 节点列表组
+          SectionHeader({ title: '节点列表' })
           if (this.nodes.length > 0) {
             Column() {
               ForEach(this.subscriptionNodeRows(), (row: SubscriptionNodeRowModel) => {
@@ -222,21 +209,22 @@ struct SubscriptionDetailPage {
             }
             .width('100%')
             .backgroundColor(AppColor.surface)
-            .borderRadius(12)
-            .shadow({ radius: 8, color: AppColor.shadowCard, offsetX: 0, offsetY: 2 })
+            .borderRadius(Radius.lg)
+            .clip(true)
+            .margin({ left: Space.lg, right: Space.lg })
           } else {
-            Column({ space: 12 }) {
+            Column() {
               Text('此分组下暂无节点')
-                .fontSize(14)
+                .fontSize(FontSz.body)
                 .fontColor(AppColor.textTertiary)
             }
             .width('100%')
-            .height(200)
+            .height(160)
             .justifyContent(FlexAlign.Center)
           }
         }
         .width('100%')
-        .padding(16)
+        .padding({ top: Space.sm, bottom: Space.xxl })
       }
       .layoutWeight(1)
       .width('100%')
@@ -279,7 +267,7 @@ struct SubscriptionDetailPage {
     this.nodes = state.nodes;
     this.selectedNodeId = state.selectedNodeId;
     this.subscriptionMessage = state.subscriptionMessage;
-    
+
     // 更新消息通知卡片状态
     this.onMessageChange();
   }
@@ -291,7 +279,7 @@ struct SubscriptionDetailPage {
     this.isUpdating = true;
     this.subscriptionMessage = this.t('log.updatingSubscription');
     this.onMessageChange();
-    
+
     try {
       const context = getContext(this) as common.Context;
       const state = await SUBSCRIPTIONS_CONTROLLER.update(context, this.groupId, this.subscriptionUrl, this.selectedNodeId, this.language);
