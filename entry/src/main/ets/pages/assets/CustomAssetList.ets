@@ -1,13 +1,13 @@
 import { common } from '@kit.AbilityKit';
 import { promptAction } from '@kit.ArkUI';
 import { picker } from '@kit.CoreFileKit';
-import fs from '@ohos.file.fs';
 import { AppLanguage } from '../../core/Profile';
 import { translate } from '../../core/I18n';
 import { ASSETS_CONTROLLER } from '../../features/assets/AssetsController';
 import { AssetStore, CustomAssetUrl } from '../../storage/AssetStore';
 import { AssetAddEditDialog } from './AssetAddEditDialog';
-import { AppColor } from '../../theme/Theme';
+import { PageHeader } from '../../shell/PageHeader';
+import { AppColor, FontSz, Radius, Space } from '../../theme/Theme';
 
 @Component
 export struct CustomAssetList {
@@ -48,207 +48,44 @@ export struct CustomAssetList {
     Stack() {
       // 列表主视图
       Column() {
-        // 自定义 Header 栏
-        Row() {
-          Button() {
-            Image($r('app.media.ic_arrow_back'))
-              .width(24)
-              .height(24)
-              .fillColor(AppColor.textPrimary)
-          }
-          .width(40)
-          .height(40)
-          .backgroundColor('transparent')
-          .onClick(() => {
+        PageHeader({
+          title: this.t('assets.userUrls.title'),
+          summary: this.t('assets.userUrls.detail'),
+          showBack: true,
+          onBack: () => {
             this.onBack();
-          })
+          }
+        })
 
-          Text(this.t('assets.userUrls.title'))
-            .fontSize(18)
-            .fontWeight(FontWeight.Bold)
-            .fontColor(AppColor.textPrimary)
-            .margin({ left: 8 })
-
-          Blank()
-        }
-        .width('100%')
-        .height(56)
-        .padding({ left: 8, right: 16 })
-        .backgroundColor(AppColor.surface)
-        .alignItems(VerticalAlign.Center)
-
-        List({ space: 12 }) {
+        List({ space: Space.md }) {
           ForEach(this.customAssets, (item: CustomAssetUrl) => {
             ListItem() {
-              Column({ space: 8 }) {
-                Row({ space: 10 }) {
-                  Row() {
-                    Image($r('app.media.ic_article'))
-                      .width(16)
-                      .height(16)
-                      .fillColor(AppColor.success)
-                  }
-                  .width(28)
-                  .height(28)
-                  .borderRadius(6)
-                  .backgroundColor(AppColor.successTint)
-                  .justifyContent(FlexAlign.Center)
-
-                  Column() {
-                    Text(item.name)
-                      .fontSize(15)
-                      .fontWeight(FontWeight.Bold)
-                      .fontColor(AppColor.textPrimary)
-                    Text(item.url.startsWith('local://') ? '本地导入规则库' : item.url)
-                      .fontSize(11)
-                      .fontColor(AppColor.textSecondary)
-                      .maxLines(1)
-                      .textOverflow({ overflow: TextOverflow.Ellipsis })
-                      .width(200)
-                  }
-                  .alignItems(HorizontalAlign.Start)
-
-                  Blank()
-
-                  Text(this.getCustomFileStatus(item.name))
-                    .fontSize(12)
-                    .fontColor(AppColor.textTertiary)
-                    .fontWeight(FontWeight.Medium)
-                }
-                .width('100%')
-
-                Divider().color(AppColor.divider).strokeWidth(1).margin({ top: 4, bottom: 4 })
-
-                Row() {
-                  Blank()
-
-                  Row({ space: 16 }) {
-                    if (!item.url.startsWith('local://')) {
-                      Button() {
-                        Row({ space: 4 }) {
-                          if (this.downloadingFile === item.name) {
-                            LoadingProgress().width(12).height(12).color(AppColor.brand)
-                          } else {
-                            Image($r('app.media.ic_refresh'))
-                              .width(12)
-                              .height(12)
-                              .fillColor(AppColor.brand)
-                          }
-                          Text(this.downloadingFile === item.name ? '下载中' : '更新')
-                            .fontSize(12)
-                            .fontColor(AppColor.brand)
-                            .fontWeight(FontWeight.Medium)
-                        }
-                      }
-                      .backgroundColor('transparent')
-                      .onClick(() => {
-                        this.downloadCustomAsset(item.name, item.url);
-                      })
-                    } else {
-                      // 本地规则，可点击“重新导入”
-                      Button() {
-                        Row({ space: 4 }) {
-                          Image($r('app.media.ic_folder'))
-                            .width(12)
-                            .height(12)
-                            .fillColor(AppColor.brand)
-                          Text('覆盖导入')
-                            .fontSize(12)
-                            .fontColor(AppColor.brand)
-                            .fontWeight(FontWeight.Medium)
-                        }
-                      }
-                      .backgroundColor('transparent')
-                      .onClick(() => {
-                        this.reimportLocalCustomAsset(item);
-                      })
-                    }
-
-                    Button() {
-                      Row({ space: 4 }) {
-                        Image($r('app.media.ic_edit'))
-                          .width(12)
-                          .height(12)
-                          .fillColor(AppColor.textSecondary)
-                        Text('编辑')
-                          .fontSize(12)
-                          .fontColor(AppColor.textSecondary)
-                          .fontWeight(FontWeight.Medium)
-                      }
-                    }
-                    .backgroundColor('transparent')
-                    .onClick(() => {
-                      this.editId = item.id;
-                      this.initialName = item.name;
-                      this.initialUrl = item.url;
-                      this.dialogTitle = this.t('assets.editUrlTitle');
-                      this.showAddEditDialog = true;
-                    })
-
-                    Button() {
-                      Row({ space: 4 }) {
-                        Image($r('app.media.ic_delete'))
-                          .width(12)
-                          .height(12)
-                          .fillColor(AppColor.danger)
-                        Text('删除')
-                          .fontSize(12)
-                          .fontColor(AppColor.danger)
-                          .fontWeight(FontWeight.Medium)
-                      }
-                    }
-                    .backgroundColor('transparent')
-                    .onClick(() => {
-                      this.deleteCustomAsset(item);
-                    })
-                  }
-                }
-                .width('100%')
-              }
-              .padding(12)
-              .backgroundColor(AppColor.surface)
-              .borderRadius(12)
-              .shadow({ radius: 4, color: AppColor.shadowCard, offsetX: 0, offsetY: 1 })
+              this.AssetRow(item)
             }
+            .swipeAction({ end: this.RowSwipeActions(item) })
           }, (item: CustomAssetUrl) => item.id)
         }
         .layoutWeight(1)
         .width('100%')
-        .padding({ left: 14, right: 14, top: 12 })
+        .scrollBar(BarState.Off)
+        .padding({ left: Space.lg, right: Space.lg, top: Space.lg, bottom: Space.sm })
 
-        // 底部控制面板
+        // 底部添加按钮
         Column() {
-          Button() {
-            Row({ space: 8 }) {
-              Image($r('app.media.ic_add'))
-                .width(18)
-                .height(18)
-                .fillColor(AppColor.onBrand)
-              Text('添加资源 URL')
-                .fontSize(15)
-                .fontWeight(FontWeight.Bold)
-                .fontColor(AppColor.onBrand)
-            }
-            .justifyContent(FlexAlign.Center)
+          Button(this.t('assets.addUrlTitle'))
             .width('100%')
-          }
-          .width('90%')
-          .height(46)
-          .margin({ bottom: 20, top: 12 })
-          .backgroundColor(AppColor.brand)
-          .borderRadius(12)
-          .shadow({ radius: 8, color: 'rgba(0, 125, 255, 0.2)', offsetX: 0, offsetY: 4 })
-          .onClick(() => {
-            this.editId = '';
-            this.initialName = '';
-            this.initialUrl = '';
-            this.dialogTitle = this.t('assets.addUrlTitle');
-            this.showAddEditDialog = true;
-          })
+            .height(46)
+            .backgroundColor(AppColor.brand)
+            .fontColor(AppColor.onBrand)
+            .fontWeight(FontWeight.Medium)
+            .borderRadius(Radius.pill)
+            .onClick(() => {
+              this.openAddDialog();
+            })
         }
         .width('100%')
-        .backgroundColor(AppColor.surface)
-        .border({ width: { top: 1 }, color: AppColor.divider })
+        .padding({ left: Space.lg, right: Space.lg, top: Space.sm, bottom: Space.xl })
+        .backgroundColor(AppColor.bg)
       }
       .width('100%')
       .height('100%')
@@ -273,6 +110,116 @@ export struct CustomAssetList {
     }
     .width('100%')
     .height('100%')
+  }
+
+  @Builder
+  private AssetRow(item: CustomAssetUrl) {
+    Row({ space: Space.md }) {
+      Row() {
+        Image($r('app.media.ic_article'))
+          .width(20)
+          .height(20)
+          .fillColor(AppColor.success)
+      }
+      .width(40)
+      .height(40)
+      .borderRadius(20)
+      .backgroundColor(AppColor.successTint)
+      .justifyContent(FlexAlign.Center)
+      .alignItems(HorizontalAlign.Center)
+
+      Column({ space: 3 }) {
+        Text(item.name)
+          .fontSize(FontSz.callout)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(AppColor.textPrimary)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+        Text(item.url.startsWith('local://') ? '本地导入规则库' : item.url)
+          .fontSize(FontSz.footnote)
+          .fontColor(AppColor.textTertiary)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+        Text(this.getCustomFileStatus(item.name))
+          .fontSize(FontSz.caption)
+          .fontColor(AppColor.textTertiary)
+      }
+      .alignItems(HorizontalAlign.Start)
+      .layoutWeight(1)
+
+      if (this.downloadingFile === item.name) {
+        LoadingProgress()
+          .width(20)
+          .height(20)
+          .color(AppColor.brand)
+      }
+    }
+    .width('100%')
+    .padding(Space.lg)
+    .backgroundColor(AppColor.surface)
+    .borderRadius(Radius.lg)
+    .onClick(() => {
+      this.openEditDialog(item);
+    })
+  }
+
+  @Builder
+  private RowSwipeActions(item: CustomAssetUrl) {
+    Row() {
+      if (item.url.startsWith('local://')) {
+        this.SwipeButton($r('app.media.ic_folder'), '覆盖导入', AppColor.brand, () => {
+          this.reimportLocalCustomAsset(item);
+        })
+      } else {
+        this.SwipeButton($r('app.media.ic_refresh'), this.t('action.update'), AppColor.brand, () => {
+          this.downloadCustomAsset(item.name, item.url);
+        })
+      }
+      this.SwipeButton($r('app.media.ic_edit'), this.t('action.edit'), AppColor.textSecondary, () => {
+        this.openEditDialog(item);
+      })
+      this.SwipeButton($r('app.media.ic_delete'), this.t('action.delete'), AppColor.danger, () => {
+        this.deleteCustomAsset(item);
+      })
+    }
+    .height('100%')
+  }
+
+  @Builder
+  private SwipeButton(icon: Resource, label: string, bg: ResourceColor, action: () => void) {
+    Column({ space: 3 }) {
+      Image(icon)
+        .width(20)
+        .height(20)
+        .fillColor(Color.White)
+      Text(label)
+        .fontSize(FontSz.caption)
+        .fontColor(Color.White)
+    }
+    .width(72)
+    .height('100%')
+    .backgroundColor(bg)
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
+    .onClick(() => {
+      action();
+    })
+  }
+
+  private openAddDialog(): void {
+    this.editId = '';
+    this.initialName = '';
+    this.initialUrl = '';
+    this.dialogTitle = this.t('assets.addUrlTitle');
+    this.showAddEditDialog = true;
+  }
+
+  private openEditDialog(item: CustomAssetUrl): void {
+    this.editId = item.id;
+    this.initialName = item.name;
+    this.initialUrl = item.url;
+    this.dialogTitle = this.t('assets.editUrlTitle');
+    this.showAddEditDialog = true;
   }
 
   // 获取自定义文件大小
@@ -326,7 +273,7 @@ export struct CustomAssetList {
     }
   }
 
-  // 保存（新增/编辑）自定义 URL 
+  // 保存（新增/编辑）自定义 URL
   private async saveCustomAsset(name: string, url: string): Promise<void> {
     const trimmedName = name.trim();
     const trimmedUrl = url.trim();

@@ -4,7 +4,7 @@ import fs from '@ohos.file.fs';
 import { AppLanguage } from '../../core/Profile';
 import { translate } from '../../core/I18n';
 import { ASSETS_CONTROLLER } from '../../features/assets/AssetsController';
-import { AppColor } from '../../theme/Theme';
+import { AppColor, FontSz, Radius, Space } from '../../theme/Theme';
 
 @Component
 export struct BuiltinGeoCard {
@@ -26,39 +26,25 @@ export struct BuiltinGeoCard {
 
   build() {
     Column() {
-      // 模块小标题
-      Row({ space: 8 }) {
-        Image($r('app.media.ic_folder'))
-          .width(18)
-          .height(18)
-          .fillColor(AppColor.brand)
-        Text('内置 Geo 规则资源库')
-          .fontSize(15)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(AppColor.textPrimary)
-      }
-      .width('100%')
-      .margin({ bottom: 12 })
-
-      // 下载源选择配置项
-      Row() {
-        Column() {
+      // 下载源选择行
+      Row({ space: Space.md }) {
+        Column({ space: 3 }) {
           Text(this.t('assets.source.title'))
-            .fontSize(14)
+            .fontSize(FontSz.callout)
             .fontWeight(FontWeight.Medium)
-            .fontColor(AppColor.textSecondary)
+            .fontColor(AppColor.textPrimary)
           Text(this.t('assets.source.detail'))
-            .fontSize(11)
+            .fontSize(FontSz.footnote)
             .fontColor(AppColor.textTertiary)
-            .margin({ top: 2 })
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
         }
         .alignItems(HorizontalAlign.Start)
+        .layoutWeight(1)
 
-        Blank()
-
-        Row({ space: 4 }) {
+        Row({ space: Space.xs }) {
           Text(this.currentSourceName)
-            .fontSize(13)
+            .fontSize(FontSz.footnote)
             .fontColor(AppColor.brand)
             .fontWeight(FontWeight.Medium)
           Image($r('app.media.ic_arrow_downward'))
@@ -66,103 +52,100 @@ export struct BuiltinGeoCard {
             .height(14)
             .fillColor(AppColor.brand)
         }
-        .backgroundColor(AppColor.bg)
-        .borderRadius(8)
-        .padding({ left: 8, right: 8, top: 6, bottom: 6 })
+        .backgroundColor(AppColor.surfaceAlt)
+        .borderRadius(Radius.sm)
+        .padding({ left: Space.sm, right: Space.sm, top: Space.xs + 2, bottom: Space.xs + 2 })
         .onClick(() => {
           this.onChangeSource();
         })
       }
       .width('100%')
-      .padding({ top: 8, bottom: 12 })
+      .padding(Space.lg)
 
-      Divider()
-        .color(AppColor.bg)
-        .strokeWidth(1)
-        .margin({ bottom: 12 })
+      this.RowDivider()
 
       // geosite.dat 项
       this.GeoItemRow('geosite.dat', this.geositeStatus)
 
-      Divider()
-        .color(AppColor.bg)
-        .strokeWidth(1)
-        .margin({ top: 12, bottom: 12 })
+      this.RowDivider()
 
       // geoip.dat 项
       this.GeoItemRow('geoip.dat', this.geoipStatus)
     }
     .width('100%')
-    .padding(16)
     .backgroundColor(AppColor.surface)
-    .borderRadius(16)
-    .shadow({ radius: 8, color: AppColor.shadowCard, offsetX: 0, offsetY: 2 })
+    .borderRadius(Radius.lg)
+    .clip(true)
+    .margin({ left: Space.lg, right: Space.lg })
+  }
+
+  @Builder
+  private RowDivider() {
+    Divider()
+      .strokeWidth(0.5)
+      .color(AppColor.divider)
+      .margin({ left: Space.lg })
   }
 
   @Builder
   private GeoItemRow(fileName: string, status: string) {
-    Row() {
-      // 左边文件大图标与文字描述
-      Row({ space: 12 }) {
-        Row() {
-          Image($r('app.media.ic_article'))
-            .width(18)
-            .height(18)
-            .fillColor(AppColor.brand)
-        }
-        .width(36)
-        .height(36)
-        .borderRadius(8)
-        .backgroundColor(AppColor.brandTint)
-        .justifyContent(FlexAlign.Center)
-
-        Column() {
-          Text(fileName)
-            .fontSize(14)
-            .fontWeight(FontWeight.Bold)
-            .fontColor(AppColor.textPrimary)
-          Text(status)
-            .fontSize(11)
-            .fontColor(AppColor.textSecondary)
-            .margin({ top: 2 })
-        }
-        .alignItems(HorizontalAlign.Start)
+    Row({ space: Space.md }) {
+      // 左边文件图标与文字描述
+      Row() {
+        Image($r('app.media.ic_article'))
+          .width(20)
+          .height(20)
+          .fillColor(AppColor.brand)
       }
+      .width(40)
+      .height(40)
+      .borderRadius(20)
+      .backgroundColor(AppColor.brandTint)
+      .justifyContent(FlexAlign.Center)
+      .alignItems(HorizontalAlign.Center)
 
-      Blank()
+      Column({ space: 3 }) {
+        Text(fileName)
+          .fontSize(FontSz.callout)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(AppColor.textPrimary)
+        Text(status)
+          .fontSize(FontSz.footnote)
+          .fontColor(AppColor.textTertiary)
+      }
+      .alignItems(HorizontalAlign.Start)
+      .layoutWeight(1)
 
       // 右侧操作
-      Row({ space: 12 }) {
-        if (this.downloadingFile === fileName) {
-          LoadingProgress()
-            .width(20)
-            .height(20)
-            .color(AppColor.brand)
-        } else {
-          // 快捷下载更新
+      if (this.downloadingFile === fileName) {
+        LoadingProgress()
+          .width(22)
+          .height(22)
+          .color(AppColor.brand)
+      } else {
+        Row({ space: Space.sm }) {
           Button() {
             Image($r('app.media.ic_cloud_download'))
-              .width(18)
-              .height(18)
+              .width(20)
+              .height(20)
               .fillColor(AppColor.brand)
           }
-          .width(32)
-          .height(32)
-          .backgroundColor('transparent')
+          .width(36)
+          .height(36)
+          .backgroundColor(Color.Transparent)
           .onClick(() => {
             this.onDownload(fileName);
           })
 
-          // 更多菜单
           Button() {
             Image($r('app.media.ic_more_vert'))
-              .width(18)
-              .height(18)
+              .width(20)
+              .height(20)
               .fillColor(AppColor.textSecondary)
           }
-          .width(32)
-          .height(32)
-          .backgroundColor('transparent')
+          .width(36)
+          .height(36)
+          .backgroundColor(Color.Transparent)
           .onClick(() => {
             this.handleAssetMoreClick(fileName);
           })
@@ -170,6 +153,7 @@ export struct BuiltinGeoCard {
       }
     }
     .width('100%')
+    .padding(Space.lg)
   }
 
   private handleAssetMoreClick(fileName: string): void {

@@ -5,12 +5,13 @@ import { picker } from '@kit.CoreFileKit';
 import { DEFAULT_LANGUAGE, translate } from '../core/I18n';
 import { AppLanguage } from '../core/Profile';
 import { SETTINGS_CONTROLLER } from '../features/settings/SettingsController';
+import { SectionHeader } from '../components/SectionHeader';
 import { PageHeader } from '../shell/PageHeader';
 import { AssetStore, CustomAssetUrl } from '../storage/AssetStore';
 import { ASSETS_CONTROLLER, GEO_SOURCES } from '../features/assets/AssetsController';
 import { BuiltinGeoCard } from './assets/BuiltinGeoCard';
 import { CustomAssetList } from './assets/CustomAssetList';
-import { AppColor } from '../theme/Theme';
+import { AppColor, FontSz, Radius, Space } from '../theme/Theme';
 
 @Entry
 @Component
@@ -32,7 +33,7 @@ struct AssetsPage {
   @State private currentSourceUrl: string = GEO_SOURCES[0].url;
   @State private currentSourceName: string = GEO_SOURCES[0].name;
 
-  // 暂存本地导入的 URI，双向绑定传递给 CustomAssetList 
+  // 暂存本地导入的 URI，双向绑定传递给 CustomAssetList
   @State private tempImportUri: string = '';
 
   aboutToAppear(): void {
@@ -50,56 +51,33 @@ struct AssetsPage {
             summary: this.t('assets.section.detail'),
             showBack: true
           })
-          
-          Scroll() {
-            Column({ space: 16 }) {
-              // 顶层全局快捷控制卡片
-              Row({ space: 12 }) {
-                Button() {
-                  Row({ space: 8 }) {
-                    Image($r('app.media.ic_refresh'))
-                      .width(18)
-                      .height(18)
-                      .fillColor(AppColor.brand)
-                    Text(this.t('assets.action.updateAll'))
-                      .fontSize(14)
-                      .fontWeight(FontWeight.Medium)
-                      .fontColor(AppColor.brand)
-                  }
-                  .padding({ left: 16, right: 16 })
-                }
-                .layoutWeight(1)
-                .height(44)
-                .backgroundColor(AppColor.brandTint)
-                .borderRadius(10)
-                .onClick(() => {
-                  this.downloadAllAssets();
-                })
 
-                Button() {
-                  Row({ space: 8 }) {
-                    Image($r('app.media.ic_folder'))
-                      .width(18)
-                      .height(18)
-                      .fillColor(AppColor.textSecondary)
-                    Text(this.t('assets.action.importLocal'))
-                      .fontSize(14)
-                      .fontWeight(FontWeight.Medium)
-                      .fontColor(AppColor.textSecondary)
-                  }
-                  .padding({ left: 16, right: 16 })
-                }
-                .layoutWeight(1)
-                .height(44)
-                .backgroundColor(AppColor.bg)
-                .borderRadius(10)
-                .onClick(() => {
-                  this.importLocalFile();
-                })
+          Scroll() {
+            Column({ space: Space.lg }) {
+
+              // 快捷操作
+              SectionHeader({ title: '快捷操作' })
+              Column() {
+                this.EntryRow(
+                  $r('app.media.ic_refresh'), AppColor.brand, AppColor.brandTint,
+                  this.t('assets.action.updateAll'), '更新全部 Geo 规则资源', false,
+                  () => this.downloadAllAssets()
+                )
+                this.RowDivider()
+                this.EntryRow(
+                  $r('app.media.ic_folder'), AppColor.textSecondary, AppColor.surfaceAlt,
+                  this.t('assets.action.importLocal'), this.t('assets.action.importLocal.detail'), false,
+                  () => this.importLocalFile()
+                )
               }
               .width('100%')
+              .backgroundColor(AppColor.surface)
+              .borderRadius(Radius.lg)
+              .clip(true)
+              .margin({ left: Space.lg, right: Space.lg })
 
-              // 卡片一：内置 Geo 规则库管理
+              // 内置 Geo 资源
+              SectionHeader({ title: '内置 Geo 资源', detail: this.t('assets.source.detail') })
               BuiltinGeoCard({
                 language: this.language,
                 geositeStatus: this.geositeStatus,
@@ -112,123 +90,46 @@ struct AssetsPage {
                 onDeleteAsset: (fileName) => this.deleteAsset(fileName)
               })
 
-              // 卡片二：自定义规则 URL 入口
+              // 自定义资源 URL
+              SectionHeader({ title: this.t('assets.userUrls.title') })
               Column() {
-                Row({ space: 12 }) {
-                  Row() {
-                    Image($r('app.media.ic_link'))
-                      .width(20)
-                      .height(20)
-                      .fillColor(AppColor.success)
-                  }
-                  .width(36)
-                  .height(36)
-                  .borderRadius(8)
-                  .backgroundColor(AppColor.successTint)
-                  .justifyContent(FlexAlign.Center)
-
-                  Column() {
-                    Text(this.t('assets.userUrls.title'))
-                      .fontSize(15)
-                      .fontWeight(FontWeight.Bold)
-                      .fontColor(AppColor.textPrimary)
-                    Text(`${this.t('assets.userUrls.detail')} (已配置 ${this.customAssets.length} 个)`)
-                      .fontSize(12)
-                      .fontColor(AppColor.textSecondary)
-                      .margin({ top: 2 })
-                  }
-                  .alignItems(HorizontalAlign.Start)
-
-                  Blank()
-
-                  Image($r('app.media.ic_chevron_right'))
-                    .width(18)
-                    .height(18)
-                    .fillColor(AppColor.textTertiary)
-                }
-                .width('100%')
+                this.EntryRow(
+                  $r('app.media.ic_link'), AppColor.success, AppColor.successTint,
+                  this.t('assets.userUrls.title'),
+                  `${this.t('assets.userUrls.detail')} (已配置 ${this.customAssets.length} 个)`,
+                  true,
+                  () => { this.showCustomUrls = true; }
+                )
               }
               .width('100%')
-              .padding(16)
               .backgroundColor(AppColor.surface)
-              .borderRadius(16)
-              .shadow({ radius: 8, color: AppColor.shadowCard, offsetX: 0, offsetY: 2 })
-              .onClick(() => {
-                this.showCustomUrls = true;
-              })
+              .borderRadius(Radius.lg)
+              .clip(true)
+              .margin({ left: Space.lg, right: Space.lg })
 
-              // 卡片三：配置备份与还原
+              // 备份与还原
+              SectionHeader({ title: this.t('assets.backupRestore.title'), detail: this.t('assets.backupRestore.detail') })
               Column() {
-                Row({ space: 8 }) {
-                  Image($r('app.media.ic_settings'))
-                    .width(18)
-                    .height(18)
-                    .fillColor(AppColor.textSecondary)
-                  Text('配置备份与恢复')
-                    .fontSize(15)
-                    .fontWeight(FontWeight.Bold)
-                    .fontColor(AppColor.textPrimary)
-                }
-                .width('100%')
-                .margin({ bottom: 12 })
-
-                Row({ space: 12 }) {
-                  // 备份按钮
-                  Column({ space: 4 }) {
-                    Image($r('app.media.ic_share'))
-                      .width(20)
-                      .height(20)
-                      .fillColor(AppColor.brand)
-                    Text('备份配置')
-                      .fontSize(13)
-                      .fontWeight(FontWeight.Bold)
-                      .fontColor(AppColor.brand)
-                    Text('导出配置至剪贴板')
-                      .fontSize(10)
-                      .fontColor(AppColor.textSecondary)
-                  }
-                  .layoutWeight(1)
-                  .height(80)
-                  .backgroundColor(AppColor.brandTint)
-                  .borderRadius(12)
-                  .justifyContent(FlexAlign.Center)
-                  .onClick(() => {
-                    this.backupConfig();
-                  })
-
-                  // 还原按钮
-                  Column({ space: 4 }) {
-                    Image($r('app.media.ic_refresh'))
-                      .width(20)
-                      .height(20)
-                      .fillColor(AppColor.textSecondary)
-                    Text('还原配置')
-                      .fontSize(13)
-                      .fontWeight(FontWeight.Bold)
-                      .fontColor(AppColor.textSecondary)
-                    Text('从剪贴板读取覆盖')
-                      .fontSize(10)
-                      .fontColor(AppColor.textSecondary)
-                  }
-                  .layoutWeight(1)
-                  .height(80)
-                  .backgroundColor(AppColor.bg)
-                  .borderRadius(12)
-                  .justifyContent(FlexAlign.Center)
-                  .onClick(() => {
-                    this.restoreConfig();
-                  })
-                }
-                .width('100%')
+                this.EntryRow(
+                  $r('app.media.ic_share'), AppColor.brand, AppColor.brandTint,
+                  '备份配置', '导出当前配置到剪贴板', false,
+                  () => this.backupConfig()
+                )
+                this.RowDivider()
+                this.EntryRow(
+                  $r('app.media.ic_refresh'), AppColor.textSecondary, AppColor.surfaceAlt,
+                  '还原配置', '从剪贴板读取并覆盖配置', false,
+                  () => this.restoreConfig()
+                )
               }
               .width('100%')
-              .padding(16)
               .backgroundColor(AppColor.surface)
-              .borderRadius(16)
-              .shadow({ radius: 8, color: AppColor.shadowCard, offsetX: 0, offsetY: 2 })
+              .borderRadius(Radius.lg)
+              .clip(true)
+              .margin({ left: Space.lg, right: Space.lg })
             }
             .width('100%')
-            .padding({ left: 14, right: 14, top: 14, bottom: 24 })
+            .padding({ top: Space.sm, bottom: Space.xxl })
           }
           .layoutWeight(1)
           .width('100%')
@@ -251,6 +152,59 @@ struct AssetsPage {
     }
     .width('100%')
     .height('100%')
+  }
+
+  @Builder
+  private RowDivider() {
+    Divider()
+      .strokeWidth(0.5)
+      .color(AppColor.divider)
+      .margin({ left: Space.lg })
+  }
+
+  @Builder
+  private EntryRow(icon: Resource, iconColor: ResourceColor, iconBg: ResourceColor,
+                   title: string, subtitle: string, showChevron: boolean, onTap: () => void) {
+    Row({ space: Space.md }) {
+      Row() {
+        Image(icon)
+          .width(20)
+          .height(20)
+          .fillColor(iconColor)
+      }
+      .width(40)
+      .height(40)
+      .borderRadius(20)
+      .backgroundColor(iconBg)
+      .justifyContent(FlexAlign.Center)
+      .alignItems(HorizontalAlign.Center)
+
+      Column({ space: 3 }) {
+        Text(title)
+          .fontSize(FontSz.callout)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(AppColor.textPrimary)
+        Text(subtitle)
+          .fontSize(FontSz.footnote)
+          .fontColor(AppColor.textTertiary)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+      }
+      .alignItems(HorizontalAlign.Start)
+      .layoutWeight(1)
+
+      if (showChevron) {
+        Image($r('app.media.ic_chevron_right'))
+          .width(20)
+          .height(20)
+          .fillColor(AppColor.textTertiary)
+      }
+    }
+    .width('100%')
+    .padding(Space.lg)
+    .onClick(() => {
+      onTap();
+    })
   }
 
   // 执行资源网络更新下载
