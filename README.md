@@ -51,6 +51,17 @@ bridge. The remaining gap is end-to-end traffic validation, which should be
 done on a real HarmonyOS device because some emulator/system images do not
 include the VPN authorization component.
 
+## Download
+
+Signed HAP packages are published on the
+[**Releases**](https://github.com/popsiclelmlm/Hey/releases) page. Grab the
+latest `entry-default-signed.hap` and install it with DevEco Studio or `hdc`
+(see [Install And Test](#install-and-test)). Building from source is covered
+below.
+
+> Note: the UI and config layers are feature-complete; end-to-end VPN traffic
+> should be validated on a real HarmonyOS device (see Status).
+
 ## Features
 
 - HarmonyOS Stage app with `EntryAbility`, `HeyVpnAbility`, and backup ability.
