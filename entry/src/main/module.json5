@@ -34,6 +34,21 @@
             "actions": [
               "ohos.want.action.home"
             ]
+          },
+          {
+            "actions": [
+              "ohos.want.action.viewData"
+            ],
+            "uris": [
+              {
+                "scheme": "hey",
+                "host": "install-sub"
+              },
+              {
+                "scheme": "hey",
+                "host": "install-config"
+              }
+            ]
           }
         ]
       }

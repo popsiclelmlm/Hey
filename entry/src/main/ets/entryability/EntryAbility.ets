@@ -12,6 +12,22 @@ export default class EntryAbility extends UIAbility {
       hilog.error(DOMAIN, 'testTag', 'Failed to set colorMode. Cause: %{public}s', JSON.stringify(err));
     }
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
+    this.stashDeepLink(want);
+  }
+
+  onNewWant(want: Want, launchParam: AbilityConstant.LaunchParam): void {
+    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onNewWant');
+    this.stashDeepLink(want);
+  }
+
+  // Stash a deep-link Want uri (hey://install-sub|install-config?url=...) for the
+  // Index page to pick up on show. Set before the window stage loads on cold
+  // start, and on every onNewWant for warm starts.
+  private stashDeepLink(want: Want): void {
+    const uri = want.uri;
+    if (uri !== undefined && uri.length > 0) {
+      AppStorage.setOrCreate('pendingDeepLink', uri);
+    }
   }
 
   onDestroy(): void {

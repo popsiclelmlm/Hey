@@ -4,10 +4,11 @@ import { pasteboard } from '@kit.BasicServicesKit';
 import { IconButton } from '../components/IconButton';
 import { DEFAULT_LANGUAGE, translate } from '../core/I18n';
 import { AppLanguage, AppSettings, ConnectionStatus, ProxyNode, RuntimeStats, SubscriptionGroup } from '../core/Profile';
+import { DeepLinkIntent, parseDeepLink, subscriptionNameFromDeepLink } from '../core/DeepLink';
 import { DelayTester, DelayTestResult } from '../services/DelayTester';
 import { SubscriptionStore } from '../storage/SubscriptionStore';
 import { DEFAULT_APP_SETTINGS } from '../storage/SettingsStore';
-import { filterNodes, findInvalidNodes, exportNodesText } from '../features/nodes/NodeOperations';
+import { filterNodes, findInvalidNodes, exportNodesText, sortNodes, removeTestFailedNodesFromList } from '../features/nodes/NodeOperations';
 import { NODES_CONTROLLER, NodesControllerState, SaveProfileResult } from '../features/nodes/NodesController';
 import { ServerNodeCard } from '../features/servers/ServerCard';
 import { SETTINGS_CONTROLLER } from '../features/settings/SettingsController';
@@ -80,6 +81,58 @@ struct Index {
   private async refreshFromStorage(): Promise<void> {
     await this.loadSettings();
     await this.loadNodes();
+    await this.handlePendingDeepLink();
+  }
+
+  // Imports a stashed deep link (hey://install-sub|install-config?url=...) once
+  // when the page shows after EntryAbility received it. No-op on normal returns.
+  private async handlePendingDeepLink(): Promise<void> {
+    const link = AppStorage.get<string>('pendingDeepLink');
+    if (link === undefined || link.length === 0) {
+      return;
+    }
+    AppStorage.setOrCreate('pendingDeepLink', '');
+    const intent: DeepLinkIntent = parseDeepLink(link);
+    if (intent.kind === 'none') {
+      return;
+    }
+    const context = getContext(this) as common.Context;
+    try {
+      if (intent.kind === 'sub') {
+        const name = subscriptionNameFromDeepLink(intent.payload);
+        const added = await SUBSCRIPTIONS_CONTROLLER.addGroup(context, name, intent.payload, '', '', this.language);
+        const state = await SUBSCRIPTIONS_CONTROLLER.update(context, added.selectedGroupId, intent.payload, '', this.language);
+        this.applySubscriptionsState(state);
+        this.applyNodesState(await NODES_CONTROLLER.load(context, this.language));
+        SHARED_RUNTIME_CONTROLLER.appendLog(this.f1('log.deepLinkSub', 'name', name));
+      } else {
+        const saved = await NODES_CONTROLLER.saveProfile(context, intent.payload, this.language);
+        if (saved.profile === null) {
+          this.lastError = saved.lastError;
+          return;
+        }
+        const nodeName = this.nodeNameFromOutbound(saved.profile.outboundJson);
+        await SubscriptionStore.addManualNode(context, nodeName, saved.profile.outboundJson);
+        this.applyNodesState(await NODES_CONTROLLER.load(context, this.language));
+        SHARED_RUNTIME_CONTROLLER.appendLog(this.f1('log.deepLinkConfig', 'name', nodeName));
+      }
+    } catch (error) {
+      this.lastError = this.f1('error.deepLinkImport', 'error', JSON.stringify(error));
+      SHARED_RUNTIME_CONTROLLER.appendLog(this.lastError);
+    }
+  }
+
+  private nodeNameFromOutbound(outboundJson: string): string {
+    try {
+      const obj = JSON.parse(outboundJson) as Record<string, Object>;
+      const tag = obj.tag;
+      if (typeof tag === 'string' && tag.trim().length > 0) {
+        return tag.trim();
+      }
+    } catch (error) {
+      // ignore and fall back
+    }
+    return '链接导入';
   }
 
   build() {
@@ -970,12 +1023,40 @@ struct Index {
         });
         SHARED_RUNTIME_CONTROLLER.appendLog(this.f2('log.delayResult', 'name', node.name, 'result', this.delayResultText(result)));
       }
+      await this.applyPostTestActions(context);
     } catch (error) {
       this.lastError = this.f1('error.delayTest', 'error', JSON.stringify(error));
       SHARED_RUNTIME_CONTROLLER.appendLog(this.lastError);
     } finally {
       this.delayTesting = false;
     }
+  }
+
+  // After a batch delay test, optionally drop timed-out nodes and/or reorder by
+  // latency, controlled by the auto-test settings. Persists the active group.
+  private async applyPostTestActions(context: common.Context): Promise<void> {
+    const autoRemove = this.currentSettings.autoRemoveInvalidAfterTest;
+    const autoSort = this.currentSettings.autoSortAfterTest;
+    if (!autoRemove && !autoSort) {
+      return;
+    }
+    let processed: Array<ProxyNode> = this.nodes;
+    if (autoRemove) {
+      processed = removeTestFailedNodesFromList(processed);
+    }
+    if (autoSort) {
+      processed = sortNodes(processed, 'delay');
+    }
+    const subscription = await SubscriptionStore.saveActiveGroupNodes(context, processed, this.selectedNodeId);
+    this.applySubscriptionsState({
+      subscriptionUrl: subscription.url,
+      nodes: subscription.nodes,
+      selectedNodeId: subscription.selectedNodeId,
+      subscriptionMessage: this.subscriptionMessage,
+      subscriptionUpdatedAt: subscription.updatedAt,
+      subscriptionGroups: subscription.groups,
+      selectedGroupId: subscription.selectedGroupId
+    });
   }
 
   private async measureNodeTcpDelay(node: ProxyNode, timeoutMs: number): Promise<DelayTestResult> {
