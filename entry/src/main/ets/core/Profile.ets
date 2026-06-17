@@ -28,6 +28,8 @@ export interface SubscriptionGroup {
   selectedNodeId: string;
   nodes: Array<ProxyNode>;
   updatedAt: number;
+  userAgent?: string;
+  filter?: string;
 }
 
 export interface SubscriptionProfile {
@@ -50,6 +52,7 @@ export interface GeneratedXrayConfig {
   configJson: string;
   socksHost?: string;
   socksPort?: number;
+  metricsServer?: string;
 }
 
 export type AppLanguage = 'zh' | 'en';
@@ -85,6 +88,9 @@ export interface AppSettings {
   mode: string;
   trafficMode: string;
   routingDomainStrategy: string;
+  adBlockEnabled: boolean;
+  autoSortAfterTest: boolean;
+  autoRemoveInvalidAfterTest: boolean;
 }
 
 export interface RuntimeStats {
