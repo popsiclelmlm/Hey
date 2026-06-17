@@ -48,6 +48,7 @@ interface XrayDnsConfig {
 interface XrayRoutingRule {
   type: string;
   outboundTag: string;
+  inboundTag?: Array<string>;
   ip?: Array<string>;
   domain?: Array<string>;
   network?: string;
@@ -58,12 +59,30 @@ interface XrayRoutingConfig {
   rules: Array<XrayRoutingRule>;
 }
 
+interface XrayMetricsConfig {
+  tag: string;
+}
+
+interface XrayPolicySystem {
+  statsInboundUplink: boolean;
+  statsInboundDownlink: boolean;
+  statsOutboundUplink: boolean;
+  statsOutboundDownlink: boolean;
+}
+
+interface XrayPolicyConfig {
+  system: XrayPolicySystem;
+}
+
 interface XrayFullConfig {
   log: XrayLogConfig;
   dns?: XrayDnsConfig;
   inbounds: Array<XrayInboundConfig>;
   outbounds: Array<XrayOutbound>;
   routing: XrayRoutingConfig;
+  stats?: Object;
+  metrics?: XrayMetricsConfig;
+  policy?: XrayPolicyConfig;
 }
 
 class SocksInboundSettings {
@@ -78,6 +97,10 @@ class TunInboundSettings {
   userLevel: number = 0;
 }
 
+class DokodemoInboundSettings {
+  address: string = '127.0.0.1';
+}
+
 class EmptySettings {
 }
 
@@ -85,6 +108,14 @@ const SUPPORTED_PROTOCOLS: Array<string> = ['vless', 'vmess', 'trojan', 'shadows
 
 export const DEFAULT_SOCKS_HOST: string = '127.0.0.1';
 export const DELAY_TEST_SOCKS_PORT: number = 10825;
+// Local Xray metrics (expvar) endpoint. The generated VPN config exposes a
+// dokodemo inbound on this port routed to the metrics handler so that
+// CGoQueryStats can read real per-tag traffic counters from /debug/vars.
+export const METRICS_HOST: string = '127.0.0.1';
+export const METRICS_PORT: number = 10845;
+export const METRICS_SERVER_URL: string = 'http://127.0.0.1:10845/debug/vars';
+const METRICS_OUT_TAG: string = 'metrics_out';
+const METRICS_IN_TAG: string = 'metrics_in';
 const DEFAULT_LOG_LEVEL: string = 'warning';
 const DEFAULT_ROUTING_DOMAIN_STRATEGY: string = 'AsIs';
 
@@ -244,21 +275,54 @@ function buildXrayConfigInternal(outboundJson: string, settings: AppSettings | u
     settings: new EmptySettings()
   };
 
+  const metricsInbound: XrayInboundConfig = {
+    tag: METRICS_IN_TAG,
+    listen: METRICS_HOST,
+    port: METRICS_PORT,
+    protocol: 'dokodemo-door',
+    settings: new DokodemoInboundSettings()
+  };
+
+  // Route the metrics inbound to the metrics handler ahead of any user/traffic
+  // rule so the local /debug/vars probe is never proxied or blocked.
+  const routingRules = buildRoutingRules(settings);
+  const metricsRule: XrayRoutingRule = {
+    type: 'field',
+    inboundTag: [METRICS_IN_TAG],
+    outboundTag: METRICS_OUT_TAG
+  };
+  routingRules.unshift(metricsRule);
+
+  const policy: XrayPolicyConfig = {
+    system: {
+      statsInboundUplink: true,
+      statsInboundDownlink: true,
+      statsOutboundUplink: true,
+      statsOutboundDownlink: true
+    }
+  };
+
   const config: XrayFullConfig = {
     log: {
       loglevel: settings?.logLevel ?? DEFAULT_LOG_LEVEL
     },
     dns: buildDnsConfig(settings),
-    inbounds: [tunInbound],
+    inbounds: [tunInbound, metricsInbound],
     outbounds: [outbound, directOutbound, blockOutbound],
     routing: {
       domainStrategy: settings?.routingDomainStrategy ?? DEFAULT_ROUTING_DOMAIN_STRATEGY,
-      rules: buildRoutingRules(settings)
-    }
+      rules: routingRules
+    },
+    stats: new EmptySettings(),
+    metrics: {
+      tag: METRICS_OUT_TAG
+    },
+    policy
   };
 
   return {
-    configJson: JSON.stringify(config, null, 2)
+    configJson: JSON.stringify(config, null, 2),
+    metricsServer: METRICS_SERVER_URL
   };
 }
 
@@ -340,6 +404,18 @@ function buildRoutingRules(settings: AppSettings | undefined): Array<XrayRouting
   const rules = new Array<XrayRoutingRule>();
   if (settings === undefined) {
     return rules;
+  }
+
+  // Ad-block applies in every traffic mode and must precede the direct/bypass
+  // rules so ad/tracker domains are dropped even when they would otherwise be
+  // matched by a direct rule (e.g. a CN ad domain under bypass-cn).
+  if (settings.adBlockEnabled) {
+    const adBlockRule: XrayRoutingRule = {
+      type: 'field',
+      outboundTag: 'block',
+      domain: ['geosite:category-ads-all']
+    };
+    rules.push(adBlockRule);
   }
 
   if (settings.trafficMode === 'direct') {
