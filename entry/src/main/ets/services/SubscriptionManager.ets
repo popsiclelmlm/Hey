@@ -16,6 +16,10 @@ export interface SubscriptionUpdateResult {
   rawLength: number;
 }
 
+// 默认订阅 User-Agent。声明为 clash.meta 让支持格式协商的面板返回 Clash YAML，
+// 与本文件的 Clash 解析器匹配；每条订阅可在编辑页覆盖，留空则回落到此值。
+export const DEFAULT_SUBSCRIPTION_USER_AGENT: string = 'clash.meta Hey/0.1';
+
 interface SubscriptionRequestHeader {
   'User-Agent': string;
   'Accept': string;
@@ -204,7 +208,7 @@ interface ClashHysteria2Settings {
 }
 
 export class SubscriptionManager {
-  static async fetchAndParse(url: string): Promise<SubscriptionUpdateResult> {
+  static async fetchAndParse(url: string, userAgent: string = ''): Promise<SubscriptionUpdateResult> {
     const trimmedUrl = url.trim();
     if (!SubscriptionManager.isHttpUrl(trimmedUrl)) {
       const result: SubscriptionUpdateResult = {
@@ -216,7 +220,7 @@ export class SubscriptionManager {
       return result;
     }
 
-    const content = await SubscriptionManager.fetchText(trimmedUrl, 0);
+    const content = await SubscriptionManager.fetchText(trimmedUrl, 0, userAgent);
     const nodes = SubscriptionManager.parseSubscriptionContent(content, trimmedUrl);
     const result: SubscriptionUpdateResult = {
       ok: nodes.length > 0,
@@ -242,15 +246,16 @@ export class SubscriptionManager {
     }
   }
 
-  private static async fetchText(url: string, redirectCount: number): Promise<string> {
+  private static async fetchText(url: string, redirectCount: number, userAgent: string): Promise<string> {
     if (redirectCount > 5) {
       throw new Error('HTTP redirect limit reached');
     }
 
+    const resolvedUserAgent = userAgent.trim().length > 0 ? userAgent.trim() : DEFAULT_SUBSCRIPTION_USER_AGENT;
     const request = http.createHttp();
     try {
       const header: SubscriptionRequestHeader = {
-        'User-Agent': 'clash.meta Hey/0.1',
+        'User-Agent': resolvedUserAgent,
         'Accept': 'text/plain, application/octet-stream, application/json, application/yaml, text/yaml, */*',
         'Accept-Encoding': 'identity',
         'Content-Type': 'text/plain; charset=utf-8'
@@ -268,7 +273,7 @@ export class SubscriptionManager {
       if (SubscriptionManager.isRedirectCode(responseCode)) {
         const redirectUrl = SubscriptionManager.redirectUrl(url, JSON.stringify(response.header));
         if (redirectUrl.length > 0) {
-          return SubscriptionManager.fetchText(redirectUrl, redirectCount + 1);
+          return SubscriptionManager.fetchText(redirectUrl, redirectCount + 1, userAgent);
         }
       }
       if (responseCode < 200 || responseCode >= 300) {

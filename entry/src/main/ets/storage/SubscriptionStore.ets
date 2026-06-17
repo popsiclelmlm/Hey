@@ -201,21 +201,23 @@ export class SubscriptionStore {
     return SubscriptionStore.load(context);
   }
 
-  static async addGroup(context: common.Context, name: string, url: string): Promise<SubscriptionProfile> {
+  static async addGroup(context: common.Context, name: string, url: string, userAgent: string = '', filter: string = ''): Promise<SubscriptionProfile> {
     const profile = await SubscriptionStore.load(context);
-    const group = SubscriptionStore.createGroup(url, name);
+    const group = SubscriptionStore.createGroup(url, name, userAgent, filter);
     profile.groups.push(group);
     profile.selectedGroupId = group.id;
     await SubscriptionStore.save(context, SubscriptionStore.normalize(profile));
     return SubscriptionStore.load(context);
   }
 
-  static async updateGroup(context: common.Context, groupId: string, name: string, url: string): Promise<SubscriptionProfile> {
+  static async updateGroup(context: common.Context, groupId: string, name: string, url: string, userAgent: string = '', filter: string = ''): Promise<SubscriptionProfile> {
     const profile = await SubscriptionStore.load(context);
     const group = SubscriptionStore.findGroup(profile.groups, groupId);
     if (group !== null) {
       group.name = name;
       group.url = url;
+      group.userAgent = userAgent;
+      group.filter = filter;
       group.updatedAt = Date.now();
       await SubscriptionStore.save(context, SubscriptionStore.normalize(profile));
     }
@@ -234,7 +236,9 @@ export class SubscriptionStore {
         enabled: true,
         selectedNodeId: '',
         nodes: [],
-        updatedAt: Date.now()
+        updatedAt: Date.now(),
+        userAgent: '',
+        filter: ''
       };
       profile.groups.push(localGroup);
     }
@@ -298,7 +302,8 @@ export class SubscriptionStore {
         enabled: true,
         selectedNodeId: profile.selectedNodeId,
         nodes: SubscriptionStore.normalizeNodes(profile.nodes),
-        updatedAt: profile.updatedAt
+        updatedAt: profile.updatedAt,
+        userAgent: ''
       });
     }
 
@@ -332,7 +337,9 @@ export class SubscriptionStore {
       enabled: group.enabled ?? true,
       selectedNodeId: SubscriptionStore.resolveSelectedNodeId(nodes, group.selectedNodeId ?? ''),
       nodes,
-      updatedAt: group.updatedAt ?? 0
+      updatedAt: group.updatedAt ?? 0,
+      userAgent: group.userAgent ?? '',
+      filter: group.filter ?? ''
     };
   }
 
@@ -450,7 +457,7 @@ export class SubscriptionStore {
     return `json:${node.outboundJson.trim()}`;
   }
 
-  private static createGroup(url: string, name: string): SubscriptionGroup {
+  private static createGroup(url: string, name: string, userAgent: string = '', filter: string = ''): SubscriptionGroup {
     const seed = `${url}-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
     return {
       id: SubscriptionStore.makeGroupId(seed),
@@ -459,7 +466,9 @@ export class SubscriptionStore {
       enabled: true,
       selectedNodeId: '',
       nodes: [],
-      updatedAt: 0
+      updatedAt: 0,
+      userAgent,
+      filter
     };
   }
 

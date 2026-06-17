@@ -63,16 +63,20 @@ export class SubscriptionsController {
         targetGroupId = subscriptionBeforeUpdate.selectedGroupId;
       }
 
-      const result: SubscriptionUpdateResult = await SubscriptionManager.fetchAndParse(url);
+      const userAgent = this.findGroupUserAgent(subscriptionBeforeUpdate.groups, targetGroupId);
+      const result: SubscriptionUpdateResult = await SubscriptionManager.fetchAndParse(url, userAgent);
       if (!result.ok) {
         return this.buildState(await SubscriptionStore.load(context), language, localizeCoreMessage(language, result.message));
       }
 
+      const filter = this.findGroupFilter(subscriptionBeforeUpdate.groups, targetGroupId);
+      const nodes = this.applyNodeFilter(result.nodes, filter);
+
       let nextSelectedId = selectedNodeId;
-      if (this.findNode(result.nodes, nextSelectedId) === null) {
-        nextSelectedId = result.nodes[0].id;
+      if (this.findNode(nodes, nextSelectedId) === null) {
+        nextSelectedId = nodes[0].id;
       }
-      const subscription = await SubscriptionStore.saveNodes(context, targetGroupId, url, result.nodes, nextSelectedId);
+      const subscription = await SubscriptionStore.saveNodes(context, targetGroupId, url, nodes, nextSelectedId);
       const selected = this.findNode(subscription.nodes, nextSelectedId);
       if (selected !== null) {
         await ProfileStore.save(context, selected.outboundJson);
@@ -83,28 +87,28 @@ export class SubscriptionsController {
     }
   }
 
-  async addGroup(context: common.Context, name: string, url: string, language: AppLanguage): Promise<SubscriptionsControllerState> {
+  async addGroup(context: common.Context, name: string, url: string, userAgent: string, filter: string, language: AppLanguage): Promise<SubscriptionsControllerState> {
     const trimmedName = name.trim();
     const trimmedUrl = url.trim();
     if (trimmedName.length === 0) {
       return this.buildState(await SubscriptionStore.load(context), language, '订阅名称不能为空');
     }
     try {
-      const subscription = await SubscriptionStore.addGroup(context, trimmedName, trimmedUrl);
+      const subscription = await SubscriptionStore.addGroup(context, trimmedName, trimmedUrl, userAgent.trim(), filter.trim());
       return this.buildState(subscription, language, translate(language, 'log.subscriptionGroupSaved'));
     } catch (error) {
       return this.buildState(await SubscriptionStore.load(context), language, formatOne(language, 'error.saveSubscriptionGroup', 'error', this.stringifyError(error)));
     }
   }
 
-  async updateGroup(context: common.Context, groupId: string, name: string, url: string, language: AppLanguage): Promise<SubscriptionsControllerState> {
+  async updateGroup(context: common.Context, groupId: string, name: string, url: string, userAgent: string, filter: string, language: AppLanguage): Promise<SubscriptionsControllerState> {
     const trimmedName = name.trim();
     const trimmedUrl = url.trim();
     if (trimmedName.length === 0) {
       return this.buildState(await SubscriptionStore.load(context), language, '订阅名称不能为空');
     }
     try {
-      const subscription = await SubscriptionStore.updateGroup(context, groupId, trimmedName, trimmedUrl);
+      const subscription = await SubscriptionStore.updateGroup(context, groupId, trimmedName, trimmedUrl, userAgent.trim(), filter.trim());
       return this.buildState(subscription, language, translate(language, 'log.subscriptionGroupSaved'));
     } catch (error) {
       return this.buildState(await SubscriptionStore.load(context), language, formatOne(language, 'error.saveSubscriptionGroup', 'error', this.stringifyError(error)));
@@ -121,9 +125,10 @@ export class SubscriptionsController {
       const url = group.url.trim();
       if (url.length > 0 && group.enabled) {
         try {
-          const result = await SubscriptionManager.fetchAndParse(url);
+          const result = await SubscriptionManager.fetchAndParse(url, group.userAgent ?? '');
           if (result.ok) {
-            subscription = await SubscriptionStore.saveNodes(context, group.id, url, result.nodes, group.selectedNodeId);
+            const nodes = this.applyNodeFilter(result.nodes, group.filter ?? '');
+            subscription = await SubscriptionStore.saveNodes(context, group.id, url, nodes, group.selectedNodeId);
             successCount++;
           } else {
             failedCount++;
@@ -193,6 +198,46 @@ export class SubscriptionsController {
       }
     }
     return null;
+  }
+
+  private findGroupUserAgent(groups: Array<SubscriptionGroup>, groupId: string): string {
+    for (let index = 0; index < groups.length; index++) {
+      if (groups[index].id === groupId) {
+        return groups[index].userAgent ?? '';
+      }
+    }
+    return '';
+  }
+
+  private findGroupFilter(groups: Array<SubscriptionGroup>, groupId: string): string {
+    for (let index = 0; index < groups.length; index++) {
+      if (groups[index].id === groupId) {
+        return groups[index].filter ?? '';
+      }
+    }
+    return '';
+  }
+
+  // Keeps only nodes whose name matches the group's filter regex. An empty
+  // filter, an invalid regex, or a pattern that matches nothing all fall back to
+  // the full node list so a subscription is never silently emptied.
+  private applyNodeFilter(nodes: Array<ProxyNode>, filter: string): Array<ProxyNode> {
+    const pattern = filter.trim();
+    if (pattern.length === 0) {
+      return nodes;
+    }
+    try {
+      const regex = new RegExp(pattern);
+      const result = new Array<ProxyNode>();
+      for (let index = 0; index < nodes.length; index++) {
+        if (regex.test(nodes[index].name)) {
+          result.push(nodes[index]);
+        }
+      }
+      return result.length > 0 ? result : nodes;
+    } catch (error) {
+      return nodes;
+    }
   }
 
   private stringifyError(error: Error): string {

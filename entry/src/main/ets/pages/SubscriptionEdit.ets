@@ -1,7 +1,8 @@
 import { common } from '@kit.AbilityKit';
-import { DEFAULT_LANGUAGE, translate } from '../core/I18n';
+import { DEFAULT_LANGUAGE } from '../core/I18n';
 import { AppLanguage } from '../core/Profile';
 import { SUBSCRIPTIONS_CONTROLLER, SubscriptionsControllerState } from '../features/subscriptions/SubscriptionsController';
+import { DEFAULT_SUBSCRIPTION_USER_AGENT } from '../services/SubscriptionManager';
 import { SETTINGS_CONTROLLER } from '../features/settings/SettingsController';
 import { AppRoute } from '../shell/AppRoute';
 import { SectionHeader } from '../components/SectionHeader';
@@ -18,6 +19,8 @@ struct SubscriptionEditPage {
   @State private pageTitle: string = '新建订阅分组';
   @State private groupName: string = '';
   @State private subscriptionUrl: string = '';
+  @State private userAgent: string = '';
+  @State private filter: string = '';
   @State private isBusy: boolean = false;
 
   aboutToAppear(): void {
@@ -160,6 +163,64 @@ struct SubscriptionEditPage {
               .lineHeight(16)
               .padding({ left: Space.lg + Space.xs, right: Space.lg + Space.xs })
 
+            // 卡片三：自定义 User-Agent
+            SectionHeader({ title: '自定义 User-Agent' })
+            Column() {
+              TextInput({ text: this.userAgent, placeholder: `留空默认 ${DEFAULT_SUBSCRIPTION_USER_AGENT}` })
+                .height(48)
+                .width('100%')
+                .fontSize(FontSz.body)
+                .fontColor(AppColor.textPrimary)
+                .placeholderColor(AppColor.textTertiary)
+                .backgroundColor(Color.Transparent)
+                .borderRadius(0)
+                .padding({ left: Space.lg, right: Space.lg })
+                .onChange((val) => {
+                  this.userAgent = val;
+                })
+            }
+            .width('100%')
+            .backgroundColor(AppColor.surface)
+            .borderRadius(Radius.lg)
+            .clip(true)
+            .margin({ left: Space.lg, right: Space.lg })
+
+            Text('订阅服务器常按 User-Agent 返回不同格式或节点。默认以 clash.meta 拉取 Clash 配置；若某订阅缺节点，可改成 v2rayNG、sing-box 等再试。')
+              .fontSize(FontSz.footnote)
+              .fontColor(AppColor.textTertiary)
+              .width('100%')
+              .lineHeight(16)
+              .padding({ left: Space.lg + Space.xs, right: Space.lg + Space.xs })
+
+            // 卡片四：节点过滤（正则）
+            SectionHeader({ title: '节点过滤 (正则)' })
+            Column() {
+              TextInput({ text: this.filter, placeholder: '留空导入全部节点，例如 香港|HK' })
+                .height(48)
+                .width('100%')
+                .fontSize(FontSz.body)
+                .fontColor(AppColor.textPrimary)
+                .placeholderColor(AppColor.textTertiary)
+                .backgroundColor(Color.Transparent)
+                .borderRadius(0)
+                .padding({ left: Space.lg, right: Space.lg })
+                .onChange((val) => {
+                  this.filter = val;
+                })
+            }
+            .width('100%')
+            .backgroundColor(AppColor.surface)
+            .borderRadius(Radius.lg)
+            .clip(true)
+            .margin({ left: Space.lg, right: Space.lg })
+
+            Text('更新订阅时，仅保留节点名称匹配该正则的节点。留空或正则无效时导入全部；若匹配不到任何节点则自动回退为全部。')
+              .fontSize(FontSz.footnote)
+              .fontColor(AppColor.textTertiary)
+              .width('100%')
+              .lineHeight(16)
+              .padding({ left: Space.lg + Space.xs, right: Space.lg + Space.xs })
+
           }
           .width('100%')
           // 底部 padding 为 100 避开底置悬浮大按钮
@@ -223,6 +284,8 @@ struct SubscriptionEditPage {
           const group = state.subscriptionGroups[i];
           this.groupName = group.name;
           this.subscriptionUrl = group.url;
+          this.userAgent = group.userAgent ?? '';
+          this.filter = group.filter ?? '';
           break;
         }
       }
@@ -239,14 +302,16 @@ struct SubscriptionEditPage {
       return;
     }
 
+    const userAgent = this.userAgent.trim();
+    const filter = this.filter.trim();
     this.isBusy = true;
     try {
       const context = getContext(this) as common.Context;
       let state: SubscriptionsControllerState;
       if (this.groupId.length === 0) {
-        state = await SUBSCRIPTIONS_CONTROLLER.addGroup(context, name, url, this.language);
+        state = await SUBSCRIPTIONS_CONTROLLER.addGroup(context, name, url, userAgent, filter, this.language);
       } else {
-        state = await SUBSCRIPTIONS_CONTROLLER.updateGroup(context, this.groupId, name, url, this.language);
+        state = await SUBSCRIPTIONS_CONTROLLER.updateGroup(context, this.groupId, name, url, userAgent, filter, this.language);
       }
       promptAction.showToast({ message: state.subscriptionMessage });
       router.back();
