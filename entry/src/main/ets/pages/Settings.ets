@@ -1,7 +1,7 @@
 import { common } from '@kit.AbilityKit';
 import { SectionHeader } from '../components/SectionHeader';
 import { DEFAULT_LANGUAGE, translate } from '../core/I18n';
-import { AppLanguage } from '../core/Profile';
+import { AppLanguage, RoutingRule } from '../core/Profile';
 import {
   LanguageToggleRow,
   SettingInputRow,
@@ -36,8 +36,9 @@ struct SettingsPage {
   @State private trafficMode: string = 'rules';
   @State private routingStrategy: string = 'AsIs';
   // Round-tripped only (edited on the Routing page); preserved here so saving
-  // settings does not reset the ad-block preference.
+  // general settings does not reset routing preferences.
   @State private adBlockEnabled: boolean = false;
+  @State private routingRules: Array<RoutingRule> = [];
   @State private lastError: string = '';
   @State private perAppProxyList: string[] = [];
   @State private perAppProxyBypass: boolean = true;
@@ -346,6 +347,7 @@ struct SettingsPage {
       trafficMode: this.trafficMode,
       routingDomainStrategy: this.routingStrategy,
       adBlockEnabled: this.adBlockEnabled,
+      routingRules: this.copyRoutingRules(this.routingRules),
       autoSortAfterTest: this.settingAutoSortAfterTest,
       autoRemoveInvalidAfterTest: this.settingAutoRemoveAfterTest
     };
@@ -372,8 +374,30 @@ struct SettingsPage {
     this.trafficMode = draft.trafficMode;
     this.routingStrategy = draft.routingDomainStrategy;
     this.adBlockEnabled = draft.adBlockEnabled;
+    this.routingRules = this.copyRoutingRules(draft.routingRules);
     this.settingAutoSortAfterTest = draft.autoSortAfterTest;
     this.settingAutoRemoveAfterTest = draft.autoRemoveInvalidAfterTest;
+  }
+
+  private copyRoutingRules(rules: Array<RoutingRule>): Array<RoutingRule> {
+    const result = new Array<RoutingRule>();
+    for (let index = 0; index < rules.length; index++) {
+      const item = rules[index];
+      result.push({
+        id: item.id,
+        remarks: item.remarks,
+        domain: item.domain.slice(),
+        ip: item.ip.slice(),
+        process: item.process.slice(),
+        outboundTag: item.outboundTag,
+        port: item.port,
+        network: item.network,
+        protocol: item.protocol.slice(),
+        enabled: item.enabled,
+        locked: item.locked
+      });
+    }
+    return result;
   }
 
   private t(key: string): string {

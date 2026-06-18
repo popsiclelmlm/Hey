@@ -56,10 +56,11 @@
 
 ### 阶段 2：路由规则系统（核心差距）
 
-- 让 Routing 页的「广告拦截」「自定义规则集」真正生效（当前仅弹窗）
-- `XrayConfig.ets` 的 `buildRoutingRules` 扩展：多规则、ad-block
+- ✅ 让 Routing 页的「广告拦截」「自定义规则集」真正生效（2026-06-18 已完成自定义规则模型/编辑/下发）
+- ✅ `XrayConfig.ets` 的 `buildRoutingRules` 扩展：多规则、ad-block
   （`geosite:category-ads-all` → block）、用户自定义 域名 / IP / 端口规则
-- 新建规则编辑器页（增删改 + 持久化）
+- ✅ 新建规则编辑器（增删改 + 启停 + 上移/下移排序 + 持久化）
+- ⏳ 预设规则集导入/导出、规则锁定保留策略仍待补齐
 
 **产出**：对齐 v2rayNG RoutingSettingActivity / RoutingEditActivity。
 
@@ -100,5 +101,6 @@
 | 2026-06-03 | — | 建立路线图，完成基于真实代码的完成度评估 |
 | 2026-06-05 | — | 阶段规划由 [`development-plan.md`](development-plan.md) 取代（稳步推进版，含最新实测基线） |
 | 2026-06-15 | 阶段 0 | ✅ 真机数据通路闭环验证通过；阻塞项解除 |
+| 2026-06-18 | 阶段 2 | ✅ 自定义路由规则模型、Route 页编辑管理和 Xray `routing.rules` 下发完成；预设规则集导入/导出待补 |
 </content>
 </invoke>

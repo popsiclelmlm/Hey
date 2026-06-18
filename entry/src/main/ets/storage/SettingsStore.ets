@@ -1,7 +1,7 @@
 import { common } from '@kit.AbilityKit';
 import { preferences } from '@kit.ArkData';
 import { DEFAULT_LANGUAGE, normalizeLanguage } from '../core/I18n';
-import { AppLanguage, AppSettings } from '../core/Profile';
+import { AppLanguage, AppSettings, RoutingRule } from '../core/Profile';
 
 const PREFERENCES_NAME: string = 'hey_vpn_settings';
 const SETTINGS_KEY: string = 'app_settings';
@@ -38,6 +38,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   trafficMode: 'rules',
   routingDomainStrategy: 'AsIs',
   adBlockEnabled: false,
+  routingRules: [],
   autoSortAfterTest: false,
   autoRemoveInvalidAfterTest: false
 };
@@ -106,6 +107,7 @@ export class SettingsStore {
       trafficMode: SettingsStore.trafficModeValue(raw.trafficMode, base.trafficMode),
       routingDomainStrategy: SettingsStore.stringValue(raw.routingDomainStrategy, base.routingDomainStrategy),
       adBlockEnabled: SettingsStore.boolValue(raw.adBlockEnabled, base.adBlockEnabled),
+      routingRules: SettingsStore.routingRulesValue(raw.routingRules),
       autoSortAfterTest: SettingsStore.boolValue(raw.autoSortAfterTest, base.autoSortAfterTest),
       autoRemoveInvalidAfterTest: SettingsStore.boolValue(raw.autoRemoveInvalidAfterTest, base.autoRemoveInvalidAfterTest)
     };
@@ -147,5 +149,72 @@ export class SettingsStore {
 
   private static arrayValue(value: string[] | undefined, fallback: string[]): string[] {
     return Array.isArray(value) ? value : fallback;
+  }
+
+  private static routingRulesValue(value: Array<RoutingRule> | undefined): Array<RoutingRule> {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+    const rules = new Array<RoutingRule>();
+    for (let index = 0; index < value.length; index++) {
+      const item = value[index];
+      const rule: RoutingRule = {
+        id: SettingsStore.nonEmptyString(item.id, `routing-rule-${index + 1}`),
+        remarks: SettingsStore.stringValue(item.remarks, '').trim(),
+        domain: SettingsStore.cleanStringArray(item.domain),
+        ip: SettingsStore.cleanStringArray(item.ip),
+        process: SettingsStore.cleanStringArray(item.process),
+        outboundTag: SettingsStore.outboundTagValue(item.outboundTag),
+        port: SettingsStore.stringValue(item.port, '').trim(),
+        network: SettingsStore.networkValue(item.network),
+        protocol: SettingsStore.cleanStringArray(item.protocol),
+        enabled: SettingsStore.boolValue(item.enabled, true),
+        locked: SettingsStore.boolValue(item.locked, false)
+      };
+      if (rule.remarks.length > 0 || SettingsStore.hasRoutingMatcher(rule)) {
+        rules.push(rule);
+      }
+    }
+    return rules;
+  }
+
+  private static cleanStringArray(value: string[] | undefined): string[] {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+    const result = new Array<string>();
+    for (let index = 0; index < value.length; index++) {
+      const item = value[index].trim();
+      if (item.length > 0 && result.indexOf(item) < 0) {
+        result.push(item);
+      }
+    }
+    return result;
+  }
+
+  private static nonEmptyString(value: string | undefined, fallback: string): string {
+    const normalized = SettingsStore.stringValue(value, '').trim();
+    return normalized.length > 0 ? normalized : fallback;
+  }
+
+  private static outboundTagValue(value: string | undefined): string {
+    const normalized = SettingsStore.stringValue(value, 'proxy').trim();
+    if (normalized === 'direct' || normalized === 'block' || normalized === 'proxy') {
+      return normalized;
+    }
+    return 'proxy';
+  }
+
+  private static networkValue(value: string | undefined): string {
+    const normalized = SettingsStore.stringValue(value, '').trim().toLowerCase();
+    if (normalized === 'tcp' || normalized === 'udp' || normalized === 'tcp,udp' || normalized === 'udp,tcp') {
+      return normalized === 'udp,tcp' ? 'tcp,udp' : normalized;
+    }
+    return '';
+  }
+
+  private static hasRoutingMatcher(rule: RoutingRule): boolean {
+    return rule.domain.length > 0 || rule.ip.length > 0 || rule.process.length > 0 ||
+      rule.port.length > 0 || rule.protocol.length > 0 || rule.network.length > 0;
   }
 }

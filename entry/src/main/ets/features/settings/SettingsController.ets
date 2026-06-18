@@ -1,5 +1,5 @@
 import { common } from '@kit.AbilityKit';
-import { AppLanguage, AppSettings } from '../../core/Profile';
+import { AppLanguage, AppSettings, RoutingRule } from '../../core/Profile';
 import { DEFAULT_APP_SETTINGS, SettingsStore } from '../../storage/SettingsStore';
 
 export interface SettingsDraft {
@@ -23,6 +23,7 @@ export interface SettingsDraft {
   trafficMode: string;
   routingDomainStrategy: string;
   adBlockEnabled: boolean;
+  routingRules: Array<RoutingRule>;
   autoSortAfterTest: boolean;
   autoRemoveInvalidAfterTest: boolean;
 }
@@ -58,6 +59,7 @@ export class SettingsController {
       trafficMode: settings.trafficMode,
       routingDomainStrategy: settings.routingDomainStrategy,
       adBlockEnabled: settings.adBlockEnabled,
+      routingRules: this.copyRoutingRules(settings.routingRules),
       autoSortAfterTest: settings.autoSortAfterTest,
       autoRemoveInvalidAfterTest: settings.autoRemoveInvalidAfterTest
     };
@@ -96,9 +98,31 @@ export class SettingsController {
       trafficMode: draft.trafficMode,
       routingDomainStrategy: draft.routingDomainStrategy,
       adBlockEnabled: draft.adBlockEnabled,
+      routingRules: this.copyRoutingRules(draft.routingRules),
       autoSortAfterTest: draft.autoSortAfterTest,
       autoRemoveInvalidAfterTest: draft.autoRemoveInvalidAfterTest
     };
+  }
+
+  private copyRoutingRules(rules: Array<RoutingRule>): Array<RoutingRule> {
+    const result = new Array<RoutingRule>();
+    for (let index = 0; index < rules.length; index++) {
+      const item = rules[index];
+      result.push({
+        id: item.id,
+        remarks: item.remarks,
+        domain: item.domain.slice(),
+        ip: item.ip.slice(),
+        process: item.process.slice(),
+        outboundTag: item.outboundTag,
+        port: item.port,
+        network: item.network,
+        protocol: item.protocol.slice(),
+        enabled: item.enabled,
+        locked: item.locked
+      });
+    }
+    return result;
   }
 
 }

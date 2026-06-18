@@ -1,4 +1,4 @@
-import { AppSettings, GeneratedXrayConfig, ValidationResult } from './Profile';
+import { AppSettings, GeneratedXrayConfig, RoutingRule, ValidationResult } from './Profile';
 import { isSupportedShareLink, parseShareLinkToOutboundJson } from './ShareLinkParser';
 
 interface XrayOutbound {
@@ -51,6 +51,9 @@ interface XrayRoutingRule {
   inboundTag?: Array<string>;
   ip?: Array<string>;
   domain?: Array<string>;
+  port?: string;
+  process?: Array<string>;
+  protocol?: Array<string>;
   network?: string;
 }
 
@@ -428,6 +431,8 @@ function buildRoutingRules(settings: AppSettings | undefined): Array<XrayRouting
     return rules;
   }
 
+  appendCustomRoutingRules(rules, settings.routingRules);
+
   if (settings.trafficMode === 'rules' && settings.routeOnlyEnabled) {
     const rule: XrayRoutingRule = {
       type: 'field',
@@ -438,6 +443,62 @@ function buildRoutingRules(settings: AppSettings | undefined): Array<XrayRouting
     rules.push(rule);
   }
   return rules;
+}
+
+function appendCustomRoutingRules(rules: Array<XrayRoutingRule>, customRules: Array<RoutingRule>): void {
+  for (let index = 0; index < customRules.length; index++) {
+    const rule = buildCustomRoutingRule(customRules[index]);
+    if (rule !== undefined) {
+      rules.push(rule);
+    }
+  }
+}
+
+function buildCustomRoutingRule(item: RoutingRule): XrayRoutingRule | undefined {
+  if (!item.enabled) {
+    return undefined;
+  }
+
+  const rule: XrayRoutingRule = {
+    type: 'field',
+    outboundTag: normalizeOutboundTag(item.outboundTag)
+  };
+  let hasMatcher = false;
+
+  if (item.domain.length > 0) {
+    rule.domain = item.domain.slice();
+    hasMatcher = true;
+  }
+  if (item.ip.length > 0) {
+    rule.ip = item.ip.slice();
+    hasMatcher = true;
+  }
+  if (item.process.length > 0) {
+    rule.process = item.process.slice();
+    hasMatcher = true;
+  }
+  if (item.port.trim().length > 0) {
+    rule.port = item.port.trim();
+    hasMatcher = true;
+  }
+  if (item.protocol.length > 0) {
+    rule.protocol = item.protocol.slice();
+    hasMatcher = true;
+  }
+  if (item.network.trim().length > 0) {
+    rule.network = item.network.trim();
+    hasMatcher = true;
+  }
+
+  return hasMatcher ? rule : undefined;
+}
+
+function normalizeOutboundTag(value: string): string {
+  const tag = value.trim();
+  if (tag === 'direct' || tag === 'block' || tag === 'proxy') {
+    return tag;
+  }
+  return 'proxy';
 }
 
 function addCsvValues(target: Array<string>, value: string): void {

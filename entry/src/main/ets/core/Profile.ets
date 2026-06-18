@@ -57,6 +57,20 @@ export interface GeneratedXrayConfig {
 
 export type AppLanguage = 'zh' | 'en';
 
+export interface RoutingRule {
+  id: string;
+  remarks: string;
+  domain: string[];
+  ip: string[];
+  process: string[];
+  outboundTag: string;
+  port: string;
+  network: string;
+  protocol: string[];
+  enabled: boolean;
+  locked: boolean;
+}
+
 export interface AppSettings {
   language: AppLanguage;
   sniffingEnabled: boolean;
@@ -89,6 +103,7 @@ export interface AppSettings {
   trafficMode: string;
   routingDomainStrategy: string;
   adBlockEnabled: boolean;
+  routingRules: Array<RoutingRule>;
   autoSortAfterTest: boolean;
   autoRemoveInvalidAfterTest: boolean;
 }

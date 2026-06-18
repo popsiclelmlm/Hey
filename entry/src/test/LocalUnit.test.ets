@@ -46,6 +46,8 @@ export default function localUnitTest() {
         sniffingEnabled: true,
         routeOnlyEnabled: true,
         perAppProxyEnabled: false,
+        perAppProxyList: [],
+        perAppProxyBypass: true,
         localDnsEnabled: false,
         fakeDnsEnabled: false,
         appendHttpProxy: false,
@@ -69,7 +71,11 @@ export default function localUnitTest() {
         logLevel: 'debug',
         mode: 'VPN',
         trafficMode: 'rules',
-        routingDomainStrategy: 'IPIfNonMatch'
+        routingDomainStrategy: 'IPIfNonMatch',
+        adBlockEnabled: false,
+        routingRules: [],
+        autoSortAfterTest: false,
+        autoRemoveInvalidAfterTest: false
       };
       const result = buildXrayConfigWithSettings(VLESS_REALITY_OUTBOUND, settings);
       expect(result.configJson).assertContain('"loglevel": "debug"');
@@ -78,6 +84,52 @@ export default function localUnitTest() {
       expect(result.configJson).assertContain('"sniffing"');
       expect(result.configJson).assertContain('"mux"');
       expect(result.configJson).assertContain('"9.9.9.9"');
+    });
+
+    it('applies enabled custom routing rules to generated xray config', 0, () => {
+      const settings = buildSettingsFixture();
+      settings.routeOnlyEnabled = true;
+      settings.adBlockEnabled = true;
+      settings.routingRules = [
+        {
+          id: 'rule-direct',
+          remarks: 'Direct example',
+          domain: ['domain:example.com'],
+          ip: ['geoip:private'],
+          process: [],
+          outboundTag: 'direct',
+          port: '443',
+          network: 'tcp',
+          protocol: ['tls'],
+          enabled: true,
+          locked: false
+        },
+        {
+          id: 'rule-disabled',
+          remarks: 'Disabled block',
+          domain: ['domain:disabled.example'],
+          ip: [],
+          process: [],
+          outboundTag: 'block',
+          port: '',
+          network: '',
+          protocol: [],
+          enabled: false,
+          locked: false
+        }
+      ];
+
+      const result = buildXrayConfigWithSettings(VLESS_REALITY_OUTBOUND, settings);
+      expect(result.configJson).assertContain('"domain:example.com"');
+      expect(result.configJson).assertContain('"geoip:private"');
+      expect(result.configJson).assertContain('"port": "443"');
+      expect(result.configJson).assertContain('"network": "tcp"');
+      expect(result.configJson).assertContain('"tls"');
+      expect(result.configJson).assertContain('"geosite:category-ads-all"');
+      expect(result.configJson).assertContain('"geosite:cn"');
+      expect(result.configJson.indexOf('domain:disabled.example')).assertEqual(-1);
+      expect(result.configJson.indexOf('geosite:category-ads-all') < result.configJson.indexOf('domain:example.com')).assertTrue();
+      expect(result.configJson.indexOf('domain:example.com') < result.configJson.indexOf('geosite:cn')).assertTrue();
     });
 
     it('has complete zh and en translations with fallback helpers', 0, () => {
@@ -257,6 +309,45 @@ export default function localUnitTest() {
       expect(nodes[0].outboundJson).assertContain('"address": "example.com"');
     });
   });
+}
+
+function buildSettingsFixture(): AppSettings {
+  return {
+    language: 'zh',
+    sniffingEnabled: true,
+    routeOnlyEnabled: false,
+    perAppProxyEnabled: false,
+    perAppProxyList: [],
+    perAppProxyBypass: true,
+    localDnsEnabled: false,
+    fakeDnsEnabled: false,
+    appendHttpProxy: false,
+    muxEnabled: false,
+    muxConcurrency: 8,
+    muxXudpConcurrency: 8,
+    muxXudpQuic: 'reject',
+    fragmentEnabled: false,
+    fragmentPackets: 'tlshello',
+    fragmentLength: '50-100',
+    fragmentInterval: '10-20',
+    preferIpv6: false,
+    proxySharingEnabled: false,
+    allowInsecure: false,
+    localDnsPort: 10853,
+    vpnDns: '1.1.1.1',
+    remoteDns: '1.1.1.1',
+    domesticDns: '223.5.5.5',
+    dnsHosts: '',
+    delayTestUrl: 'https://www.gstatic.com/generate_204',
+    logLevel: 'warning',
+    mode: 'VPN',
+    trafficMode: 'rules',
+    routingDomainStrategy: 'AsIs',
+    adBlockEnabled: false,
+    routingRules: [],
+    autoSortAfterTest: false,
+    autoRemoveInvalidAfterTest: false
+  };
 }
 
 function buildNodeFixture(): Array<ProxyNode> {

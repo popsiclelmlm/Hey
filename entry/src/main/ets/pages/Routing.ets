@@ -1,12 +1,13 @@
 import { common } from '@kit.AbilityKit';
 import { DEFAULT_LANGUAGE, translate } from '../core/I18n';
-import { AppLanguage } from '../core/Profile';
+import { AppLanguage, RoutingRule } from '../core/Profile';
 import { SETTINGS_CONTROLLER, SettingsDraft } from '../features/settings/SettingsController';
 import { SHARED_RUNTIME_CONTROLLER } from '../features/runtime/RuntimeController';
 import { SectionHeader } from '../components/SectionHeader';
 import { PageHeader } from '../shell/PageHeader';
 import { formatOne } from '../utils/LocalizationPresenter';
 import { AppColor, FontSz, Radius, Space } from '../theme/Theme';
+import { RoutingRuleDialog } from './routing/RoutingRuleDialog';
 
 @Entry
 @Component
@@ -16,6 +17,23 @@ struct RoutingPage {
   @State private routingStrategy: string = 'AsIs';
   @State private routeOnlyEnabled: boolean = false;
   @State private adBlockEnabled: boolean = false;
+  @State private routingRules: Array<RoutingRule> = [];
+  @State private showRuleDialog: boolean = false;
+  @State private ruleDialogTitle: string = '';
+  @State private editingRuleId: string = '';
+  @State private initialRule: RoutingRule = {
+    id: '',
+    remarks: '',
+    domain: [],
+    ip: [],
+    process: [],
+    outboundTag: 'proxy',
+    port: '',
+    network: '',
+    protocol: [],
+    enabled: true,
+    locked: false
+  };
   private draft: SettingsDraft | null = null;
 
   aboutToAppear(): void {
@@ -23,95 +41,125 @@ struct RoutingPage {
   }
 
   build() {
-    Column() {
-      PageHeader({
-        title: this.t('screen.routing.title'),
-        summary: this.t(`routing.mode.${this.trafficMode}`),
-        showBack: true
-      })
+    Stack() {
+      Column() {
+        PageHeader({
+          title: this.t('screen.routing.title'),
+          summary: this.t(`routing.mode.${this.trafficMode}`),
+          showBack: true
+        })
 
-      Scroll() {
-        Column({ space: Space.lg }) {
+        Scroll() {
+          Column({ space: Space.lg }) {
 
-          // 流量模式
-          SectionHeader({ title: this.t('routing.trafficMode') })
-          Column() {
-            this.TrafficModeRow('global', this.t('routing.mode.global'), '所有流量代理', $r('app.media.ic_route'))
-            this.RowDivider()
-            this.TrafficModeRow('rules', this.t('routing.mode.rules'), '按规则智能分流', $r('app.media.ic_settings'))
-            this.RowDivider()
-            this.TrafficModeRow('direct', this.t('routing.mode.direct'), '所有流量直连', $r('app.media.ic_share'))
-
-            if (this.trafficMode === 'rules') {
+            // 流量模式
+            SectionHeader({ title: this.t('routing.trafficMode') })
+            Column() {
+              this.TrafficModeRow('global', this.t('routing.mode.global'), '所有流量代理', $r('app.media.ic_route'))
               this.RowDivider()
-              this.RouteOnlyRow()
+              this.TrafficModeRow('rules', this.t('routing.mode.rules'), '按规则智能分流', $r('app.media.ic_settings'))
+              this.RowDivider()
+              this.TrafficModeRow('direct', this.t('routing.mode.direct'), '所有流量直连', $r('app.media.ic_share'))
+
+              if (this.trafficMode === 'rules') {
+                this.RowDivider()
+                this.RouteOnlyRow()
+              }
             }
+            .width('100%')
+            .backgroundColor(AppColor.surface)
+            .borderRadius(Radius.lg)
+            .clip(true)
+            .margin({ left: Space.lg, right: Space.lg })
+
+            this.GroupFooter(this.getTrafficModeDescription())
+
+            // 域名策略
+            SectionHeader({ title: this.t('routing.domainStrategy') })
+            Column() {
+              this.StrategyRow('AsIs', '仅用域名 (AsIs)', '直接使用域名进行匹配分流，解析效率最高，但不匹配 IP 类规则。')
+              this.RowDivider()
+              this.StrategyRow('IPIfNonMatch', '未匹配时解析 (IPIfNonMatch)', '域名未命中任何规则时，解析为 IP 再次匹配。推荐配置，兼顾速度与准确性。')
+              this.RowDivider()
+              this.StrategyRow('IPOnDemand', '按需解析 (IPOnDemand)', '在规则匹配到 IP 规则时才发起 DNS 解析，适用于较严格的分流场景。')
+            }
+            .width('100%')
+            .backgroundColor(AppColor.surface)
+            .borderRadius(Radius.lg)
+            .clip(true)
+            .margin({ left: Space.lg, right: Space.lg })
+
+            // 预置规则集
+            SectionHeader({ title: '预置规则集' })
+            Column() {
+              this.PresetRow(
+                this.t('routing.global.title'),
+                this.t('routing.global.detail'),
+                $r('app.media.ic_route'),
+                '• 匹配规则：所有入站请求均被路由到代理出站(proxy)\n• 场景应用：不需要区分内外网，完全通过代理节点访问网络'
+              )
+              this.RowDivider()
+              this.PresetRow(
+                this.t('routing.bypassLanCn.title'),
+                this.t('routing.bypassLanCn.detail'),
+                $r('app.media.ic_link'),
+                '• 匹配规则：\n  - 局域网私有IP (geoip:private) -> 直连(direct)\n  - 境内IP网段 (geoip:cn) -> 直连(direct)\n  - 境内常见域名 (geosite:cn) -> 直连(direct)\n• 其它未匹配流量自动通过代理出站'
+              )
+              this.RowDivider()
+              this.AdBlockRow()
+            }
+            .width('100%')
+            .backgroundColor(AppColor.surface)
+            .borderRadius(Radius.lg)
+            .clip(true)
+            .margin({ left: Space.lg, right: Space.lg })
+
+            SectionHeader({ title: this.t('routing.customRulesets.title') })
+            Column() {
+              this.CustomRulesHeader()
+              if (this.routingRules.length === 0) {
+                this.RowDivider()
+                this.EmptyCustomRulesRow()
+              } else {
+                ForEach(this.routingRules, (rule: RoutingRule, index: number) => {
+                  this.RowDivider()
+                  this.CustomRuleRow(rule, index)
+                }, (rule: RoutingRule) => rule.id)
+              }
+            }
+            .width('100%')
+            .backgroundColor(AppColor.surface)
+            .borderRadius(Radius.lg)
+            .clip(true)
+            .margin({ left: Space.lg, right: Space.lg })
+
           }
           .width('100%')
-          .backgroundColor(AppColor.surface)
-          .borderRadius(Radius.lg)
-          .clip(true)
-          .margin({ left: Space.lg, right: Space.lg })
-
-          this.GroupFooter(this.getTrafficModeDescription())
-
-          // 域名策略
-          SectionHeader({ title: this.t('routing.domainStrategy') })
-          Column() {
-            this.StrategyRow('AsIs', '仅用域名 (AsIs)', '直接使用域名进行匹配分流，解析效率最高，但不匹配 IP 类规则。')
-            this.RowDivider()
-            this.StrategyRow('IPIfNonMatch', '未匹配时解析 (IPIfNonMatch)', '域名未命中任何规则时，解析为 IP 再次匹配。推荐配置，兼顾速度与准确性。')
-            this.RowDivider()
-            this.StrategyRow('IPOnDemand', '按需解析 (IPOnDemand)', '在规则匹配到 IP 规则时才发起 DNS 解析，适用于较严格的分流场景。')
-          }
-          .width('100%')
-          .backgroundColor(AppColor.surface)
-          .borderRadius(Radius.lg)
-          .clip(true)
-          .margin({ left: Space.lg, right: Space.lg })
-
-          // 预置规则集
-          SectionHeader({ title: '预置规则集' })
-          Column() {
-            this.PresetRow(
-              this.t('routing.global.title'),
-              this.t('routing.global.detail'),
-              $r('app.media.ic_route'),
-              '• 匹配规则：所有入站请求均被路由到代理出站(proxy)\n• 场景应用：不需要区分内外网，完全通过代理节点访问网络'
-            )
-            this.RowDivider()
-            this.PresetRow(
-              this.t('routing.bypassLanCn.title'),
-              this.t('routing.bypassLanCn.detail'),
-              $r('app.media.ic_link'),
-              '• 匹配规则：\n  - 局域网私有IP (geoip:private) -> 直连(direct)\n  - 境内IP网段 (geoip:cn) -> 直连(direct)\n  - 境内常见域名 (geosite:cn) -> 直连(direct)\n• 其它未匹配流量自动通过代理出站'
-            )
-            this.RowDivider()
-            this.AdBlockRow()
-            this.RowDivider()
-            this.PresetRow(
-              this.t('routing.customRulesets.title'),
-              this.t('routing.customRulesets.detail'),
-              $r('app.media.ic_settings'),
-              '• 匹配规则：允许通过 GeoIP 和 GeoSite 数据库配置自定义域名和 IP 分流\n• 场景应用：支持分应用代理设置（白名单/黑名单），可根据业务需要精细控制分流行为'
-            )
-          }
-          .width('100%')
-          .backgroundColor(AppColor.surface)
-          .borderRadius(Radius.lg)
-          .clip(true)
-          .margin({ left: Space.lg, right: Space.lg })
-
+          .padding({ top: Space.sm, bottom: Space.xxl })
         }
+        .layoutWeight(1)
         .width('100%')
-        .padding({ top: Space.sm, bottom: Space.xxl })
       }
-      .layoutWeight(1)
+      .height('100%')
       .width('100%')
+      .backgroundColor(AppColor.bg)
+
+      if (this.showRuleDialog) {
+        RoutingRuleDialog({
+          language: this.language,
+          title: this.ruleDialogTitle,
+          initialRule: this.initialRule,
+          onCancel: () => {
+            this.showRuleDialog = false;
+          },
+          onConfirm: (rule: RoutingRule) => {
+            this.saveRule(rule);
+          }
+        })
+      }
     }
     .height('100%')
     .width('100%')
-    .backgroundColor(AppColor.bg)
   }
 
   @Builder
@@ -317,9 +365,167 @@ struct RoutingPage {
     })
   }
 
+  @Builder
+  private CustomRulesHeader() {
+    Row({ space: Space.md }) {
+      Column() {
+        Image($r('app.media.ic_settings'))
+          .width(20)
+          .height(20)
+          .fillColor(AppColor.brand)
+      }
+      .width(40)
+      .height(40)
+      .borderRadius(20)
+      .backgroundColor(AppColor.brandTint)
+      .justifyContent(FlexAlign.Center)
+      .alignItems(HorizontalAlign.Center)
+
+      Column({ space: 3 }) {
+        Text(this.t('routing.customRulesets.title'))
+          .fontSize(FontSz.callout)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(AppColor.textPrimary)
+        Text(this.customRuleSummary())
+          .fontSize(FontSz.footnote)
+          .fontColor(AppColor.textTertiary)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+      }
+      .alignItems(HorizontalAlign.Start)
+      .layoutWeight(1)
+
+      Button() {
+        Image($r('app.media.ic_add'))
+          .width(18)
+          .height(18)
+          .fillColor(AppColor.onBrand)
+      }
+      .width(36)
+      .height(36)
+      .backgroundColor(AppColor.brand)
+      .borderRadius(18)
+      .onClick(() => {
+        this.openAddRule();
+      })
+    }
+    .width('100%')
+    .padding(Space.lg)
+  }
+
+  @Builder
+  private EmptyCustomRulesRow() {
+    Row({ space: Space.md }) {
+      Text(this.t('routing.rule.empty'))
+        .fontSize(FontSz.footnote)
+        .fontColor(AppColor.textTertiary)
+        .layoutWeight(1)
+        .lineHeight(16)
+      Button(this.t('routing.rule.add'))
+        .height(34)
+        .fontSize(FontSz.footnote)
+        .fontColor(AppColor.onBrand)
+        .backgroundColor(AppColor.brand)
+        .borderRadius(Radius.pill)
+        .onClick(() => {
+          this.openAddRule();
+        })
+    }
+    .width('100%')
+    .padding(Space.lg)
+  }
+
+  @Builder
+  private CustomRuleRow(rule: RoutingRule, index: number) {
+    Row({ space: Space.md }) {
+      Column() {
+        Image(this.ruleIcon(rule))
+          .width(18)
+          .height(18)
+          .fillColor(rule.enabled ? this.ruleAccentColor(rule) : AppColor.textTertiary)
+      }
+      .width(40)
+      .height(40)
+      .borderRadius(20)
+      .backgroundColor(rule.enabled ? this.ruleAccentTint(rule) : AppColor.surfaceAlt)
+      .justifyContent(FlexAlign.Center)
+      .alignItems(HorizontalAlign.Center)
+
+      Column({ space: 4 }) {
+        Row({ space: Space.sm }) {
+          Text(rule.remarks)
+            .fontSize(FontSz.callout)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(rule.enabled ? AppColor.textPrimary : AppColor.textTertiary)
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+            .layoutWeight(1)
+          Text(rule.outboundTag)
+            .fontSize(FontSz.caption)
+            .fontColor(this.ruleAccentColor(rule))
+            .padding({ left: Space.sm, right: Space.sm, top: 2, bottom: 2 })
+            .backgroundColor(this.ruleAccentTint(rule))
+            .borderRadius(Radius.sm)
+        }
+        .width('100%')
+
+        Text(this.describeRule(rule))
+          .fontSize(FontSz.footnote)
+          .fontColor(AppColor.textTertiary)
+          .maxLines(2)
+          .lineHeight(16)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+      }
+      .alignItems(HorizontalAlign.Start)
+      .layoutWeight(1)
+      .onClick(() => {
+        this.openEditRule(rule);
+      })
+
+      Column({ space: Space.xs }) {
+        Toggle({ type: ToggleType.Switch, isOn: rule.enabled })
+          .selectedColor(AppColor.brand)
+          .switchPointColor(AppColor.onBrand)
+          .onChange((isOn: boolean) => {
+            this.toggleRule(rule.id, isOn);
+          })
+
+        Row({ space: Space.xs }) {
+          this.RuleIconButton($r('app.media.ic_arrow_downward'), index > 0, true, 'up', index, rule.id)
+          this.RuleIconButton($r('app.media.ic_arrow_downward'), index < this.routingRules.length - 1, false, 'down', index, rule.id)
+          this.RuleIconButton($r('app.media.ic_edit'), true, false, 'edit', index, rule.id)
+          this.RuleIconButton($r('app.media.ic_delete'), true, false, 'delete', index, rule.id)
+        }
+      }
+      .alignItems(HorizontalAlign.End)
+    }
+    .width('100%')
+    .padding(Space.lg)
+  }
+
+  @Builder
+  private RuleIconButton(icon: Resource, enabled: boolean, rotateUp: boolean, action: string, index: number, ruleId: string) {
+    Button() {
+      Image(icon)
+        .width(14)
+        .height(14)
+        .fillColor(AppColor.textSecondary)
+        .rotate({ angle: rotateUp ? 180 : 0 })
+    }
+    .width(28)
+    .height(28)
+    .enabled(enabled)
+    .opacity(enabled ? 1 : 0.35)
+    .backgroundColor(AppColor.surfaceAlt)
+    .borderRadius(14)
+    .onClick(() => {
+      this.handleRuleIconAction(action, index, ruleId);
+    })
+  }
+
   private getTrafficModeDescription(): string {
     if (this.trafficMode === 'global') {
-      return '全局代理模式下，客户端接管的所有网络请求均强行导向您的代理节点，不经过任何分流规则过滤。';
+      return '全局代理模式下，未命中广告拦截或自定义规则的流量都会导向代理节点。';
     } else if (this.trafficMode === 'rules') {
       return '规则分流模式下，客户端会解析域名和 IP，并对照路由规则集，符合绕过条件的直连，其余流量通过代理出站。';
     } else {
@@ -360,6 +566,7 @@ struct RoutingPage {
     this.routingStrategy = this.draft.routingDomainStrategy;
     this.routeOnlyEnabled = this.draft.routeOnlyEnabled;
     this.adBlockEnabled = this.draft.adBlockEnabled;
+    this.routingRules = this.copyRules(this.draft.routingRules);
   }
 
   private async persistSettings(logMessage: string): Promise<void> {
@@ -370,11 +577,220 @@ struct RoutingPage {
     this.draft.routingDomainStrategy = this.routingStrategy;
     this.draft.routeOnlyEnabled = this.routeOnlyEnabled;
     this.draft.adBlockEnabled = this.adBlockEnabled;
+    this.draft.routingRules = this.copyRules(this.routingRules);
     const context = getContext(this) as common.Context;
     const saved = await SETTINGS_CONTROLLER.save(context, this.draft);
     this.draft = SETTINGS_CONTROLLER.toDraft(saved);
     this.language = this.draft.language;
+    this.routingRules = this.copyRules(this.draft.routingRules);
     SHARED_RUNTIME_CONTROLLER.appendLog(logMessage);
+  }
+
+  private openAddRule(): void {
+    this.editingRuleId = '';
+    this.initialRule = this.createBlankRule();
+    this.ruleDialogTitle = this.t('routing.rule.add');
+    this.showRuleDialog = true;
+  }
+
+  private openEditRule(rule: RoutingRule): void {
+    this.editingRuleId = rule.id;
+    this.initialRule = this.copyRule(rule);
+    this.ruleDialogTitle = this.t('routing.rule.edit');
+    this.showRuleDialog = true;
+  }
+
+  private handleRuleIconAction(action: string, index: number, ruleId: string): void {
+    if (action === 'up') {
+      this.moveRule(index, -1);
+    } else if (action === 'down') {
+      this.moveRule(index, 1);
+    } else if (action === 'delete') {
+      this.deleteRule(ruleId);
+    } else if (action === 'edit') {
+      const rule = this.findRule(ruleId);
+      if (rule !== undefined) {
+        this.openEditRule(rule);
+      }
+    }
+  }
+
+  private async saveRule(rule: RoutingRule): Promise<void> {
+    const next = this.copyRules(this.routingRules);
+    if (this.editingRuleId.length === 0) {
+      const created = this.copyRule(rule);
+      created.id = this.createRuleId();
+      next.push(created);
+    } else {
+      for (let index = 0; index < next.length; index++) {
+        if (next[index].id === this.editingRuleId) {
+          const updated = this.copyRule(rule);
+          updated.id = this.editingRuleId;
+          next[index] = updated;
+          break;
+        }
+      }
+    }
+    this.routingRules = next;
+    this.showRuleDialog = false;
+    await this.persistSettings(this.f1('log.routingRuleSaved', 'name', rule.remarks));
+  }
+
+  private async toggleRule(ruleId: string, enabled: boolean): Promise<void> {
+    const next = this.copyRules(this.routingRules);
+    for (let index = 0; index < next.length; index++) {
+      if (next[index].id === ruleId) {
+        next[index].enabled = enabled;
+        this.routingRules = next;
+        await this.persistSettings(this.f1('log.routingRuleSaved', 'name', next[index].remarks));
+        return;
+      }
+    }
+  }
+
+  private async deleteRule(ruleId: string): Promise<void> {
+    const next = new Array<RoutingRule>();
+    let removedName = '';
+    for (let index = 0; index < this.routingRules.length; index++) {
+      const rule = this.routingRules[index];
+      if (rule.id === ruleId) {
+        removedName = rule.remarks;
+      } else {
+        next.push(this.copyRule(rule));
+      }
+    }
+    this.routingRules = next;
+    await this.persistSettings(this.f1('log.routingRuleDeleted', 'name', removedName));
+  }
+
+  private async moveRule(index: number, delta: number): Promise<void> {
+    const target = index + delta;
+    if (target < 0 || target >= this.routingRules.length) {
+      return;
+    }
+    const next = this.copyRules(this.routingRules);
+    const current = next[index];
+    next[index] = next[target];
+    next[target] = current;
+    this.routingRules = next;
+    await this.persistSettings(this.t('log.routingRuleReordered'));
+  }
+
+  private customRuleSummary(): string {
+    if (this.routingRules.length === 0) {
+      return this.t('routing.rule.empty.short');
+    }
+    let enabledCount = 0;
+    for (let index = 0; index < this.routingRules.length; index++) {
+      if (this.routingRules[index].enabled) {
+        enabledCount++;
+      }
+    }
+    return this.t('routing.customRulesets.detail') + ` · ${enabledCount}/${this.routingRules.length}`;
+  }
+
+  private describeRule(rule: RoutingRule): string {
+    const parts = new Array<string>();
+    this.addDescriptionPart(parts, 'domain', rule.domain);
+    this.addDescriptionPart(parts, 'ip', rule.ip);
+    this.addDescriptionPart(parts, 'process', rule.process);
+    if (rule.port.length > 0) {
+      parts.push(`port=${rule.port}`);
+    }
+    this.addDescriptionPart(parts, 'protocol', rule.protocol);
+    if (rule.network.length > 0) {
+      parts.push(`network=${rule.network}`);
+    }
+    if (parts.length === 0) {
+      return this.t('routing.rule.noMatcher');
+    }
+    return parts.join(' / ');
+  }
+
+  private addDescriptionPart(parts: Array<string>, label: string, values: Array<string>): void {
+    if (values.length > 0) {
+      parts.push(`${label}=${values.join(',')}`);
+    }
+  }
+
+  private ruleIcon(rule: RoutingRule): Resource {
+    if (rule.outboundTag === 'block') {
+      return $r('app.media.ic_delete');
+    }
+    return $r('app.media.ic_route');
+  }
+
+  private ruleAccentColor(rule: RoutingRule): Resource {
+    if (rule.outboundTag === 'direct') {
+      return AppColor.success;
+    }
+    if (rule.outboundTag === 'block') {
+      return AppColor.danger;
+    }
+    return AppColor.brand;
+  }
+
+  private ruleAccentTint(rule: RoutingRule): Resource {
+    if (rule.outboundTag === 'direct') {
+      return AppColor.successTint;
+    }
+    if (rule.outboundTag === 'block') {
+      return AppColor.dangerTint;
+    }
+    return AppColor.brandTint;
+  }
+
+  private createBlankRule(): RoutingRule {
+    return {
+      id: '',
+      remarks: '',
+      domain: [],
+      ip: [],
+      process: [],
+      outboundTag: 'proxy',
+      port: '',
+      network: '',
+      protocol: [],
+      enabled: true,
+      locked: false
+    };
+  }
+
+  private createRuleId(): string {
+    return `routing-rule-${Date.now()}`;
+  }
+
+  private findRule(ruleId: string): RoutingRule | undefined {
+    for (let index = 0; index < this.routingRules.length; index++) {
+      if (this.routingRules[index].id === ruleId) {
+        return this.routingRules[index];
+      }
+    }
+    return undefined;
+  }
+
+  private copyRules(rules: Array<RoutingRule>): Array<RoutingRule> {
+    const result = new Array<RoutingRule>();
+    for (let index = 0; index < rules.length; index++) {
+      result.push(this.copyRule(rules[index]));
+    }
+    return result;
+  }
+
+  private copyRule(rule: RoutingRule): RoutingRule {
+    return {
+      id: rule.id,
+      remarks: rule.remarks,
+      domain: rule.domain.slice(),
+      ip: rule.ip.slice(),
+      process: rule.process.slice(),
+      outboundTag: rule.outboundTag,
+      port: rule.port,
+      network: rule.network,
+      protocol: rule.protocol.slice(),
+      enabled: rule.enabled,
+      locked: rule.locked
+    };
   }
 
   private t(key: string): string {

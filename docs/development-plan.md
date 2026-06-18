@@ -91,12 +91,18 @@ VPN 接口 `dnsAddresses` 改为读 `vpnDns` 设置（当前写死 `1.1.1.1/8.8.
 
 **目标**：让 Route 页的开关真正影响生成的 Xray 配置，而非仅弹窗说明。
 
+**进展（2026-06-18）**：自定义路由规则已贯通模型、持久化、Route 页管理与 Xray 配置生成：
+- 模型：新增 `RoutingRule`，字段对齐 v2rayNG `RulesetItem` 的核心项（remarks/domain/ip/process/port/protocol/network/outboundTag/enabled/locked）
+- UI：Route 页支持添加、编辑、删除、启停、上移/下移规则
+- 配置：启用规则按列表顺序写入 `routing.rules`，位置在广告拦截之后、`routeOnly` 绕过规则之前；未知 outboundTag 回退 `proxy`
+- 测试：新增单测覆盖启用/禁用规则、端口/协议/网络字段和规则顺序
+
 **任务**
-- 扩展 `core/XrayConfig.ets` 的 `buildRoutingRules`：支持多规则、广告拦截
+- ✅ 扩展 `core/XrayConfig.ets` 的 `buildRoutingRules`：支持多规则、广告拦截
   （`geosite:category-ads-all` → `block`）、用户自定义 域名/IP/端口/协议 规则
-- 自定义规则集的持久化模型（参考 v2rayNG `RulesetItem`：
+- ✅ 自定义规则集的持久化模型（参考 v2rayNG `RulesetItem`：
   `domain/ip/port/process/protocol/network/outboundTag/enabled`）
-- 新建规则编辑器页（增删改 + 拖拽排序 + 启用开关）
+- ✅ 新建规则编辑器（增删改 + 上移/下移排序 + 启用开关）
 - 预设规则集导入（白名单/黑名单/全局，对应 v2rayNG assets 内置规则）
 
 **v2rayNG 对照**：`RoutingSettingActivity` / `RoutingEditActivity` / `RulesetItem`。
@@ -201,8 +207,8 @@ VPN 接口 `dnsAddresses` 改为读 `vpnDns` 设置（当前写死 `1.1.1.1/8.8.
 - [x] 二维码生成：节点详情页用 `@kit.ScanKit` `generateBarcode.createBarcode` 渲染分享链接 QR + 复制链接（2026-06-15）
 - [x] URL Scheme / Want 深链导入：`hey://install-sub` / `hey://install-config?url=` 注册 scheme + `EntryAbility.onCreate/onNewWant` 暂存 + Index `onPageShow` 解析导入（2026-06-15）
 
-> ✅ 本批 backlog 全部完成（2026-06-15）。后续可补充项：负载均衡/策略组/代理链（M5）、
-> WebDAV 云备份、自定义路由规则编辑器、VPN MTU/接口地址可配、常驻速度通知（依赖 M1 重建后的真实流量）。
+> ✅ 2026-06-15 批 backlog 全部完成。后续可补充项：负载均衡/策略组/代理链（M5）、
+> WebDAV 云备份、路由预设规则集导入/导出、VPN MTU/接口地址可配、常驻速度通知（依赖 M1 重建后的真实流量）。
 
 ### 本会话代码自查清单（/loop 继续后续修复）
 
@@ -238,5 +244,6 @@ VPN 接口 `dnsAddresses` 改为读 `vpnDns` 设置（当前写死 `1.1.1.1/8.8.
 | 2026-06-15 | 修复 | ✅ 预检改为非阻断（避免重建后 `CGoTestXray` 对 tun inbound 误报阻断已验证连接）；核对 ScanKit QR API 字段无误 |
 | 2026-06-15 | 自查 | ✅ i18n 总扫通过：registry≡zh≡en（327 键），246 处代码引用全部有定义，无需修改 |
 | 2026-06-15 | 自查 | ✅ ArkTS 严格性扫描：无 `any`、新增导入全部被用；清理 SubscriptionEdit 既有未用导入 `translate` |
+| 2026-06-18 | M2 | ✅ 自定义路由规则编辑/生效（规则模型 + Route 页增删改/启停/排序 + `routing.rules` 生成 + 单测）；仍待预设规则集导入/导出 |
 | 2026-06-15 | 自查 | ✅ 字段一致性总扫：AppSettings/SettingsDraft 5 个构造点字段完整一致，SubscriptionGroup.filter 贯通，无需修改 |
 | 2026-06-15 | 自查 | ✅ 深链/metrics 配置形状核对 Xray 官方一致；自查清单收尾（净修复：预检非阻断 + 清理未用导入） |
