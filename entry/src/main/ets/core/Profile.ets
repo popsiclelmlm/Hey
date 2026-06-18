@@ -118,6 +118,10 @@ export const UI_MODE_NIGHT_DARK: AppUiModeNight = '2';
 export type AppRuntimeMode = 'VPN' | 'Proxy only';
 export const APP_MODE_VPN: AppRuntimeMode = 'VPN';
 export const APP_MODE_PROXY_ONLY: AppRuntimeMode = 'Proxy only';
+export type OutboundDomainResolveMethod = '0' | '1' | '2';
+export const OUTBOUND_DOMAIN_RESOLVE_NONE: OutboundDomainResolveMethod = '0';
+export const OUTBOUND_DOMAIN_RESOLVE_DNS_HOSTS: OutboundDomainResolveMethod = '1';
+export const OUTBOUND_DOMAIN_RESOLVE_REPLACE: OutboundDomainResolveMethod = '2';
 
 export function normalizeVpnInterfaceAddressIndex(value: number | undefined, fallback: number = DEFAULT_VPN_INTERFACE_ADDRESS_INDEX): number {
   const safeFallback = fallback >= 0 && fallback < VPN_INTERFACE_ADDRESS_CONFIGS.length ? fallback : DEFAULT_VPN_INTERFACE_ADDRESS_INDEX;
@@ -183,6 +187,16 @@ export function normalizeAppRuntimeMode(value: string | undefined, fallback: App
     return value;
   }
   return fallback === APP_MODE_PROXY_ONLY ? APP_MODE_PROXY_ONLY : APP_MODE_VPN;
+}
+
+export function normalizeOutboundDomainResolveMethod(
+  value: string | undefined,
+  fallback: OutboundDomainResolveMethod = OUTBOUND_DOMAIN_RESOLVE_DNS_HOSTS
+): OutboundDomainResolveMethod {
+  if (value === OUTBOUND_DOMAIN_RESOLVE_NONE || value === OUTBOUND_DOMAIN_RESOLVE_DNS_HOSTS || value === OUTBOUND_DOMAIN_RESOLVE_REPLACE) {
+    return value;
+  }
+  return fallback;
 }
 
 export function isVpnRuntimeMode(value: string | undefined): boolean {
@@ -251,6 +265,7 @@ export interface AppSettings {
   ipApiUrl: string;
   realPingConcurrency: number;
   logLevel: string;
+  outboundDomainResolveMethod: OutboundDomainResolveMethod;
   mode: AppRuntimeMode;
   trafficMode: string;
   routingDomainStrategy: string;

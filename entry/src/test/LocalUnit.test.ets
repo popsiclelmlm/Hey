@@ -6,7 +6,7 @@ import { formatTranslation, missingTranslationKeys, normalizeLanguage, translate
 import { defaultJsonConfigNodeName, resolveJsonConfigNodeName } from '../main/ets/core/JsonConfigNames';
 import { selectRuntimeLocalSocksPort, shouldUseDynamicLocalSocksPort, withRuntimeLocalSocksPort } from '../main/ets/core/LocalProxy';
 import { buildManualHysteria2Outbound, buildManualWireguardOutbound } from '../main/ets/core/ManualOutboundBuilder';
-import { APP_MODE_PROXY_ONLY, APP_MODE_VPN, AppSettings, DEFAULT_IP_API_URL, normalizeAppRuntimeMode, normalizeRealPingConcurrency, normalizeUiModeNight, ProxyNode, RoutingRule, RuntimeStats, SubscriptionGroup } from '../main/ets/core/Profile';
+import { APP_MODE_PROXY_ONLY, APP_MODE_VPN, AppSettings, DEFAULT_IP_API_URL, OUTBOUND_DOMAIN_RESOLVE_DNS_HOSTS, OUTBOUND_DOMAIN_RESOLVE_NONE, OUTBOUND_DOMAIN_RESOLVE_REPLACE, OutboundDomainResolveMethod, normalizeAppRuntimeMode, normalizeRealPingConcurrency, normalizeUiModeNight, ProxyNode, RoutingRule, RuntimeStats, SubscriptionGroup } from '../main/ets/core/Profile';
 import { formatGeoCountSummary, formatGeoCountUnavailable, geoDataSpecForFile, parseGeoCountData } from '../main/ets/core/GeoAssets';
 import { DELAY_TEST_SOCKS_PORT, LOCAL_HTTP_PROXY_LAN_HOST, LOCAL_HTTP_PROXY_PORT, LOCAL_SOCKS_PROXY_PORT, buildDelayTestConfig, buildRuntimeXrayConfig, buildXrayConfig, buildXrayConfigWithSettings, normalizeOutboundInput, validateFullConfigJson, validateOutboundJson, validatePolicyGroupConfigJson, validateProxyChainConfigJson } from '../main/ets/core/XrayConfig';
 import { parseDeepLink } from '../main/ets/core/DeepLink';
@@ -393,12 +393,13 @@ export default function localUnitTest() {
         vpnMtu: 1400,
         vpnDns: '1.1.1.1',
         remoteDns: '9.9.9.9',
-          domesticDns: '223.5.5.5',
-          dnsHosts: '',
-          delayTestUrl: 'https://www.gstatic.com/generate_204',
-          ipApiUrl: DEFAULT_IP_API_URL,
-          realPingConcurrency: 16,
+        domesticDns: '223.5.5.5',
+        dnsHosts: '',
+        delayTestUrl: 'https://www.gstatic.com/generate_204',
+        ipApiUrl: DEFAULT_IP_API_URL,
+        realPingConcurrency: 16,
         logLevel: 'debug',
+        outboundDomainResolveMethod: OUTBOUND_DOMAIN_RESOLVE_DNS_HOSTS,
         mode: 'VPN',
         trafficMode: 'rules',
         routingDomainStrategy: 'IPIfNonMatch',
@@ -469,6 +470,32 @@ export default function localUnitTest() {
       settings.dnsHosts = '{"example.com":"127.0.0.1"}';
       result = buildXrayConfigWithSettings(VLESS_REALITY_OUTBOUND, settings);
       expect(result.configJson).assertContain('"example.com": "127.0.0.1"');
+    });
+
+    it('applies outbound domain pre-resolve settings to generated xray config', 0, () => {
+      const settings = buildSettingsFixture();
+      settings.dnsHosts = 'example.com:203.0.113.8';
+      settings.outboundDomainResolveMethod = OUTBOUND_DOMAIN_RESOLVE_DNS_HOSTS;
+      let result = buildXrayConfigWithSettings(VLESS_REALITY_OUTBOUND, settings);
+      expect(result.configJson).assertContain('"example.com": "203.0.113.8"');
+      expect(result.configJson).assertContain('"domainStrategy": "UseIP"');
+      expect(result.configJson).assertContain('"happyEyeballs"');
+      expect(result.configJson).assertContain('"prioritizeIPv6": false');
+      expect(result.configJson).assertContain('"address": "example.com"');
+
+      settings.outboundDomainResolveMethod = OUTBOUND_DOMAIN_RESOLVE_REPLACE;
+      result = buildXrayConfigWithSettings(VLESS_REALITY_OUTBOUND, settings);
+      expect(result.configJson).assertContain('"address": "203.0.113.8"');
+      expect(result.configJson.indexOf('"address": "example.com"')).assertEqual(-1);
+
+      settings.preferIpv6 = true;
+      settings.dnsHosts = '{"example.com":["203.0.113.8","2001:db8::8"]}';
+      result = buildXrayConfigWithSettings(VLESS_REALITY_OUTBOUND, settings);
+      expect(result.configJson).assertContain('"address": "2001:db8::8"');
+
+      settings.outboundDomainResolveMethod = OUTBOUND_DOMAIN_RESOLVE_NONE;
+      result = buildXrayConfigWithSettings(VLESS_REALITY_OUTBOUND, settings);
+      expect(result.configJson).assertContain('"address": "example.com"');
     });
 
     it('applies vpn mtu to generated tun inbound', 0, () => {
@@ -814,6 +841,7 @@ export default function localUnitTest() {
       settings.dnsHosts = 'dns.google:8.8.8.8,cloudflare-dns.com:1.1.1.1';
       settings.ipApiUrl = 'https://ip.example/geoip';
       settings.realPingConcurrency = 32;
+      settings.outboundDomainResolveMethod = OUTBOUND_DOMAIN_RESOLVE_REPLACE;
       settings.mode = APP_MODE_PROXY_ONLY;
       settings.uiModeNight = '2';
       settings.speedEnabled = true;
@@ -854,6 +882,7 @@ export default function localUnitTest() {
       expect(draft.dnsHosts).assertEqual('dns.google:8.8.8.8,cloudflare-dns.com:1.1.1.1');
       expect(draft.ipApiUrl).assertEqual('https://ip.example/geoip');
       expect(draft.realPingConcurrency).assertEqual('32');
+      expect(draft.outboundDomainResolveMethod).assertEqual(OUTBOUND_DOMAIN_RESOLVE_REPLACE);
       expect(draft.mode).assertEqual(APP_MODE_PROXY_ONLY);
       const rebuilt = SETTINGS_CONTROLLER.buildSettings(draft);
       expect(rebuilt.uiModeNight).assertEqual('2');
@@ -887,6 +916,7 @@ export default function localUnitTest() {
       expect(rebuilt.dnsHosts).assertEqual('dns.google:8.8.8.8,cloudflare-dns.com:1.1.1.1');
       expect(rebuilt.ipApiUrl).assertEqual('https://ip.example/geoip');
       expect(rebuilt.realPingConcurrency).assertEqual(32);
+      expect(rebuilt.outboundDomainResolveMethod).assertEqual(OUTBOUND_DOMAIN_RESOLVE_REPLACE);
       expect(rebuilt.mode).assertEqual(APP_MODE_PROXY_ONLY);
 
       draft.vpnInterfaceAddressIndex = 99;
@@ -913,6 +943,8 @@ export default function localUnitTest() {
       expect(SETTINGS_CONTROLLER.buildSettings(draft).fragmentPackets).assertEqual('tlshello');
       draft.logLevel = 'verbose';
       expect(SETTINGS_CONTROLLER.buildSettings(draft).logLevel).assertEqual('warning');
+      draft.outboundDomainResolveMethod = 'bad' as OutboundDomainResolveMethod;
+      expect(SETTINGS_CONTROLLER.buildSettings(draft).outboundDomainResolveMethod).assertEqual(OUTBOUND_DOMAIN_RESOLVE_DNS_HOSTS);
       draft.dnsHosts = '  ';
       expect(SETTINGS_CONTROLLER.buildSettings(draft).dnsHosts).assertEqual('');
       draft.realPingConcurrency = '0';
@@ -1468,12 +1500,13 @@ function buildSettingsFixture(): AppSettings {
     vpnMtu: 1400,
     vpnDns: '1.1.1.1',
     remoteDns: '1.1.1.1',
-      domesticDns: '223.5.5.5',
-      dnsHosts: '',
-      delayTestUrl: 'https://www.gstatic.com/generate_204',
-      ipApiUrl: DEFAULT_IP_API_URL,
-      realPingConcurrency: 16,
+    domesticDns: '223.5.5.5',
+    dnsHosts: '',
+    delayTestUrl: 'https://www.gstatic.com/generate_204',
+    ipApiUrl: DEFAULT_IP_API_URL,
+    realPingConcurrency: 16,
     logLevel: 'warning',
+    outboundDomainResolveMethod: OUTBOUND_DOMAIN_RESOLVE_DNS_HOSTS,
     mode: 'VPN',
     trafficMode: 'rules',
     routingDomainStrategy: 'AsIs',

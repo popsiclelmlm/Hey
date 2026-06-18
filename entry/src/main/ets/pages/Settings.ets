@@ -8,6 +8,10 @@ import {
   AppLanguage,
   DEFAULT_IP_API_URL,
   normalizeAppRuntimeMode,
+  OUTBOUND_DOMAIN_RESOLVE_DNS_HOSTS,
+  OUTBOUND_DOMAIN_RESOLVE_NONE,
+  OUTBOUND_DOMAIN_RESOLVE_REPLACE,
+  OutboundDomainResolveMethod,
   resolveVpnInterfaceAddressConfig,
   RoutingRule,
   UI_MODE_NIGHT_DARK,
@@ -78,6 +82,7 @@ struct SettingsPage {
   @State private settingIpApiUrl: string = DEFAULT_IP_API_URL;
   @State private settingRealPingConcurrency: string = '16';
   @State private settingMode: string = APP_MODE_VPN;
+  @State private settingOutboundDomainResolveMethod: OutboundDomainResolveMethod = OUTBOUND_DOMAIN_RESOLVE_DNS_HOSTS;
   @State private settingAutoSortAfterTest: boolean = false;
   @State private settingAutoRemoveAfterTest: boolean = false;
   @State private trafficMode: string = 'rules';
@@ -227,6 +232,8 @@ struct SettingsPage {
             this.SettingInput(this.t('settings.domesticDns'), this.settingDomesticDns, 'domesticDns')
             this.RowDivider()
             this.SettingInput(this.t('settings.dnsHosts'), this.settingDnsHosts, 'dnsHosts')
+            this.RowDivider()
+            this.SettingOption(this.t('settings.outboundDomainResolveMethod'), this.outboundDomainResolveMethodLabel(), 'outboundDomainResolveMethod')
             this.RowDivider()
             this.SettingInput(this.t('settings.delayTestUrl'), this.settingDelayTestUrl, 'delayTestUrl')
             this.RowDivider()
@@ -584,6 +591,7 @@ struct SettingsPage {
       ipApiUrl: this.settingIpApiUrl,
       realPingConcurrency: this.settingRealPingConcurrency,
       mode: normalizeAppRuntimeMode(this.settingMode),
+      outboundDomainResolveMethod: this.settingOutboundDomainResolveMethod,
       trafficMode: this.trafficMode,
       routingDomainStrategy: this.routingStrategy,
       adBlockEnabled: this.adBlockEnabled,
@@ -641,6 +649,7 @@ struct SettingsPage {
     this.settingIpApiUrl = draft.ipApiUrl;
     this.settingRealPingConcurrency = draft.realPingConcurrency;
     this.settingMode = draft.mode;
+    this.settingOutboundDomainResolveMethod = draft.outboundDomainResolveMethod;
     this.trafficMode = draft.trafficMode;
     this.routingStrategy = draft.routingDomainStrategy;
     this.adBlockEnabled = draft.adBlockEnabled;
@@ -689,6 +698,10 @@ struct SettingsPage {
     }
     if (action === 'logLevel') {
       this.showLogLevelMenu();
+      return;
+    }
+    if (action === 'outboundDomainResolveMethod') {
+      this.showOutboundDomainResolveMethodMenu();
       return;
     }
     if (action === 'muxXudpQuic') {
@@ -822,6 +835,30 @@ struct SettingsPage {
     });
   }
 
+  private showOutboundDomainResolveMethodMenu(): void {
+    const values: OutboundDomainResolveMethod[] = [
+      OUTBOUND_DOMAIN_RESOLVE_NONE,
+      OUTBOUND_DOMAIN_RESOLVE_DNS_HOSTS,
+      OUTBOUND_DOMAIN_RESOLVE_REPLACE
+    ];
+    const buttons: [promptAction.Button, promptAction.Button, promptAction.Button] = [
+      { text: this.t('settings.outboundDomainResolveMethod.none'), color: AppColor.brand } as promptAction.Button,
+      { text: this.t('settings.outboundDomainResolveMethod.dnsHosts'), color: AppColor.brand } as promptAction.Button,
+      { text: this.t('settings.outboundDomainResolveMethod.replace'), color: AppColor.brand } as promptAction.Button
+    ];
+
+    promptAction.showActionMenu({
+      title: this.t('settings.outboundDomainResolveMethod'),
+      buttons
+    }).then((result) => {
+      if (result.index >= 0 && result.index < values.length) {
+        this.settingOutboundDomainResolveMethod = values[result.index];
+        SHARED_RUNTIME_CONTROLLER.appendLog(this.f1('log.settingsChanged', 'action', this.t('settings.outboundDomainResolveMethod')));
+        this.persistSettings(false);
+      }
+    });
+  }
+
   private showMuxXudpQuicMenu(): void {
     const values: string[] = ['reject', 'allow', 'skip'];
     const buttons: [promptAction.Button, promptAction.Button, promptAction.Button] = [
@@ -891,6 +928,16 @@ struct SettingsPage {
       return this.t('settings.logLevel.none');
     }
     return this.t('settings.logLevel.warning');
+  }
+
+  private outboundDomainResolveMethodLabel(): string {
+    if (this.settingOutboundDomainResolveMethod === OUTBOUND_DOMAIN_RESOLVE_NONE) {
+      return this.t('settings.outboundDomainResolveMethod.none');
+    }
+    if (this.settingOutboundDomainResolveMethod === OUTBOUND_DOMAIN_RESOLVE_REPLACE) {
+      return this.t('settings.outboundDomainResolveMethod.replace');
+    }
+    return this.t('settings.outboundDomainResolveMethod.dnsHosts');
   }
 
   private muxXudpQuicLabel(): string {

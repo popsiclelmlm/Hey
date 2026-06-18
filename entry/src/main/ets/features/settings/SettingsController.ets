@@ -1,5 +1,5 @@
 import { common } from '@kit.AbilityKit';
-import { AppLanguage, AppRuntimeMode, AppSettings, normalizeAppRuntimeMode, normalizeRealPingConcurrency, normalizeUiModeNight, normalizeVpnBypassLanMode, normalizeVpnInterfaceAddressIndex, normalizeVpnMtuValue, RoutingRule } from '../../core/Profile';
+import { AppLanguage, AppRuntimeMode, AppSettings, normalizeAppRuntimeMode, normalizeOutboundDomainResolveMethod, normalizeRealPingConcurrency, normalizeUiModeNight, normalizeVpnBypassLanMode, normalizeVpnInterfaceAddressIndex, normalizeVpnMtuValue, OutboundDomainResolveMethod, RoutingRule } from '../../core/Profile';
 import { DEFAULT_APP_SETTINGS, SettingsStore } from '../../storage/SettingsStore';
 
 export interface SettingsDraft {
@@ -50,6 +50,7 @@ export interface SettingsDraft {
   ipApiUrl: string;
   realPingConcurrency: string;
   mode: AppRuntimeMode;
+  outboundDomainResolveMethod: OutboundDomainResolveMethod;
   trafficMode: string;
   routingDomainStrategy: string;
   adBlockEnabled: boolean;
@@ -116,6 +117,7 @@ export class SettingsController {
       ipApiUrl: settings.ipApiUrl,
       realPingConcurrency: settings.realPingConcurrency.toString(),
       mode: settings.mode,
+      outboundDomainResolveMethod: settings.outboundDomainResolveMethod,
       trafficMode: settings.trafficMode,
       routingDomainStrategy: settings.routingDomainStrategy,
       adBlockEnabled: settings.adBlockEnabled,
@@ -173,6 +175,7 @@ export class SettingsController {
       ipApiUrl: draft.ipApiUrl.trim(),
       realPingConcurrency: this.realPingConcurrencyValue(draft.realPingConcurrency, DEFAULT_APP_SETTINGS.realPingConcurrency),
       logLevel: this.logLevelValue(draft.logLevel, DEFAULT_APP_SETTINGS.logLevel),
+      outboundDomainResolveMethod: normalizeOutboundDomainResolveMethod(draft.outboundDomainResolveMethod, DEFAULT_APP_SETTINGS.outboundDomainResolveMethod),
       mode: normalizeAppRuntimeMode(draft.mode, DEFAULT_APP_SETTINGS.mode),
       trafficMode: draft.trafficMode,
       routingDomainStrategy: draft.routingDomainStrategy,

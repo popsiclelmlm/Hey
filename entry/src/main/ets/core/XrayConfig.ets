@@ -1,4 +1,4 @@
-import { AppSettings, DEFAULT_VPN_MTU, GeneratedXrayConfig, isProxyOnlyRuntimeMode, isVpnRuntimeMode, normalizeVpnMtuValue, RoutingRule, ValidationResult, XrayConfigType } from './Profile';
+import { AppSettings, DEFAULT_VPN_MTU, GeneratedXrayConfig, isProxyOnlyRuntimeMode, isVpnRuntimeMode, normalizeVpnMtuValue, OUTBOUND_DOMAIN_RESOLVE_DNS_HOSTS, OUTBOUND_DOMAIN_RESOLVE_NONE, OUTBOUND_DOMAIN_RESOLVE_REPLACE, RoutingRule, ValidationResult, XrayConfigType } from './Profile';
 import { isSupportedShareLink, isWireguardConfigFile, parseShareLinkToOutboundJson, parseWireguardConfigToOutboundJson } from './ShareLinkParser';
 
 interface XrayOutbound {
@@ -62,6 +62,12 @@ interface XraySocksAccount {
 interface XrayDnsConfig {
   servers: Array<string | XrayDnsServerConfig>;
   hosts?: Object;
+}
+
+interface DnsHostsParseResult {
+  hosts: Record<string, string | Array<string>>;
+  value: Object;
+  hasHosts: boolean;
 }
 
 interface XrayRoutingRule {
@@ -1069,11 +1075,14 @@ function buildXrayConfigFromOutbounds(
     routingRules.unshift(metricsRule);
   }
 
+  const dns = buildDnsConfig(settings);
+  applyOutboundDomainResolveSettings(outbounds, dns, settings);
+
   const config: XrayFullConfig = {
     log: {
       loglevel: settings?.logLevel ?? DEFAULT_LOG_LEVEL
     },
-    dns: buildDnsConfig(settings),
+    dns,
     inbounds,
     outbounds,
     routing: {
@@ -1195,19 +1204,49 @@ function buildDnsConfig(settings: AppSettings | undefined): XrayDnsConfig {
     });
   }
   if (settings.dnsHosts.length > 0) {
-    dns.hosts = parseDnsHosts(settings.dnsHosts);
+    dns.hosts = parseDnsHostsValue(settings.dnsHosts).value;
   }
   return dns;
 }
 
-function parseDnsHosts(value: string): Object {
+function applyOutboundDomainResolveSettings(outbounds: Array<XrayOutbound>, dns: XrayDnsConfig, settings: AppSettings | undefined): void {
+  if (settings === undefined || settings.outboundDomainResolveMethod === OUTBOUND_DOMAIN_RESOLVE_NONE) {
+    return;
+  }
+  const parsedHosts = parseDnsHostsValue(settings.dnsHosts);
+  if (!parsedHosts.hasHosts) {
+    return;
+  }
+  if (settings.outboundDomainResolveMethod === OUTBOUND_DOMAIN_RESOLVE_DNS_HOSTS) {
+    mergeDnsHosts(dns, parsedHosts.hosts);
+    for (let index = 0; index < outbounds.length; index++) {
+      const host = outboundServerHost(outbounds[index]);
+      if (host.length > 0 && resolveStaticHost(host, parsedHosts.hosts, settings.preferIpv6).length > 0) {
+        applyOutboundUseIp(outbounds[index], settings.preferIpv6);
+      }
+    }
+    return;
+  }
+  if (settings.outboundDomainResolveMethod === OUTBOUND_DOMAIN_RESOLVE_REPLACE) {
+    for (let index = 0; index < outbounds.length; index++) {
+      replaceOutboundServerHost(outbounds[index], parsedHosts.hosts, settings.preferIpv6);
+    }
+  }
+}
+
+function parseDnsHostsValue(value: string): DnsHostsParseResult {
   const normalized = value.trim();
   try {
-    return JSON.parse(normalized) as Object;
+    const parsed = JSON.parse(normalized) as Record<string, string | Array<string>>;
+    const hosts = normalizeDnsHostsRecord(parsed);
+    return {
+      hosts,
+      value: hosts as Object,
+      hasHosts: Object.keys(hosts).length > 0
+    };
   } catch (error) {
-    const hosts: Record<string, string> = {};
+    const hosts: Record<string, string | Array<string>> = {};
     const items = normalized.split(',');
-    let count = 0;
     for (let index = 0; index < items.length; index++) {
       const item = items[index].trim();
       const separatorIndex = item.indexOf(':');
@@ -1220,13 +1259,231 @@ function parseDnsHosts(value: string): Object {
         continue;
       }
       hosts[domain] = address;
-      count++;
     }
-    if (count > 0) {
-      return hosts as Object;
-    }
-    return new EmptySettings();
+    return {
+      hosts,
+      value: Object.keys(hosts).length > 0 ? hosts as Object : new EmptySettings(),
+      hasHosts: Object.keys(hosts).length > 0
+    };
   }
+}
+
+function normalizeDnsHostsRecord(parsed: Record<string, string | Array<string>>): Record<string, string | Array<string>> {
+  const hosts: Record<string, string | Array<string>> = {};
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    return hosts;
+  }
+  const keys = Object.keys(parsed);
+  for (let index = 0; index < keys.length; index++) {
+    const key = keys[index].trim();
+    const value = parsed[keys[index]];
+    if (key.length === 0) {
+      continue;
+    }
+    if (typeof value === 'string' && value.trim().length > 0) {
+      hosts[key] = value.trim();
+    } else if (Array.isArray(value)) {
+      const addresses = new Array<string>();
+      for (let valueIndex = 0; valueIndex < value.length; valueIndex++) {
+        const address = value[valueIndex];
+        if (typeof address === 'string' && address.trim().length > 0) {
+          addresses.push(address.trim());
+        }
+      }
+      if (addresses.length > 0) {
+        hosts[key] = addresses;
+      }
+    }
+  }
+  return hosts;
+}
+
+function mergeDnsHosts(dns: XrayDnsConfig, hosts: Record<string, string | Array<string>>): void {
+  const current = dns.hosts as Record<string, string | Array<string>> | undefined;
+  const next: Record<string, string | Array<string>> = current === undefined ? {} : JSON.parse(JSON.stringify(current)) as Record<string, string | Array<string>>;
+  const keys = Object.keys(hosts);
+  for (let index = 0; index < keys.length; index++) {
+    next[keys[index]] = hosts[keys[index]];
+  }
+  dns.hosts = next as Object;
+}
+
+function outboundServerHost(outbound: XrayOutbound): string {
+  const settings = outbound.settings as Record<string, Object> | undefined;
+  if (settings === undefined) {
+    return '';
+  }
+  const vnext = settings['vnext'];
+  const vnextAddress = firstServerAddress(vnext);
+  if (vnextAddress.length > 0) {
+    return vnextAddress;
+  }
+  const servers = settings['servers'];
+  const serverAddress = firstServerAddress(servers);
+  if (serverAddress.length > 0) {
+    return serverAddress;
+  }
+  const address = settings['address'];
+  if (typeof address === 'string') {
+    return address;
+  }
+  const endpoint = firstWireguardEndpoint(settings['peers']);
+  return endpointHost(endpoint);
+}
+
+function firstServerAddress(value: Object | undefined): string {
+  if (!Array.isArray(value) || value.length === 0) {
+    return '';
+  }
+  const first = value[0] as Record<string, Object>;
+  const address = first['address'];
+  return typeof address === 'string' ? address : '';
+}
+
+function firstWireguardEndpoint(value: Object | undefined): string {
+  if (!Array.isArray(value) || value.length === 0) {
+    return '';
+  }
+  const first = value[0] as Record<string, Object>;
+  const endpoint = first['endpoint'];
+  return typeof endpoint === 'string' ? endpoint : '';
+}
+
+function replaceOutboundServerHost(outbound: XrayOutbound, hosts: Record<string, string | Array<string>>, preferIpv6: boolean): void {
+  const settings = outbound.settings as Record<string, Object> | undefined;
+  if (settings === undefined) {
+    return;
+  }
+  if (replaceFirstServerAddress(settings['vnext'], hosts, preferIpv6)) {
+    return;
+  }
+  if (replaceFirstServerAddress(settings['servers'], hosts, preferIpv6)) {
+    return;
+  }
+  const address = settings['address'];
+  if (typeof address === 'string') {
+    const resolved = resolveStaticHost(address, hosts, preferIpv6);
+    if (resolved.length > 0) {
+      settings['address'] = resolved as Object;
+    }
+    return;
+  }
+  replaceFirstWireguardEndpoint(settings['peers'], hosts, preferIpv6);
+}
+
+function replaceFirstServerAddress(value: Object | undefined, hosts: Record<string, string | Array<string>>, preferIpv6: boolean): boolean {
+  if (!Array.isArray(value) || value.length === 0) {
+    return false;
+  }
+  const first = value[0] as Record<string, Object>;
+  const address = first['address'];
+  if (typeof address !== 'string') {
+    return false;
+  }
+  const resolved = resolveStaticHost(address, hosts, preferIpv6);
+  if (resolved.length === 0) {
+    return false;
+  }
+  first['address'] = resolved as Object;
+  return true;
+}
+
+function replaceFirstWireguardEndpoint(value: Object | undefined, hosts: Record<string, string | Array<string>>, preferIpv6: boolean): void {
+  if (!Array.isArray(value) || value.length === 0) {
+    return;
+  }
+  const first = value[0] as Record<string, Object>;
+  const endpoint = first['endpoint'];
+  if (typeof endpoint !== 'string') {
+    return;
+  }
+  const host = endpointHost(endpoint);
+  const resolved = resolveStaticHost(host, hosts, preferIpv6);
+  if (resolved.length > 0) {
+    first['endpoint'] = replaceEndpointHost(endpoint, resolved) as Object;
+  }
+}
+
+function resolveStaticHost(host: string, hosts: Record<string, string | Array<string>>, preferIpv6: boolean): string {
+  const normalized = stripHostBrackets(host.trim());
+  if (normalized.length === 0 || isIpLiteral(normalized)) {
+    return '';
+  }
+  const direct = hosts[normalized] ?? hosts[normalized.toLowerCase()];
+  if (direct === undefined) {
+    return '';
+  }
+  return pickResolvedAddress(direct, preferIpv6);
+}
+
+function pickResolvedAddress(value: string | Array<string>, preferIpv6: boolean): string {
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (value.length === 0) {
+    return '';
+  }
+  for (let index = 0; index < value.length; index++) {
+    const address = value[index];
+    const isIpv6 = address.indexOf(':') >= 0;
+    if ((preferIpv6 && isIpv6) || (!preferIpv6 && !isIpv6)) {
+      return address;
+    }
+  }
+  return value[0];
+}
+
+function applyOutboundUseIp(outbound: XrayOutbound, preferIpv6: boolean): void {
+  const sockopt = ensureOutboundSockopt(outbound);
+  const happyEyeballs: XrayHappyEyeballsConfig = {
+    prioritizeIPv6: preferIpv6,
+    interleave: 2
+  };
+  sockopt['domainStrategy'] = 'UseIP';
+  sockopt['happyEyeballs'] = happyEyeballs;
+}
+
+function endpointHost(endpoint: string): string {
+  if (endpoint.length === 0) {
+    return '';
+  }
+  if (endpoint.startsWith('[')) {
+    const end = endpoint.indexOf(']');
+    return end > 0 ? endpoint.substring(1, end) : '';
+  }
+  const separator = endpoint.lastIndexOf(':');
+  return separator > 0 ? endpoint.substring(0, separator) : endpoint;
+}
+
+function replaceEndpointHost(endpoint: string, host: string): string {
+  if (endpoint.startsWith('[')) {
+    const end = endpoint.indexOf(']');
+    const suffix = end >= 0 ? endpoint.substring(end + 1) : '';
+    return formatEndpointHost(host) + suffix;
+  }
+  const separator = endpoint.lastIndexOf(':');
+  if (separator <= 0) {
+    return formatEndpointHost(host);
+  }
+  return `${formatEndpointHost(host)}${endpoint.substring(separator)}`;
+}
+
+function formatEndpointHost(host: string): string {
+  return host.indexOf(':') >= 0 ? `[${host}]` : host;
+}
+
+function stripHostBrackets(host: string): string {
+  if (host.startsWith('[') && host.endsWith(']')) {
+    return host.substring(1, host.length - 1);
+  }
+  return host;
+}
+
+function isIpLiteral(host: string): boolean {
+  if (host.indexOf(':') >= 0) {
+    return true;
+  }
+  return /^[0-9.]+$/.test(host);
 }
 
 function buildTunSniffing(settings: AppSettings | undefined): XraySniffingConfig | undefined {
