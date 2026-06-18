@@ -1,5 +1,5 @@
 import { common } from '@kit.AbilityKit';
-import { AppLanguage, AppSettings, normalizeRealPingConcurrency, normalizeUiModeNight, normalizeVpnBypassLanMode, normalizeVpnInterfaceAddressIndex, normalizeVpnMtuValue, RoutingRule } from '../../core/Profile';
+import { AppLanguage, AppRuntimeMode, AppSettings, normalizeAppRuntimeMode, normalizeRealPingConcurrency, normalizeUiModeNight, normalizeVpnBypassLanMode, normalizeVpnInterfaceAddressIndex, normalizeVpnMtuValue, RoutingRule } from '../../core/Profile';
 import { DEFAULT_APP_SETTINGS, SettingsStore } from '../../storage/SettingsStore';
 
 export interface SettingsDraft {
@@ -48,6 +48,7 @@ export interface SettingsDraft {
   delayTestUrl: string;
   ipApiUrl: string;
   realPingConcurrency: string;
+  mode: AppRuntimeMode;
   trafficMode: string;
   routingDomainStrategy: string;
   adBlockEnabled: boolean;
@@ -112,6 +113,7 @@ export class SettingsController {
       delayTestUrl: settings.delayTestUrl,
       ipApiUrl: settings.ipApiUrl,
       realPingConcurrency: settings.realPingConcurrency.toString(),
+      mode: settings.mode,
       trafficMode: settings.trafficMode,
       routingDomainStrategy: settings.routingDomainStrategy,
       adBlockEnabled: settings.adBlockEnabled,
@@ -168,7 +170,7 @@ export class SettingsController {
       ipApiUrl: draft.ipApiUrl.trim(),
       realPingConcurrency: this.realPingConcurrencyValue(draft.realPingConcurrency, DEFAULT_APP_SETTINGS.realPingConcurrency),
       logLevel: this.logLevelValue(draft.logLevel, DEFAULT_APP_SETTINGS.logLevel),
-      mode: DEFAULT_APP_SETTINGS.mode,
+      mode: normalizeAppRuntimeMode(draft.mode, DEFAULT_APP_SETTINGS.mode),
       trafficMode: draft.trafficMode,
       routingDomainStrategy: draft.routingDomainStrategy,
       adBlockEnabled: draft.adBlockEnabled,

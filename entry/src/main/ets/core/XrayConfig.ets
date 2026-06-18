@@ -1,4 +1,4 @@
-import { AppSettings, DEFAULT_VPN_MTU, GeneratedXrayConfig, normalizeVpnMtuValue, RoutingRule, ValidationResult, XrayConfigType } from './Profile';
+import { AppSettings, DEFAULT_VPN_MTU, GeneratedXrayConfig, isProxyOnlyRuntimeMode, isVpnRuntimeMode, normalizeVpnMtuValue, RoutingRule, ValidationResult, XrayConfigType } from './Profile';
 import { isSupportedShareLink, isWireguardConfigFile, parseShareLinkToOutboundJson, parseWireguardConfigToOutboundJson } from './ShareLinkParser';
 
 interface XrayOutbound {
@@ -960,6 +960,10 @@ function buildXrayConfigFromOutbounds(
   if (sniffing !== undefined) {
     tunInbound.sniffing = sniffing;
   }
+  const vpnMode = settings === undefined || isVpnRuntimeMode(settings.mode);
+  const proxyOnlyMode = settings !== undefined && isProxyOnlyRuntimeMode(settings.mode);
+  const localSocksEnabled = settings !== undefined && (settings.localSocksEnabled || proxyOnlyMode);
+  const appendHttpProxy = settings !== undefined && settings.appendHttpProxy;
   const directOutbound: XrayOutbound = {
     tag: 'direct',
     protocol: 'freedom',
@@ -972,15 +976,21 @@ function buildXrayConfigFromOutbounds(
   };
   const speedEnabled = settings?.speedEnabled ?? false;
 
-  const inbounds: Array<XrayInboundConfig> = [tunInbound];
+  const inbounds = new Array<XrayInboundConfig>();
+  const proxyInboundTags = new Array<string>();
+  if (vpnMode) {
+    inbounds.push(tunInbound);
+    proxyInboundTags.push('tun-in');
+  }
   const outbounds: Array<XrayOutbound> = proxyOutbounds.concat([directOutbound, blockOutbound]);
 
   const proxyTarget = buildProxyRoutingTarget(balancer?.tag);
   const routingRules = buildRoutingRules(settings, balancer?.tag);
 
-  if (settings !== undefined && settings.appendHttpProxy) {
+  if (appendHttpProxy) {
+    const runtimeSettings = settings as AppSettings;
     const httpInboundTag = 'http-in';
-    const httpProxyHost = resolveLocalProxyHost(settings);
+    const httpProxyHost = resolveLocalProxyHost(runtimeSettings);
     const httpInbound: XrayInboundConfig = {
       tag: httpInboundTag,
       listen: httpProxyHost,
@@ -988,6 +998,9 @@ function buildXrayConfigFromOutbounds(
       protocol: 'http',
       settings: new HttpInboundSettings()
     };
+    if (sniffing !== undefined) {
+      httpInbound.sniffing = sniffing;
+    }
     const httpProxyRule: XrayRoutingRule = {
       type: 'field',
       inboundTag: [httpInboundTag]
@@ -996,19 +1009,23 @@ function buildXrayConfigFromOutbounds(
     inbounds.push(httpInbound);
     routingRules.unshift(httpProxyRule);
   }
-  if (settings !== undefined && settings.localSocksEnabled) {
+  if (localSocksEnabled) {
+    const runtimeSettings = settings as AppSettings;
     const socksInboundTag = 'socks-in';
     const socksInbound: XrayInboundConfig = {
       tag: socksInboundTag,
-      listen: resolveLocalProxyHost(settings),
-      port: settings.localSocksPort,
+      listen: resolveLocalProxyHost(runtimeSettings),
+      port: runtimeSettings.localSocksPort,
       protocol: 'socks',
       settings: new SocksInboundSettings(
-        settings.localSocksUdpEnabled,
-        settings.localSocksUsername,
-        settings.localSocksPassword
+        runtimeSettings.localSocksUdpEnabled,
+        runtimeSettings.localSocksUsername,
+        runtimeSettings.localSocksPassword
       )
     };
+    if (sniffing !== undefined) {
+      socksInbound.sniffing = sniffing;
+    }
     const socksProxyRule: XrayRoutingRule = {
       type: 'field',
       inboundTag: [socksInboundTag]
@@ -1017,7 +1034,9 @@ function buildXrayConfigFromOutbounds(
     inbounds.push(socksInbound);
     routingRules.unshift(socksProxyRule);
   }
-  if (settings !== undefined && settings.localDnsEnabled) {
+  appendDefaultProxyBalancerRule(routingRules, balancer?.tag, proxyInboundTags);
+
+  if (settings !== undefined && settings.localDnsEnabled && vpnMode) {
     const dnsOutbound: XrayOutbound = {
       tag: DNS_OUT_TAG,
       protocol: 'dns'
@@ -1092,8 +1111,8 @@ function buildXrayConfigFromOutbounds(
 
   const runtimeHttpProxyHost = settings !== undefined && settings.appendHttpProxy ? resolveLocalProxyHost(settings) : undefined;
   const runtimeHttpProxyPort = settings !== undefined && settings.appendHttpProxy ? LOCAL_HTTP_PROXY_PORT : undefined;
-  const runtimeSocksHost = settings !== undefined && settings.localSocksEnabled ? resolveLocalProxyHost(settings) : undefined;
-  const runtimeSocksPort = settings !== undefined && settings.localSocksEnabled ? settings.localSocksPort : undefined;
+  const runtimeSocksHost = localSocksEnabled ? resolveLocalProxyHost(settings as AppSettings) : undefined;
+  const runtimeSocksPort = localSocksEnabled ? (settings as AppSettings).localSocksPort : undefined;
 
   return {
     configJson: JSON.stringify(config, null, 2),
@@ -1260,7 +1279,6 @@ function resolveLocalProxyHost(settings: AppSettings): string {
 function buildRoutingRules(settings: AppSettings | undefined, proxyBalancerTag?: string): Array<XrayRoutingRule> {
   const rules = new Array<XrayRoutingRule>();
   if (settings === undefined) {
-    appendDefaultProxyBalancerRule(rules, proxyBalancerTag);
     return rules;
   }
 
@@ -1297,7 +1315,6 @@ function buildRoutingRules(settings: AppSettings | undefined, proxyBalancerTag?:
     };
     rules.push(rule);
   }
-  appendDefaultProxyBalancerRule(rules, proxyBalancerTag);
   return rules;
 }
 
@@ -1396,13 +1413,13 @@ function applyRoutingTarget(rule: XrayRoutingRule, target: XrayRoutingTarget): v
   rule.outboundTag = target.outboundTag ?? 'proxy';
 }
 
-function appendDefaultProxyBalancerRule(rules: Array<XrayRoutingRule>, proxyBalancerTag?: string): void {
-  if (proxyBalancerTag === undefined) {
+function appendDefaultProxyBalancerRule(rules: Array<XrayRoutingRule>, proxyBalancerTag?: string, inboundTags: Array<string> = ['tun-in']): void {
+  if (proxyBalancerTag === undefined || inboundTags.length === 0) {
     return;
   }
   rules.push({
     type: 'field',
-    inboundTag: ['tun-in'],
+    inboundTag: inboundTags.slice(),
     network: 'tcp,udp',
     balancerTag: proxyBalancerTag
   });

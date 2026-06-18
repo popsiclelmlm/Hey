@@ -115,6 +115,9 @@ export type AppUiModeNight = '0' | '1' | '2';
 export const UI_MODE_NIGHT_SYSTEM: AppUiModeNight = '0';
 export const UI_MODE_NIGHT_LIGHT: AppUiModeNight = '1';
 export const UI_MODE_NIGHT_DARK: AppUiModeNight = '2';
+export type AppRuntimeMode = 'VPN' | 'Proxy only';
+export const APP_MODE_VPN: AppRuntimeMode = 'VPN';
+export const APP_MODE_PROXY_ONLY: AppRuntimeMode = 'Proxy only';
 
 export function normalizeVpnInterfaceAddressIndex(value: number | undefined, fallback: number = DEFAULT_VPN_INTERFACE_ADDRESS_INDEX): number {
   const safeFallback = fallback >= 0 && fallback < VPN_INTERFACE_ADDRESS_CONFIGS.length ? fallback : DEFAULT_VPN_INTERFACE_ADDRESS_INDEX;
@@ -175,6 +178,21 @@ export function normalizeUiModeNight(value: string | undefined, fallback: AppUiM
   return fallback === UI_MODE_NIGHT_LIGHT || fallback === UI_MODE_NIGHT_DARK ? fallback : UI_MODE_NIGHT_SYSTEM;
 }
 
+export function normalizeAppRuntimeMode(value: string | undefined, fallback: AppRuntimeMode = APP_MODE_VPN): AppRuntimeMode {
+  if (value === APP_MODE_VPN || value === APP_MODE_PROXY_ONLY) {
+    return value;
+  }
+  return fallback === APP_MODE_PROXY_ONLY ? APP_MODE_PROXY_ONLY : APP_MODE_VPN;
+}
+
+export function isVpnRuntimeMode(value: string | undefined): boolean {
+  return normalizeAppRuntimeMode(value) === APP_MODE_VPN;
+}
+
+export function isProxyOnlyRuntimeMode(value: string | undefined): boolean {
+  return normalizeAppRuntimeMode(value) === APP_MODE_PROXY_ONLY;
+}
+
 function normalizeRealPingConcurrencyFallback(value: number): number {
   if (Number.isNaN(value)) {
     return DEFAULT_REAL_PING_CONCURRENCY;
@@ -232,7 +250,7 @@ export interface AppSettings {
   ipApiUrl: string;
   realPingConcurrency: number;
   logLevel: string;
-  mode: string;
+  mode: AppRuntimeMode;
   trafficMode: string;
   routingDomainStrategy: string;
   adBlockEnabled: boolean;

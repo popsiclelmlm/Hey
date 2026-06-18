@@ -1,7 +1,7 @@
-import { AppSettings } from './Profile';
+import { AppSettings, isProxyOnlyRuntimeMode } from './Profile';
 
 export function shouldUseDynamicLocalSocksPort(settings: AppSettings | undefined): boolean {
-  return settings !== undefined && settings.localSocksEnabled && settings.localSocksDynamicPort;
+  return settings !== undefined && (settings.localSocksEnabled || isProxyOnlyRuntimeMode(settings.mode)) && settings.localSocksDynamicPort;
 }
 
 export function selectRuntimeLocalSocksPort(settings: AppSettings, freePorts: Array<number>, reservedPorts: Array<number> = []): number {

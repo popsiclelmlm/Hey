@@ -5,7 +5,7 @@ import { formatTranslation, missingTranslationKeys, normalizeLanguage, translate
 import { defaultJsonConfigNodeName, resolveJsonConfigNodeName } from '../main/ets/core/JsonConfigNames';
 import { selectRuntimeLocalSocksPort, shouldUseDynamicLocalSocksPort, withRuntimeLocalSocksPort } from '../main/ets/core/LocalProxy';
 import { buildManualHysteria2Outbound, buildManualWireguardOutbound } from '../main/ets/core/ManualOutboundBuilder';
-import { AppSettings, DEFAULT_IP_API_URL, normalizeRealPingConcurrency, normalizeUiModeNight, ProxyNode, RoutingRule, SubscriptionGroup } from '../main/ets/core/Profile';
+import { APP_MODE_PROXY_ONLY, APP_MODE_VPN, AppSettings, DEFAULT_IP_API_URL, normalizeAppRuntimeMode, normalizeRealPingConcurrency, normalizeUiModeNight, ProxyNode, RoutingRule, SubscriptionGroup } from '../main/ets/core/Profile';
 import { formatGeoCountSummary, formatGeoCountUnavailable, geoDataSpecForFile, parseGeoCountData } from '../main/ets/core/GeoAssets';
 import { DELAY_TEST_SOCKS_PORT, LOCAL_HTTP_PROXY_LAN_HOST, LOCAL_HTTP_PROXY_PORT, LOCAL_SOCKS_PROXY_PORT, buildDelayTestConfig, buildRuntimeXrayConfig, buildXrayConfig, buildXrayConfigWithSettings, normalizeOutboundInput, validateFullConfigJson, validateOutboundJson, validatePolicyGroupConfigJson, validateProxyChainConfigJson } from '../main/ets/core/XrayConfig';
 import { extractOutboundsFromXrayConfig } from '../main/ets/core/XrayOutbounds';
@@ -566,6 +566,35 @@ export default function localUnitTest() {
       expect(result.configJson).assertContain(`"listen": "${LOCAL_HTTP_PROXY_LAN_HOST}"`);
     });
 
+    it('builds proxy only runtime without tun and with local socks inbound', 0, () => {
+      const settings = buildSettingsFixture();
+      settings.mode = APP_MODE_PROXY_ONLY;
+      settings.localSocksEnabled = false;
+      settings.appendHttpProxy = false;
+      settings.localDnsEnabled = true;
+      settings.fakeDnsEnabled = true;
+      const result = buildXrayConfigWithSettings(VLESS_REALITY_OUTBOUND, settings);
+      expect(result.configJson.indexOf('"tag": "tun-in"')).assertEqual(-1);
+      expect(result.configJson.indexOf('"protocol": "tun"')).assertEqual(-1);
+      expect(result.configJson).assertContain('"tag": "socks-in"');
+      expect(result.configJson).assertContain('"protocol": "socks"');
+      expect(result.configJson.indexOf('"tag": "dns-out"')).assertEqual(-1);
+      expect(result.socksPort).assertEqual(LOCAL_SOCKS_PROXY_PORT);
+    });
+
+    it('routes proxy only policy groups through local proxy inbounds', 0, () => {
+      const settings = buildSettingsFixture();
+      settings.mode = APP_MODE_PROXY_ONLY;
+      settings.appendHttpProxy = true;
+      const result = buildRuntimeXrayConfig(POLICY_GROUP_CONFIG, settings, 'policy-group');
+      expect(result.configJson.indexOf('"tag": "tun-in"')).assertEqual(-1);
+      expect(result.configJson).assertContain('"tag": "socks-in"');
+      expect(result.configJson).assertContain('"tag": "http-in"');
+      expect(result.configJson).assertContain('"balancerTag": "balancer"');
+      expect(result.configJson).assertContain('"inboundTag": [\n        "http-in"');
+      expect(result.configJson).assertContain('"socks-in"');
+    });
+
     it('selects runtime local socks dynamic port safely', 0, () => {
       const settings = buildSettingsFixture();
       settings.localSocksEnabled = true;
@@ -584,6 +613,12 @@ export default function localUnitTest() {
       settings.localSocksDynamicPort = false;
       expect(shouldUseDynamicLocalSocksPort(settings)).assertFalse();
       expect(selectRuntimeLocalSocksPort(settings, [19082])).assertEqual(10818);
+
+      settings.mode = APP_MODE_PROXY_ONLY;
+      settings.localSocksDynamicPort = true;
+      settings.localSocksEnabled = false;
+      expect(shouldUseDynamicLocalSocksPort(settings)).assertTrue();
+      expect(selectRuntimeLocalSocksPort(settings, [19083])).assertEqual(19083);
     });
 
     it('uses requested socks port for delay test config', 0, () => {
@@ -773,6 +808,7 @@ export default function localUnitTest() {
       settings.dnsHosts = 'dns.google:8.8.8.8,cloudflare-dns.com:1.1.1.1';
       settings.ipApiUrl = 'https://ip.example/geoip';
       settings.realPingConcurrency = 32;
+      settings.mode = APP_MODE_PROXY_ONLY;
       settings.uiModeNight = '2';
       settings.speedEnabled = true;
       settings.confirmRemove = true;
@@ -810,6 +846,7 @@ export default function localUnitTest() {
       expect(draft.dnsHosts).assertEqual('dns.google:8.8.8.8,cloudflare-dns.com:1.1.1.1');
       expect(draft.ipApiUrl).assertEqual('https://ip.example/geoip');
       expect(draft.realPingConcurrency).assertEqual('32');
+      expect(draft.mode).assertEqual(APP_MODE_PROXY_ONLY);
       const rebuilt = SETTINGS_CONTROLLER.buildSettings(draft);
       expect(rebuilt.uiModeNight).assertEqual('2');
       expect(rebuilt.speedEnabled).assertTrue();
@@ -841,6 +878,7 @@ export default function localUnitTest() {
       expect(rebuilt.dnsHosts).assertEqual('dns.google:8.8.8.8,cloudflare-dns.com:1.1.1.1');
       expect(rebuilt.ipApiUrl).assertEqual('https://ip.example/geoip');
       expect(rebuilt.realPingConcurrency).assertEqual(32);
+      expect(rebuilt.mode).assertEqual(APP_MODE_PROXY_ONLY);
 
       draft.vpnInterfaceAddressIndex = 99;
       expect(SETTINGS_CONTROLLER.buildSettings(draft).vpnInterfaceAddressIndex).assertEqual(0);
@@ -892,6 +930,13 @@ export default function localUnitTest() {
       expect(normalizeUiModeNight('2')).assertEqual('2');
       expect(normalizeUiModeNight('bad')).assertEqual('0');
       expect(normalizeUiModeNight('bad', '2')).assertEqual('2');
+    });
+
+    it('normalizes runtime mode like v2rayNG pref_mode', 0, () => {
+      expect(normalizeAppRuntimeMode(undefined)).assertEqual(APP_MODE_VPN);
+      expect(normalizeAppRuntimeMode(APP_MODE_VPN)).assertEqual(APP_MODE_VPN);
+      expect(normalizeAppRuntimeMode(APP_MODE_PROXY_ONLY)).assertEqual(APP_MODE_PROXY_ONLY);
+      expect(normalizeAppRuntimeMode('bad')).assertEqual(APP_MODE_VPN);
     });
 
     it('parses current connection IP API responses like v2rayNG', 0, () => {

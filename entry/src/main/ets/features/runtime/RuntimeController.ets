@@ -1,6 +1,6 @@
 import { common } from '@kit.AbilityKit';
 import { DEFAULT_LANGUAGE, translate } from '../../core/I18n';
-import { AppLanguage, AppSettings, ConnectionStatus, ProxyProfile, RuntimeStats } from '../../core/Profile';
+import { APP_MODE_PROXY_ONLY, APP_MODE_VPN, AppLanguage, AppRuntimeMode, AppSettings, ConnectionStatus, normalizeAppRuntimeMode, ProxyProfile, RuntimeStats } from '../../core/Profile';
 import { LOCAL_HTTP_PROXY_PORT } from '../../core/XrayConfig';
 import { ConnectionController, ConnectionSnapshot } from '../../services/ConnectionController';
 import { DiagnosticEvent, DiagnosticLog } from '../../services/DiagnosticLog';
@@ -35,21 +35,35 @@ export class RuntimeController {
   private diagnosticLogs: Array<string> = [];
   private stats: RuntimeStats = EMPTY_STATS;
   private diagnosticRefreshing: boolean = false;
+  private runtimeMode: AppRuntimeMode = APP_MODE_VPN;
 
   async start(context: common.Context, profile: ProxyProfile, settings: AppSettings, language: AppLanguage): Promise<RuntimeViewState> {
-    this.appendLog(translate(language, 'log.startingVpn'));
+    this.runtimeMode = normalizeAppRuntimeMode(settings.mode, APP_MODE_VPN);
+    this.appendLog(this.runtimeMode === APP_MODE_PROXY_ONLY ? translate(language, 'log.startingProxy') : translate(language, 'log.startingVpn'));
     const snapshot = await this.controller.start(context, profile, settings);
     this.applySnapshot(snapshot, language);
-    this.appendLog(this.status === ConnectionStatus.RUNNING ? translate(language, 'log.vpnStarted') : translate(language, 'log.vpnStartIncomplete'));
+    if (this.runtimeMode === APP_MODE_PROXY_ONLY) {
+      this.appendLog(this.status === ConnectionStatus.RUNNING ? translate(language, 'log.proxyStarted') : translate(language, 'log.proxyStartIncomplete'));
+    } else {
+      this.appendLog(this.status === ConnectionStatus.RUNNING ? translate(language, 'log.vpnStarted') : translate(language, 'log.vpnStartIncomplete'));
+    }
     await this.appendRemoteIpInfo(profile, settings, language);
     return this.refresh(context, language);
   }
 
   async stop(context: common.Context, language: AppLanguage): Promise<RuntimeViewState> {
-    this.appendLog(translate(language, 'log.stoppingVpn'));
+    const stoppingMode = this.runtimeMode;
+    this.appendLog(stoppingMode === APP_MODE_PROXY_ONLY ? translate(language, 'log.stoppingProxy') : translate(language, 'log.stoppingVpn'));
     const snapshot = await this.controller.stop(context);
     this.applySnapshot(snapshot, language);
-    this.appendLog(this.status === ConnectionStatus.IDLE ? translate(language, 'log.vpnStopped') : translate(language, 'log.vpnStopIncomplete'));
+    if (stoppingMode === APP_MODE_PROXY_ONLY) {
+      this.appendLog(this.status === ConnectionStatus.IDLE ? translate(language, 'log.proxyStopped') : translate(language, 'log.proxyStopIncomplete'));
+    } else {
+      this.appendLog(this.status === ConnectionStatus.IDLE ? translate(language, 'log.vpnStopped') : translate(language, 'log.vpnStopIncomplete'));
+    }
+    if (this.status === ConnectionStatus.IDLE) {
+      this.runtimeMode = APP_MODE_VPN;
+    }
     return this.refresh(context, language);
   }
 

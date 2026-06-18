@@ -2,13 +2,13 @@ import { common } from '@kit.AbilityKit';
 import { vpnExtension } from '@kit.NetworkKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
-import { AppSettings, ConnectionStatus, GeneratedXrayConfig, ProxyProfile, RuntimeStats } from '../core/Profile';
+import { APP_MODE_PROXY_ONLY, APP_MODE_VPN, AppRuntimeMode, AppSettings, ConnectionStatus, GeneratedXrayConfig, normalizeAppRuntimeMode, ProxyProfile, RuntimeStats } from '../core/Profile';
 import { resolveDynamicPolicyGroupConfigJson } from '../core/AdvancedOutboundBuilder';
 import { selectRuntimeLocalSocksPort, shouldUseDynamicLocalSocksPort, withRuntimeLocalSocksPort } from '../core/LocalProxy';
 import { buildRuntimeXrayConfig, LOCAL_HTTP_PROXY_PORT, METRICS_PORT, normalizeConfigInput } from '../core/XrayConfig';
 import { SubscriptionStore } from '../storage/SubscriptionStore';
 import { createStopCommandVpnWant, createStopVpnWant, createVpnWant } from '../vpn/VpnConstants';
-import { getNativeFreePorts, getNativeStats } from '../native/HeyNative';
+import { getNativeFreePorts, getNativeStats, startNativeXray, stopNativeXray, testNativeXrayConfig } from '../native/HeyNative';
 import { DiagnosticEvent, DiagnosticLog } from './DiagnosticLog';
 
 const LOG_DOMAIN: number = 0x0001;
@@ -33,6 +33,7 @@ export class ConnectionController {
   private startedAt: number = 0;
   private lastError: string = '';
   private generatedConfig: GeneratedXrayConfig | null = null;
+  private runtimeMode: AppRuntimeMode = APP_MODE_VPN;
 
   getSnapshot(): ConnectionSnapshot {
     return {
@@ -46,6 +47,15 @@ export class ConnectionController {
   getStats(): RuntimeStats {
     const stats = getNativeStats();
     if (this.status === ConnectionStatus.RUNNING) {
+      if (this.runtimeMode === APP_MODE_PROXY_ONLY) {
+        return {
+          uploadBytes: stats.uploadBytes,
+          downloadBytes: stats.downloadBytes,
+          xrayRunning: true,
+          tunRunning: false,
+          lastMessage: stats.lastMessage.length > 0 ? stats.lastMessage : 'Xray is running in proxy-only mode.'
+        };
+      }
       return {
         uploadBytes: stats.uploadBytes,
         downloadBytes: stats.downloadBytes,
@@ -74,9 +84,16 @@ export class ConnectionController {
     const runtimeSettings = validation.configType === 'full' ? settings : this.resolveRuntimeSettings(settings);
     const runtimeConfigJson = await this.resolveRuntimeConfigJson(context, validation.normalizedJson, validation.configType);
     this.generatedConfig = buildRuntimeXrayConfig(runtimeConfigJson, runtimeSettings, validation.configType);
+    this.runtimeMode = normalizeAppRuntimeMode(runtimeSettings?.mode ?? settings?.mode, APP_MODE_VPN);
     const requestedAt = Date.now();
 
     try {
+      if (this.runtimeMode === APP_MODE_PROXY_ONLY) {
+        this.startProxyOnly(context);
+        this.status = ConnectionStatus.RUNNING;
+        this.startedAt = Date.now();
+        return this.getSnapshot();
+      }
       hilog.info(LOG_DOMAIN, LOG_TAG, 'Calling startVpnExtensionAbility, configBytes=%{public}d',
         this.generatedConfig.configJson.length);
       await this.withTimeout(vpnExtension.startVpnExtensionAbility(createVpnWant(
@@ -97,10 +114,46 @@ export class ConnectionController {
     } catch (error) {
       const businessError = error as BusinessError;
       this.status = ConnectionStatus.ERROR;
-      this.lastError = `启动 VPN 失败：${businessError.message ?? JSON.stringify(error)}`;
-      hilog.error(LOG_DOMAIN, LOG_TAG, 'startVpnExtensionAbility failed: %{public}s', this.lastError);
+      const action = this.runtimeMode === APP_MODE_PROXY_ONLY ? '启动仅代理模式失败' : '启动 VPN 失败';
+      this.lastError = `${action}：${businessError.message ?? JSON.stringify(error)}`;
+      hilog.error(LOG_DOMAIN, LOG_TAG, 'connection start failed: %{public}s', this.lastError);
     }
     return this.getSnapshot();
+  }
+
+  private startProxyOnly(context: common.Context): void {
+    if (this.generatedConfig === null) {
+      throw new Error('仅代理模式缺少运行配置。');
+    }
+    DiagnosticLog.append(context, {
+      at: Date.now(),
+      level: 'info',
+      source: 'proxy',
+      message: 'Proxy-only start requested.',
+      details: `configBytes=${this.generatedConfig.configJson.length}`
+    });
+    const validation = testNativeXrayConfig(this.generatedConfig.configJson, context.filesDir);
+    if (!validation.ok) {
+      throw new Error(validation.message);
+    }
+    DiagnosticLog.append(context, {
+      at: Date.now(),
+      level: 'info',
+      source: 'proxy',
+      message: 'Native config preflight passed.',
+      details: validation.message
+    });
+    const xrayResult = startNativeXray(this.generatedConfig.configJson, context.filesDir);
+    if (!xrayResult.ok) {
+      throw new Error(xrayResult.message);
+    }
+    DiagnosticLog.append(context, {
+      at: Date.now(),
+      level: 'info',
+      source: 'proxy',
+      message: 'Proxy-only mode started.',
+      details: xrayResult.message
+    });
   }
 
   private resolveRuntimeSettings(settings?: AppSettings): AppSettings | undefined {
@@ -138,6 +191,14 @@ export class ConnectionController {
     this.status = ConnectionStatus.STOPPING;
     const requestedAt = Date.now();
     try {
+      if (this.runtimeMode === APP_MODE_PROXY_ONLY) {
+        this.stopProxyOnly(context);
+        this.status = ConnectionStatus.IDLE;
+        this.startedAt = 0;
+        this.lastError = '';
+        this.runtimeMode = APP_MODE_VPN;
+        return this.getSnapshot();
+      }
       hilog.info(LOG_DOMAIN, LOG_TAG, 'Calling startVpnExtensionAbility with stop command.');
       await this.withTimeout(vpnExtension.startVpnExtensionAbility(createStopCommandVpnWant()),
         START_VPN_TIMEOUT_MS,
@@ -156,10 +217,31 @@ export class ConnectionController {
     } catch (error) {
       const businessError = error as BusinessError;
       this.status = ConnectionStatus.ERROR;
-      this.lastError = `停止 VPN 失败：${businessError.message ?? JSON.stringify(error)}`;
-      hilog.error(LOG_DOMAIN, LOG_TAG, 'stopVpnExtensionAbility failed: %{public}s', this.lastError);
+      const action = this.runtimeMode === APP_MODE_PROXY_ONLY ? '停止仅代理模式失败' : '停止 VPN 失败';
+      this.lastError = `${action}：${businessError.message ?? JSON.stringify(error)}`;
+      hilog.error(LOG_DOMAIN, LOG_TAG, 'connection stop failed: %{public}s', this.lastError);
     }
     return this.getSnapshot();
+  }
+
+  private stopProxyOnly(context: common.Context): void {
+    DiagnosticLog.append(context, {
+      at: Date.now(),
+      level: 'info',
+      source: 'proxy',
+      message: 'Proxy-only stop requested.'
+    });
+    const xrayResult = stopNativeXray();
+    if (!xrayResult.ok) {
+      throw new Error(xrayResult.message);
+    }
+    DiagnosticLog.append(context, {
+      at: Date.now(),
+      level: 'info',
+      source: 'proxy',
+      message: 'Proxy-only mode stopped.',
+      details: xrayResult.message
+    });
   }
 
   private async waitForDiagnosticEvent(

@@ -3,8 +3,11 @@ import { promptAction } from '@kit.ArkUI';
 import { SectionHeader } from '../components/SectionHeader';
 import { DEFAULT_LANGUAGE, translate } from '../core/I18n';
 import {
+  APP_MODE_PROXY_ONLY,
+  APP_MODE_VPN,
   AppLanguage,
   DEFAULT_IP_API_URL,
+  normalizeAppRuntimeMode,
   resolveVpnInterfaceAddressConfig,
   RoutingRule,
   UI_MODE_NIGHT_DARK,
@@ -73,6 +76,7 @@ struct SettingsPage {
   @State private settingDelayTestUrl: string = 'https://www.gstatic.com/generate_204';
   @State private settingIpApiUrl: string = DEFAULT_IP_API_URL;
   @State private settingRealPingConcurrency: string = '16';
+  @State private settingMode: string = APP_MODE_VPN;
   @State private settingAutoSortAfterTest: boolean = false;
   @State private settingAutoRemoveAfterTest: boolean = false;
   @State private trafficMode: string = 'rules';
@@ -124,6 +128,8 @@ struct SettingsPage {
           // 核心
           SectionHeader({ title: this.t('settings.core'), detail: this.t('settings.core.detail') })
           Column() {
+            this.SettingOption(this.t('settings.mode'), this.modeLabel(), 'mode')
+            this.RowDivider()
             this.SettingToggle(this.t('settings.sniffing'), this.settingSniffing, 'sniffing')
             this.RowDivider()
             this.SettingToggle(this.t('settings.routeOnly'), this.settingRouteOnly, 'routeOnly')
@@ -570,6 +576,7 @@ struct SettingsPage {
       delayTestUrl: this.settingDelayTestUrl,
       ipApiUrl: this.settingIpApiUrl,
       realPingConcurrency: this.settingRealPingConcurrency,
+      mode: normalizeAppRuntimeMode(this.settingMode),
       trafficMode: this.trafficMode,
       routingDomainStrategy: this.routingStrategy,
       adBlockEnabled: this.adBlockEnabled,
@@ -625,6 +632,7 @@ struct SettingsPage {
     this.settingDelayTestUrl = draft.delayTestUrl;
     this.settingIpApiUrl = draft.ipApiUrl;
     this.settingRealPingConcurrency = draft.realPingConcurrency;
+    this.settingMode = draft.mode;
     this.trafficMode = draft.trafficMode;
     this.routingStrategy = draft.routingDomainStrategy;
     this.adBlockEnabled = draft.adBlockEnabled;
@@ -661,6 +669,10 @@ struct SettingsPage {
     }
     if (action === 'uiModeNight') {
       this.showUiModeNightMenu();
+      return;
+    }
+    if (action === 'mode') {
+      this.showModeMenu();
       return;
     }
     if (action === 'vpnInterfaceAddress') {
@@ -711,6 +723,25 @@ struct SettingsPage {
       if (result.index >= 0 && result.index < values.length) {
         this.settingUiModeNight = values[result.index];
         SHARED_RUNTIME_CONTROLLER.appendLog(this.f1('log.settingsChanged', 'action', this.t('settings.uiModeNight')));
+        this.persistSettings(false);
+      }
+    });
+  }
+
+  private showModeMenu(): void {
+    const values: string[] = [APP_MODE_VPN, APP_MODE_PROXY_ONLY];
+    const buttons: [promptAction.Button, promptAction.Button] = [
+      { text: this.t('settings.mode.vpn'), color: AppColor.brand } as promptAction.Button,
+      { text: this.t('settings.mode.proxyOnly'), color: AppColor.brand } as promptAction.Button
+    ];
+
+    promptAction.showActionMenu({
+      title: this.t('settings.mode'),
+      buttons
+    }).then((result) => {
+      if (result.index >= 0 && result.index < values.length) {
+        this.settingMode = values[result.index];
+        SHARED_RUNTIME_CONTROLLER.appendLog(this.f1('log.settingsChanged', 'action', this.t('settings.mode')));
         this.persistSettings(false);
       }
     });
@@ -829,6 +860,13 @@ struct SettingsPage {
       return this.t('settings.uiModeNight.dark');
     }
     return this.t('settings.uiModeNight.system');
+  }
+
+  private modeLabel(): string {
+    if (this.settingMode === APP_MODE_PROXY_ONLY) {
+      return this.t('settings.mode.proxyOnly');
+    }
+    return this.t('settings.mode.vpn');
   }
 
   private logLevelLabel(): string {

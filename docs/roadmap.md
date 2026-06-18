@@ -17,7 +17,7 @@
 | 路由设置页 | ✅ 82% | 广告拦截、自定义规则、预设规则集导入/导出均已生效；自定义规则可选择当前高级出站目标；真机规则回归待补 |
 | Geo 资产管理 | ✅ 93% | 下载 / 自定义 URL / 剪贴板备份还原 / WebDAV ZIP 云备份还原已实现，恢复兼容旧 JSON 包；Geo 文件 native 计数/校验已接线，待重建 `.so` 真机验证 |
 | 分应用代理 | 🟡 70% | 开关、黑白名单、手动包名、应用枚举和 VPN 应用映射已接线；仍受平台可见性限制，待真机回归 |
-| 设置页 | 🟡 87% | 核心项持久化并生效，本地 SOCKS 代理静态/动态端口、UDP、认证已写入运行配置；IPv6 启用与 IPv6 优先已按 v2rayNG 拆分；mux/XUDP/fragment 高级参数、DNS hosts、速度显示、当前连接信息测试网址、UI 模式、显示所有分组、双列显示、删除配置确认、立即启动扫码与日志级别选择器已接线 |
+| 设置页 | 🟡 89% | 核心项持久化并生效，`pref_mode` 已支持 VPN / Proxy only，本地 SOCKS 代理静态/动态端口、UDP、认证已写入运行配置；IPv6 启用与 IPv6 优先已按 v2rayNG 拆分；mux/XUDP/fragment 高级参数、DNS hosts、速度显示、当前连接信息测试网址、UI 模式、显示所有分组、双列显示、删除配置确认、立即启动扫码与日志级别选择器已接线 |
 | 扫码导入 | ✅ 82% | 粘贴导入和 ScanKit 相机扫码已接线；`startScanImmediate` 开启时进入扫码页自动拉起相机，待真机相机权限/机型回归 |
 | 导出 / 分享 | ✅ 82% | 文本/文件导出、节点二维码与系统分享面板已完成；后续主要是真机分享目标兼容回归 |
 | 平台集成 | 🔴 20% | Want / URL Scheme 深链导入已完成；快捷方式 / 卡片仍待补 |
@@ -142,6 +142,7 @@
 | 2026-06-18 | 阶段 4 | ✅ 当前连接信息测试网址完成；Settings 保存 `ipApiUrl`（默认 `https://api.ip.sb/geoip`），VPN 启动成功且本地 HTTP 代理可用时经代理查询出口国家/IP 并写入运行日志 |
 | 2026-06-18 | 阶段 4 | ✅ Reality `pqv`/`mldsa65Verify` 参数完成；分享链接、Clash.Meta 订阅、节点导出和 NodeEdit Reality 表单均保留后量子验签公钥 |
 | 2026-06-18 | 阶段 4 | ✅ TLS/Reality `ech`/`pcs` 参数完成；分享链接导入导出保留 ECH 与证书钉住参数，并兼容 `insecure`/`allowInsecure`/`allow_insecure` 三种不安全 TLS 查询名 |
+| 2026-06-18 | 阶段 4 | ✅ 运行模式设置完成；Settings 保存 v2rayNG `pref_mode` 值 `VPN`/`Proxy only`，Proxy-only 启动时跳过 Harmony VPN Extension，直接运行 native Xray 并强制提供本地 SOCKS 代理入口 |
 | 2026-06-18 | 阶段 0 | ✅ IPv6 启用与优先 IPv6 拆分完成；`ipv6Enabled` 控制 VPN IPv6 地址/路由与 WireGuard IPv6 local address，`preferIpv6` 仅控制 outbound Happy Eyeballs |
 | 2026-06-18 | 阶段 5 | 🟡 代理链运行核心完成；JSON 导入支持 `proxy-chain`，运行时生成多跳 outbounds 并通过 `sockopt.dialerProxy` 串联，真机组合场景待回归 |
 | 2026-06-18 | 阶段 5 | 🟡 策略组/负载均衡运行核心完成；JSON 导入支持 `policy-group`，运行时生成 `routing.balancers`、leastPing/leastLoad 观测配置与默认 balancer 路由 |
