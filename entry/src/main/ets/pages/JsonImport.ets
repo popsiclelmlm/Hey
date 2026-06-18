@@ -1,6 +1,8 @@
 import { common } from '@kit.AbilityKit';
 import { router, promptAction } from '@kit.ArkUI';
 import { pasteboard } from '@kit.BasicServicesKit';
+import { picker, fileIo as fs } from '@kit.CoreFileKit';
+import { util } from '@kit.ArkTS';
 import { DEFAULT_LANGUAGE, translate } from '../core/I18n';
 import { AppLanguage } from '../core/Profile';
 import { NODES_CONTROLLER } from '../features/nodes/NodesController';
@@ -10,6 +12,8 @@ import { SubscriptionStore } from '../storage/SubscriptionStore';
 import { SectionHeader } from '../components/SectionHeader';
 import { PageHeader } from '../shell/PageHeader';
 import { AppColor, FontSz, Radius, Space } from '../theme/Theme';
+
+const MAX_IMPORT_FILE_BYTES: number = 2 * 1024 * 1024;
 
 @Entry
 @Component
@@ -50,6 +54,18 @@ struct JsonImportPage {
                   .borderRadius(Radius.sm)
                   .onClick(() => {
                     this.pasteFromClipboard();
+                  })
+
+                Button('选择文件')
+                  .fontSize(FontSz.footnote)
+                  .fontColor(AppColor.brand)
+                  .backgroundColor(AppColor.brandTint)
+                  .height(30)
+                  .padding({ left: Space.md, right: Space.md })
+                  .borderRadius(Radius.sm)
+                  .enabled(!this.isBusy)
+                  .onClick(() => {
+                    this.pickConfigFile();
                   })
 
                 if (this.outboundJson.length > 0) {
@@ -274,6 +290,58 @@ struct JsonImportPage {
       }
     } catch (error) {
       promptAction.showToast({ message: '无法读取剪贴板' });
+    }
+  }
+
+  private async pickConfigFile(): Promise<void> {
+    try {
+      const documentSelectOptions = new picker.DocumentSelectOptions();
+      documentSelectOptions.fileSuffixFilters = ['.json', '.txt', '.conf'];
+      documentSelectOptions.maxSelectNumber = 1;
+      const documentPicker = new picker.DocumentViewPicker();
+      const uris = await documentPicker.select(documentSelectOptions);
+      if (!uris || uris.length === 0) {
+        return;
+      }
+
+      const content = this.readTextFromUri(uris[0]);
+      if (content.trim().length === 0) {
+        this.lastError = '配置文件为空。';
+        return;
+      }
+      this.outboundJson = content.trim();
+      this.lastError = '';
+      this.validateConfig();
+      promptAction.showToast({ message: '已读取配置文件' });
+    } catch (error) {
+      this.lastError = '读取配置文件失败：' + JSON.stringify(error);
+    }
+  }
+
+  private readTextFromUri(uri: string): string {
+    let file: fs.File | null = null;
+    try {
+      file = fs.openSync(uri, fs.OpenMode.READ_ONLY);
+      const decoder = util.TextDecoder.create('utf-8');
+      const chunks = new Array<string>();
+      let totalBytes = 0;
+      let readLength = 0;
+      do {
+        const buffer = new ArrayBuffer(8192);
+        readLength = fs.readSync(file.fd, buffer);
+        if (readLength > 0) {
+          totalBytes += readLength;
+          if (totalBytes > MAX_IMPORT_FILE_BYTES) {
+            throw new Error('配置文件超过 2 MB，请拆分后重试。');
+          }
+          chunks.push(decoder.decode(new Uint8Array(buffer, 0, readLength)));
+        }
+      } while (readLength > 0);
+      return chunks.join('');
+    } finally {
+      if (file !== null) {
+        fs.closeSync(file);
+      }
     }
   }
 }

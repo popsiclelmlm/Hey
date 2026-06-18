@@ -246,7 +246,7 @@ struct ImportPage {
             .fontSize(FontSz.callout)
             .fontWeight(FontWeight.Medium)
             .fontColor(AppColor.textPrimary)
-          Text('粘贴 Xray outbound JSON 或完整 Xray 配置。')
+          Text('粘贴或选择文件导入 Xray outbound JSON / 完整配置。')
             .fontSize(FontSz.footnote)
             .fontColor(AppColor.textTertiary)
             .maxLines(1)
