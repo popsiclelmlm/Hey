@@ -1,5 +1,5 @@
 import { describe, it, expect } from '@ohos/hypium';
-import { buildPolicyGroupConfigFromNodes, buildProxyChainConfigFromNodes, isAdvancedOutboundBuildableNode, normalizePolicyGroupBuilderStrategy } from '../main/ets/core/AdvancedOutboundBuilder';
+import { buildPolicyGroupConfigFromNodes, buildPolicyGroupConfigFromSubscription, buildProxyChainConfigFromNodes, isAdvancedOutboundBuildableNode, normalizePolicyGroupBuilderStrategy, resolveDynamicPolicyGroupConfigJson } from '../main/ets/core/AdvancedOutboundBuilder';
 import { buildAppBackupPayload, buildAppBackupZipFromPayload, parseAppBackupData, parseAppBackupPayload } from '../main/ets/core/AppBackup';
 import { formatTranslation, missingTranslationKeys, normalizeLanguage, translate } from '../main/ets/core/I18n';
 import { selectRuntimeLocalSocksPort, shouldUseDynamicLocalSocksPort, withRuntimeLocalSocksPort } from '../main/ets/core/LocalProxy';
@@ -161,6 +161,49 @@ export default function localUnitTest() {
       expect(normalizePolicyGroupBuilderStrategy('random')).assertEqual('random');
       expect(normalizePolicyGroupBuilderStrategy('bad')).assertEqual('roundRobin');
       expect(localizeCoreMessage('en', '代理链至少需要两个普通 outbound 节点。')).assertEqual('Proxy chain needs at least two regular outbound nodes.');
+    });
+
+    it('builds dynamic policy group configs from subscription filters', 0, () => {
+      const nodes = buildAdvancedNodeFixture();
+      const firstGroup = buildSubscriptionGroupFixture('sub-a', 'A');
+      firstGroup.nodes = [nodes[0]];
+      const secondGroup = buildSubscriptionGroupFixture('sub-b', 'B');
+      secondGroup.nodes = [nodes[1]];
+
+      const allMembers = buildPolicyGroupConfigFromSubscription('All Dynamic', 'roundRobin', '', '', [firstGroup, secondGroup]);
+      expect(allMembers.success).assertTrue();
+      expect(allMembers.count).assertEqual(2);
+      expect(allMembers.configJson).assertContain('"policyGroupSubscriptionId": ""');
+      expect(allMembers.configJson).assertContain('"policyGroupFilter": ""');
+      expect(validatePolicyGroupConfigJson(allMembers.configJson).valid).assertTrue();
+
+      const filtered = buildPolicyGroupConfigFromSubscription('Filtered Dynamic', 'random', 'sub-a', 'VLESS', [firstGroup, secondGroup]);
+      expect(filtered.success).assertTrue();
+      expect(filtered.count).assertEqual(1);
+      expect(filtered.configJson).assertContain('"policyGroupSubscriptionId": "sub-a"');
+      expect(filtered.configJson).assertContain('"policyGroupFilter": "VLESS"');
+      expect(filtered.configJson).assertContain('"strategy": "random"');
+      expect(filtered.configJson).assertContain('"protocol": "vless"');
+      expect(filtered.configJson.indexOf('"protocol": "trojan"')).assertEqual(-1);
+      expect(validatePolicyGroupConfigJson(filtered.configJson).valid).assertTrue();
+    });
+
+    it('resolves dynamic policy group configs from latest subscription groups', 0, () => {
+      const nodes = buildAdvancedNodeFixture();
+      const initialGroup = buildSubscriptionGroupFixture('sub-a', 'A');
+      initialGroup.nodes = [nodes[0]];
+      const dynamic = buildPolicyGroupConfigFromSubscription('Latest Dynamic', 'leastPing', 'sub-a', 'Advanced', [initialGroup]);
+      expect(dynamic.success).assertTrue();
+      expect(dynamic.configJson).assertContain('"protocol": "vless"');
+
+      const latestGroup = buildSubscriptionGroupFixture('sub-a', 'A');
+      latestGroup.nodes = [nodes[1]];
+      const resolved = resolveDynamicPolicyGroupConfigJson(dynamic.configJson, [latestGroup]);
+      expect(resolved).assertContain('"protocol": "trojan"');
+      expect(resolved.indexOf('"protocol": "vless"')).assertEqual(-1);
+      expect(resolved).assertContain('"policyGroupSubscriptionId": "sub-a"');
+      expect(buildRuntimeXrayConfig(resolved, buildSettingsFixture(), 'policy-group').configJson).assertContain('"proxy-policy-group-1"');
+      expect(resolveDynamicPolicyGroupConfigJson(POLICY_GROUP_CONFIG, [latestGroup])).assertEqual(POLICY_GROUP_CONFIG);
     });
 
     it('rejects advanced outbound builders with nested or invalid nodes', 0, () => {

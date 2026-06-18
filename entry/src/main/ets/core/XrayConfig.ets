@@ -147,6 +147,8 @@ interface XrayPolicyGroupConfig {
   outbounds: Array<XrayOutbound>;
   strategy?: string;
   policyGroupType?: string;
+  policyGroupSubscriptionId?: string;
+  policyGroupFilter?: string;
   remarks?: string;
   name?: string;
   type?: string;
@@ -520,6 +522,12 @@ function normalizePolicyGroupConfigObject(value: Object): XrayPolicyGroupConfig 
   if (typeof record['policyGroupType'] === 'string') {
     config.policyGroupType = record['policyGroupType'] as string;
   }
+  if (typeof record['policyGroupSubscriptionId'] === 'string') {
+    config.policyGroupSubscriptionId = record['policyGroupSubscriptionId'] as string;
+  }
+  if (typeof record['policyGroupFilter'] === 'string') {
+    config.policyGroupFilter = record['policyGroupFilter'] as string;
+  }
   if (typeof record['remarks'] === 'string') {
     config.remarks = record['remarks'] as string;
   }
@@ -542,6 +550,12 @@ function normalizePolicyGroupConfigForStorage(config: XrayPolicyGroupConfig): Xr
   }
   if (config.name !== undefined) {
     normalized.name = config.name;
+  }
+  if (config.policyGroupSubscriptionId !== undefined) {
+    normalized.policyGroupSubscriptionId = config.policyGroupSubscriptionId.trim();
+  }
+  if (config.policyGroupFilter !== undefined) {
+    normalized.policyGroupFilter = config.policyGroupFilter.trim();
   }
   normalized.type = 'policy-group';
   return normalized;

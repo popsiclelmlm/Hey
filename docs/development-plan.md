@@ -29,7 +29,7 @@
 | 订阅 | 多分组 + 手动/批量更新 + 前台到期刷新 + 本地 HTTP 代理经由更新 | 后台定时调度仍待补齐 |
 | 分享导出 | 文本/文件导出 + 节点二维码 + 系统分享面板 | 仍待真机回归不同分享目标兼容性 |
 | 深链导入 | ✅ Harmony Want / `hey://install-sub` / `hey://install-config` 已接入 EntryAbility 与首页解析 | 仍待真机回归外部应用触发路径 |
-| 高级路由 | 代理链、策略组/负载均衡运行核心已可通过 JSON 导入生成；添加节点页已可从已有普通节点创建代理链/策略组并保存为手动节点；路由规则可选择当前高级出站目标 | 订阅正则动态成员仍待补 |
+| 高级路由 | 代理链、策略组/负载均衡运行核心已可通过 JSON 导入生成；添加节点页已可从已有普通节点创建代理链/策略组并保存为手动节点；策略组可按订阅分组与节点名正则动态展开成员；路由规则可选择当前高级出站目标 | 真机组合场景回归待补 |
 | 云备份 | 剪贴板 JSON 备份 + WebDAV ZIP 云备份/还原已落地，默认 `backups/backup_ng.zip`，恢复兼容旧 JSON 包 | 真 WebDAV 服务兼容回归待补 |
 
 ---
@@ -228,8 +228,8 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 **任务**
 - 🟡 **负载均衡（Balancer）**：运行核心已完成，`policy-group` JSON 可生成，且已有普通节点可通过专门 UI 构建为策略组配置
   `routing.balancers`，支持 `leastPing/leastLoad/random/roundRobin` 与对应
-  `observatory` / `burstObservatory`；路由规则可选择当前策略组目标；订阅筛选待补
-- 🟡 **策略组（PolicyGroup）**：静态成员 JSON 运行核心已完成；构建器会拒绝完整配置、嵌套高级节点和无效 outbound；添加节点页已有成员选择/策略选择/保存入口；从订阅按正则动态选成员待补
+  `observatory` / `burstObservatory`；路由规则可选择当前策略组目标；动态成员可按订阅分组和节点名正则在启动时展开
+- 🟡 **策略组（PolicyGroup）**：静态成员 JSON 运行核心已完成；构建器会拒绝完整配置、嵌套高级节点和无效 outbound；添加节点页已有成员选择/策略选择/保存入口；从订阅按正则动态选成员已完成，真机组合场景待回归
 - 🟡 **代理链（ProxyChain）**：运行核心已完成，`proxy-chain` JSON 导入后可生成多段 outbounds 并用 `sockopt.dialerProxy` 串联；添加节点页已有成员选择、顺序调整与保存入口
 - ✅ **WebDAV 云备份/恢复**：BASIC 认证 + best-effort `MKCOL` 建目录 + 上传/下载 Hey ZIP 备份包（默认 `backups/backup_ng.zip`，内含 `hey_backup.json`，恢复兼容旧 JSON 包）；真服务兼容回归待补
 
@@ -344,10 +344,11 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-18 | M4 | ✅ 本地 SOCKS 代理设置完成（`localSocksEnabled`/端口/UDP/用户名/密码 + `socks-in` 生成 + LAN 共享监听 + 单测） |
 | 2026-06-18 | M4 | ✅ 本地 SOCKS 动态端口完成（`localSocksDynamicPort` 设置 + 启动前 `CGoGetFreePorts` 选择运行端口 + 设置/端口选择单测）；待重建 `.so` + 真机复测 |
 | 2026-06-18 | M5 | 🟡 代理链运行核心完成（`proxy-chain` configType + JSON 导入识别 + 多跳 outbounds `dialerProxy` 串联 + 单测）；真机组合场景待回归 |
-| 2026-06-18 | M5 | 🟡 策略组/负载均衡运行核心完成（`policy-group` configType + JSON 导入识别 + `routing.balancers` + leastPing/leastLoad 观测配置 + 单测）；订阅筛选待补 |
+| 2026-06-18 | M5 | 🟡 策略组/负载均衡运行核心完成（`policy-group` configType + JSON 导入识别 + `routing.balancers` + leastPing/leastLoad 观测配置 + 单测） |
 | 2026-06-18 | M5 | 🟡 高级出站构建器完成（已有普通 outbound 节点 → `proxy-chain`/`policy-group` JSON + strategy 映射 + 嵌套/无效节点拒绝 + 单测） |
 | 2026-06-18 | M5 | ✅ 高级出站成员选择 UI 完成（添加节点页入口 + 全分组普通节点选择 + 代理链顺序调整 + 策略组策略选择 + 保存为手动高级节点） |
 | 2026-06-18 | M5 | ✅ 路由规则高级出站目标 UI 完成（规则编辑器按当前选中高级节点显示代理链/策略组目标，导入导出与运行时保留高级目标语义） |
+| 2026-06-18 | M5 | ✅ 策略组订阅动态成员完成（创建策略组可启用动态成员、选择全部/指定订阅分组、输入节点名正则过滤，保存快照并在连接启动前按最新订阅重新展开） |
 | 2026-06-18 | M5 | ✅ WebDAV 云备份/还原基础完成（Assets 页保存 WebDAV 配置，JSON 备份包上传/下载，Basic Auth + best-effort MKCOL + 单测） |
 | 2026-06-18 | M5 | ✅ WebDAV ZIP 备份格式完成（默认 `backups/backup_ng.zip`，ZIP stored 条目内含 `hey_backup.json`，上传/下载走二进制，恢复兼容旧 JSON 备份 + 单测） |
 | 2026-06-15 | 自查 | ✅ 字段一致性总扫：AppSettings/SettingsDraft 5 个构造点字段完整一致，SubscriptionGroup.filter 贯通，无需修改 |

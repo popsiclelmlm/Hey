@@ -3,8 +3,10 @@ import { vpnExtension } from '@kit.NetworkKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { AppSettings, ConnectionStatus, GeneratedXrayConfig, ProxyProfile, RuntimeStats } from '../core/Profile';
+import { resolveDynamicPolicyGroupConfigJson } from '../core/AdvancedOutboundBuilder';
 import { selectRuntimeLocalSocksPort, shouldUseDynamicLocalSocksPort, withRuntimeLocalSocksPort } from '../core/LocalProxy';
 import { buildRuntimeXrayConfig, LOCAL_HTTP_PROXY_PORT, METRICS_PORT, normalizeConfigInput } from '../core/XrayConfig';
+import { SubscriptionStore } from '../storage/SubscriptionStore';
 import { createStopCommandVpnWant, createStopVpnWant, createVpnWant } from '../vpn/VpnConstants';
 import { getNativeFreePorts, getNativeStats } from '../native/HeyNative';
 import { DiagnosticEvent, DiagnosticLog } from './DiagnosticLog';
@@ -70,7 +72,8 @@ export class ConnectionController {
     this.status = ConnectionStatus.STARTING;
     this.lastError = '';
     const runtimeSettings = validation.configType === 'full' ? settings : this.resolveRuntimeSettings(settings);
-    this.generatedConfig = buildRuntimeXrayConfig(profile.outboundJson, runtimeSettings, validation.configType);
+    const runtimeConfigJson = await this.resolveRuntimeConfigJson(context, validation.normalizedJson, validation.configType);
+    this.generatedConfig = buildRuntimeXrayConfig(runtimeConfigJson, runtimeSettings, validation.configType);
     const requestedAt = Date.now();
 
     try {
@@ -109,6 +112,14 @@ export class ConnectionController {
     const freePorts = getNativeFreePorts(reservedPorts.length + 1);
     const runtimePort = selectRuntimeLocalSocksPort(resolvedSettings, freePorts.ok ? freePorts.ports : [], reservedPorts);
     return withRuntimeLocalSocksPort(resolvedSettings, runtimePort);
+  }
+
+  private async resolveRuntimeConfigJson(context: common.Context, configJson: string, configType?: string): Promise<string> {
+    if (configType !== 'policy-group') {
+      return configJson;
+    }
+    const subscription = await SubscriptionStore.load(context);
+    return resolveDynamicPolicyGroupConfigJson(configJson, subscription.groups);
   }
 
   private reservedRuntimePorts(settings: AppSettings): Array<number> {

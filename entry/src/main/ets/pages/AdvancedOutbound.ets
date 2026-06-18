@@ -1,8 +1,8 @@
 import { common } from '@kit.AbilityKit';
 import { router, promptAction } from '@kit.ArkUI';
 import { DEFAULT_LANGUAGE, translate } from '../core/I18n';
-import { buildPolicyGroupConfigFromNodes, buildProxyChainConfigFromNodes, isAdvancedOutboundBuildableNode, PolicyGroupStrategy } from '../core/AdvancedOutboundBuilder';
-import { AppLanguage, ProxyNode, SubscriptionProfile } from '../core/Profile';
+import { buildDynamicPolicyGroupConfigFromNodes, buildPolicyGroupConfigFromNodes, buildProxyChainConfigFromNodes, isAdvancedOutboundBuildableNode, PolicyGroupStrategy } from '../core/AdvancedOutboundBuilder';
+import { AppLanguage, ProxyNode, SubscriptionGroup, SubscriptionProfile } from '../core/Profile';
 import { NODES_CONTROLLER } from '../features/nodes/NodesController';
 import { SETTINGS_CONTROLLER } from '../features/settings/SettingsController';
 import { SHARED_RUNTIME_CONTROLLER } from '../features/runtime/RuntimeController';
@@ -14,6 +14,7 @@ import { AppColor, FontSz, Radius, Space } from '../theme/Theme';
 
 interface AdvancedOutboundCandidate {
   key: string;
+  groupId: string;
   groupName: string;
   node: ProxyNode;
 }
@@ -25,11 +26,16 @@ struct AdvancedOutboundPage {
   @State private mode: string = 'proxy-chain';
   @State private nodeName: string = '';
   @State private strategy: PolicyGroupStrategy = 'roundRobin';
+  @State private subscriptionGroups: Array<SubscriptionGroup> = [];
   @State private candidates: Array<AdvancedOutboundCandidate> = [];
   @State private selectedNodeKeys: Array<string> = [];
+  @State private dynamicPolicyGroupEnabled: boolean = false;
+  @State private dynamicSubscriptionId: string = '';
+  @State private dynamicFilter: string = '';
   @State private lastError: string = '';
   @State private isBusy: boolean = false;
   private strategyOptions: Array<string> = ['roundRobin', 'random', 'leastPing', 'leastLoad'];
+  private dynamicDefaultsLoaded: boolean = false;
 
   aboutToAppear(): void {
     const params = router.getParams() as Record<string, Object>;
@@ -45,7 +51,7 @@ struct AdvancedOutboundPage {
     Column() {
       PageHeader({
         title: this.pageTitle(),
-        summary: this.f2('advancedOutbound.selectedSummary', 'count', `${this.selectedNodeKeys.length}`, 'min', `${this.requiredMemberCount()}`),
+        summary: this.f2('advancedOutbound.selectedSummary', 'count', `${this.selectedSummaryCount()}`, 'min', `${this.requiredMemberCount()}`),
         showBack: true
       })
 
@@ -58,6 +64,7 @@ struct AdvancedOutboundPage {
 
               if (this.mode === 'policy-group') {
                 this.StrategySelector()
+                this.DynamicPolicyGroupSection()
               }
             }
             .width('100%')
@@ -69,13 +76,13 @@ struct AdvancedOutboundPage {
             this.SelectedMembersSection()
 
             SectionHeader({ title: this.t('advancedOutbound.availableMembers') })
-            if (this.candidates.length === 0) {
+            if (this.visibleCandidates().length === 0) {
               this.EmptyState()
             } else {
               Column() {
-                ForEach(this.candidates, (candidate: AdvancedOutboundCandidate) => {
+                ForEach(this.visibleCandidates(), (candidate: AdvancedOutboundCandidate) => {
                   this.CandidateRow(candidate)
-                  if (this.candidateIndex(candidate.key) < this.candidates.length - 1) {
+                  if (!this.isLastVisibleCandidate(candidate.key)) {
                     this.RowDivider()
                   }
                 }, (candidate: AdvancedOutboundCandidate) => candidate.key)
@@ -200,13 +207,112 @@ struct AdvancedOutboundPage {
   }
 
   @Builder
+  private DynamicPolicyGroupSection() {
+    Column({ space: Space.md }) {
+      Row({ space: Space.md }) {
+        Column({ space: 3 }) {
+          Text(this.t('advancedOutbound.dynamicMembers'))
+            .fontSize(FontSz.callout)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(AppColor.textPrimary)
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+          Text(this.t('advancedOutbound.dynamicMembers.detail'))
+            .fontSize(FontSz.footnote)
+            .fontColor(AppColor.textTertiary)
+            .maxLines(2)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+        }
+        .alignItems(HorizontalAlign.Start)
+        .layoutWeight(1)
+
+        Toggle({ type: ToggleType.Switch, isOn: this.dynamicPolicyGroupEnabled })
+          .selectedColor(AppColor.brand)
+          .switchPointColor(AppColor.onBrand)
+          .onChange((isOn: boolean) => {
+            this.dynamicPolicyGroupEnabled = isOn;
+            this.lastError = '';
+          })
+      }
+      .width('100%')
+
+      if (this.dynamicPolicyGroupEnabled) {
+        Column({ space: Space.sm }) {
+          Text(this.t('advancedOutbound.dynamicGroup'))
+            .fontSize(FontSz.footnote)
+            .fontColor(AppColor.textSecondary)
+            .width('100%')
+          this.DynamicGroupButton('', this.t('advancedOutbound.dynamicAllGroups'))
+          ForEach(this.subscriptionGroups, (group: SubscriptionGroup) => {
+            this.DynamicGroupButton(group.id, group.name)
+          }, (group: SubscriptionGroup) => group.id)
+        }
+        .width('100%')
+        .alignItems(HorizontalAlign.Start)
+
+        Column({ space: Space.sm }) {
+          Text(this.t('advancedOutbound.dynamicFilter'))
+            .fontSize(FontSz.footnote)
+            .fontColor(AppColor.textSecondary)
+            .width('100%')
+          TextInput({
+            placeholder: this.t('advancedOutbound.dynamicFilter.placeholder'),
+            text: this.dynamicFilter
+          })
+            .height(44)
+            .fontSize(FontSz.body)
+            .fontColor(AppColor.textPrimary)
+            .placeholderColor(AppColor.textTertiary)
+            .backgroundColor(AppColor.surfaceAlt)
+            .borderRadius(Radius.md)
+            .padding({ left: Space.md, right: Space.md })
+            .onChange((value: string) => {
+              this.dynamicFilter = value;
+              this.lastError = '';
+            })
+          Text(this.t('advancedOutbound.dynamicFilter.detail'))
+            .fontSize(FontSz.caption)
+            .fontColor(AppColor.textTertiary)
+            .width('100%')
+            .lineHeight(15)
+        }
+        .width('100%')
+        .alignItems(HorizontalAlign.Start)
+      }
+    }
+    .width('100%')
+  }
+
+  @Builder
+  private DynamicGroupButton(groupId: string, label: string) {
+    Button() {
+      Text(label)
+        .fontSize(FontSz.footnote)
+        .fontWeight(this.dynamicSubscriptionId === groupId ? FontWeight.Medium : FontWeight.Normal)
+        .fontColor(this.dynamicSubscriptionId === groupId ? AppColor.onBrand : AppColor.textSecondary)
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+        .width('100%')
+        .textAlign(TextAlign.Center)
+    }
+    .width('100%')
+    .height(36)
+    .backgroundColor(this.dynamicSubscriptionId === groupId ? AppColor.brand : AppColor.surfaceAlt)
+    .borderRadius(Radius.md)
+    .onClick(() => {
+      this.dynamicSubscriptionId = groupId;
+      this.lastError = '';
+    })
+  }
+
+  @Builder
   private SelectedMembersSection() {
-    if (this.selectedNodeKeys.length > 0) {
+    if (this.selectedMemberCount() > 0) {
       SectionHeader({ title: this.t('advancedOutbound.selectedMembers') })
       Column() {
         ForEach(this.selectedCandidates(), (candidate: AdvancedOutboundCandidate, index: number) => {
           this.SelectedMemberRow(candidate, index)
-          if (index < this.selectedNodeKeys.length - 1) {
+          if (index < this.selectedMemberCount() - 1) {
             this.RowDivider()
           }
         }, (candidate: AdvancedOutboundCandidate) => candidate.key)
@@ -248,10 +354,12 @@ struct AdvancedOutboundPage {
       .alignItems(HorizontalAlign.Start)
       .layoutWeight(1)
 
-      Row({ space: Space.xs }) {
-        this.MemberIconButton($r('app.media.ic_arrow_downward'), index > 0, true, 'up', candidate.key)
-        this.MemberIconButton($r('app.media.ic_arrow_downward'), index < this.selectedNodeKeys.length - 1, false, 'down', candidate.key)
-        this.MemberIconButton($r('app.media.ic_delete'), true, false, 'remove', candidate.key)
+      if (!this.isDynamicPolicyGroupMode()) {
+        Row({ space: Space.xs }) {
+          this.MemberIconButton($r('app.media.ic_arrow_downward'), index > 0, true, 'up', candidate.key)
+          this.MemberIconButton($r('app.media.ic_arrow_downward'), index < this.selectedMemberCount() - 1, false, 'down', candidate.key)
+          this.MemberIconButton($r('app.media.ic_delete'), true, false, 'remove', candidate.key)
+        }
       }
     }
     .width('100%')
@@ -310,7 +418,9 @@ struct AdvancedOutboundPage {
     .width('100%')
     .padding(Space.lg)
     .onClick(() => {
-      this.toggleCandidate(candidate.key);
+      if (!this.isDynamicPolicyGroupMode()) {
+        this.toggleCandidate(candidate.key);
+      }
     })
   }
 
@@ -372,6 +482,13 @@ struct AdvancedOutboundPage {
         this.nodeName = this.mode === 'policy-group' ? this.t('advancedOutbound.defaultPolicyGroupName') : this.t('advancedOutbound.defaultProxyChainName');
       }
       const profile = await SubscriptionStore.load(context);
+      this.subscriptionGroups = profile.groups;
+      if (!this.dynamicDefaultsLoaded) {
+        this.dynamicSubscriptionId = profile.selectedGroupId;
+        this.dynamicDefaultsLoaded = true;
+      } else if (this.dynamicSubscriptionId.length > 0 && this.findSubscriptionGroup(this.dynamicSubscriptionId) === null) {
+        this.dynamicSubscriptionId = '';
+      }
       this.candidates = this.collectCandidates(profile);
       this.selectedNodeKeys = this.filterExistingSelection(this.selectedNodeKeys);
     } catch (error) {
@@ -388,6 +505,7 @@ struct AdvancedOutboundPage {
         if (isAdvancedOutboundBuildableNode(node)) {
           candidates.push({
             key: `${group.id}:${node.id}`,
+            groupId: group.id,
             groupName: group.name,
             node: node
           });
@@ -401,6 +519,7 @@ struct AdvancedOutboundPage {
         if (isAdvancedOutboundBuildableNode(node)) {
           candidates.push({
             key: `current:${node.id}`,
+            groupId: 'current',
             groupName: this.t('advancedOutbound.currentGroup'),
             node: node
           });
@@ -421,7 +540,7 @@ struct AdvancedOutboundPage {
   }
 
   private canSave(): boolean {
-    return !this.isBusy && this.selectedNodeKeys.length >= this.requiredMemberCount();
+    return !this.isBusy && this.selectedNodes().length >= this.requiredMemberCount();
   }
 
   private requiredMemberCount(): number {
@@ -449,25 +568,44 @@ struct AdvancedOutboundPage {
     return `${candidate.groupName} / ${candidate.node.protocol.toUpperCase()}`;
   }
 
-  private candidateIndex(key: string): number {
-    for (let index = 0; index < this.candidates.length; index++) {
-      if (this.candidates[index].key === key) {
-        return index;
-      }
-    }
-    return -1;
+  private selectedSummaryCount(): number {
+    return this.selectedMemberCount();
+  }
+
+  private selectedMemberCount(): number {
+    return this.selectedCandidates().length;
+  }
+
+  private isLastVisibleCandidate(key: string): boolean {
+    const candidates = this.visibleCandidates();
+    return candidates.length === 0 || candidates[candidates.length - 1].key === key;
   }
 
   private isCandidateSelected(key: string): boolean {
+    if (this.isDynamicPolicyGroupMode()) {
+      return this.selectedOrder(key) > 0;
+    }
     return this.selectedNodeKeys.indexOf(key) >= 0;
   }
 
   private selectedOrder(key: string): number {
+    if (this.isDynamicPolicyGroupMode()) {
+      const candidates = this.dynamicCandidates();
+      for (let index = 0; index < candidates.length; index++) {
+        if (candidates[index].key === key) {
+          return index + 1;
+        }
+      }
+      return 0;
+    }
     const index = this.selectedNodeKeys.indexOf(key);
     return index >= 0 ? index + 1 : 0;
   }
 
   private selectedCandidates(): Array<AdvancedOutboundCandidate> {
+    if (this.isDynamicPolicyGroupMode()) {
+      return this.dynamicCandidates();
+    }
     const selected = new Array<AdvancedOutboundCandidate>();
     for (let index = 0; index < this.selectedNodeKeys.length; index++) {
       const candidate = this.findCandidate(this.selectedNodeKeys[index]);
@@ -476,6 +614,40 @@ struct AdvancedOutboundPage {
       }
     }
     return selected;
+  }
+
+  private visibleCandidates(): Array<AdvancedOutboundCandidate> {
+    if (this.isDynamicPolicyGroupMode()) {
+      return this.dynamicCandidates();
+    }
+    return this.candidates;
+  }
+
+  private dynamicCandidates(): Array<AdvancedOutboundCandidate> {
+    const selected = new Array<AdvancedOutboundCandidate>();
+    const subscriptionId = this.dynamicSubscriptionId.trim();
+    for (let index = 0; index < this.candidates.length; index++) {
+      const candidate = this.candidates[index];
+      if (subscriptionId.length > 0 && candidate.groupId !== subscriptionId) {
+        continue;
+      }
+      if (this.matchesDynamicFilter(candidate.node.name)) {
+        selected.push(candidate);
+      }
+    }
+    return selected;
+  }
+
+  private matchesDynamicFilter(name: string): boolean {
+    const filter = this.dynamicFilter.trim();
+    if (filter.length === 0) {
+      return true;
+    }
+    try {
+      return new RegExp(filter).test(name);
+    } catch (error) {
+      return name.indexOf(filter) >= 0;
+    }
   }
 
   private selectedNodes(): Array<ProxyNode> {
@@ -497,6 +669,9 @@ struct AdvancedOutboundPage {
   }
 
   private toggleCandidate(key: string): void {
+    if (this.isDynamicPolicyGroupMode()) {
+      return;
+    }
     const next = this.selectedNodeKeys.slice();
     const index = next.indexOf(key);
     if (index >= 0) {
@@ -509,6 +684,9 @@ struct AdvancedOutboundPage {
   }
 
   private handleMemberAction(action: string, key: string): void {
+    if (this.isDynamicPolicyGroupMode()) {
+      return;
+    }
     if (action === 'remove') {
       this.toggleCandidate(key);
       return;
@@ -531,6 +709,19 @@ struct AdvancedOutboundPage {
     this.selectedNodeKeys = next;
   }
 
+  private isDynamicPolicyGroupMode(): boolean {
+    return this.mode === 'policy-group' && this.dynamicPolicyGroupEnabled;
+  }
+
+  private findSubscriptionGroup(groupId: string): SubscriptionGroup | null {
+    for (let index = 0; index < this.subscriptionGroups.length; index++) {
+      if (this.subscriptionGroups[index].id === groupId) {
+        return this.subscriptionGroups[index];
+      }
+    }
+    return null;
+  }
+
   private async saveAdvancedOutbound(): Promise<void> {
     if (!this.canSave()) {
       return;
@@ -540,9 +731,7 @@ struct AdvancedOutboundPage {
     this.lastError = '';
     try {
       const nodes = this.selectedNodes();
-      const result = this.mode === 'policy-group' ?
-        buildPolicyGroupConfigFromNodes(this.nodeName, this.strategy, nodes) :
-        buildProxyChainConfigFromNodes(this.nodeName, nodes);
+      const result = this.resolveAdvancedOutboundBuildResult(nodes);
       if (!result.success) {
         this.lastError = localizeCoreMessage(this.language, result.message);
         return;
@@ -564,6 +753,16 @@ struct AdvancedOutboundPage {
     } finally {
       this.isBusy = false;
     }
+  }
+
+  private resolveAdvancedOutboundBuildResult(nodes: Array<ProxyNode>) {
+    if (this.mode !== 'policy-group') {
+      return buildProxyChainConfigFromNodes(this.nodeName, nodes);
+    }
+    if (this.dynamicPolicyGroupEnabled) {
+      return buildDynamicPolicyGroupConfigFromNodes(this.nodeName, this.strategy, this.dynamicSubscriptionId, this.dynamicFilter, nodes);
+    }
+    return buildPolicyGroupConfigFromNodes(this.nodeName, this.strategy, nodes);
   }
 
   private t(key: string): string {

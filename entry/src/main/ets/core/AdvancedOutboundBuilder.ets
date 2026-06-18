@@ -1,4 +1,4 @@
-import { ProxyNode, XrayConfigType } from './Profile';
+import { ProxyNode, SubscriptionGroup, XrayConfigType } from './Profile';
 import { normalizeConfigInput } from './XrayConfig';
 
 export type PolicyGroupStrategy = 'roundRobin' | 'random' | 'leastPing' | 'leastLoad';
@@ -32,7 +32,14 @@ interface PolicyGroupStorageConfig {
   type: string;
   remarks: string;
   strategy: string;
+  policyGroupSubscriptionId?: string;
+  policyGroupFilter?: string;
   outbounds: Array<Object>;
+}
+
+export interface AdvancedOutboundSourceNode {
+  groupId: string;
+  node: ProxyNode;
 }
 
 export function buildProxyChainConfigFromNodes(name: string, nodes: Array<ProxyNode>): AdvancedOutboundBuildResult {
@@ -53,6 +60,70 @@ export function buildProxyChainConfigFromNodes(name: string, nodes: Array<ProxyN
 }
 
 export function buildPolicyGroupConfigFromNodes(name: string, strategy: string, nodes: Array<ProxyNode>): AdvancedOutboundBuildResult {
+  return buildPolicyGroupConfigFromNodesInternal(name, strategy, nodes, '', '', false);
+}
+
+export function buildDynamicPolicyGroupConfigFromNodes(
+  name: string,
+  strategy: string,
+  subscriptionId: string,
+  filter: string,
+  nodes: Array<ProxyNode>
+): AdvancedOutboundBuildResult {
+  return buildPolicyGroupConfigFromNodesInternal(name, strategy, nodes, subscriptionId, filter, true);
+}
+
+export function buildPolicyGroupConfigFromSubscription(
+  name: string,
+  strategy: string,
+  subscriptionId: string,
+  filter: string,
+  groups: Array<SubscriptionGroup>
+): AdvancedOutboundBuildResult {
+  const sources = collectPolicyGroupSourceNodes(groups, subscriptionId, filter);
+  const nodes = new Array<ProxyNode>();
+  for (let index = 0; index < sources.length; index++) {
+    nodes.push(sources[index].node);
+  }
+  return buildDynamicPolicyGroupConfigFromNodes(name, strategy, subscriptionId, filter, nodes);
+}
+
+export function collectPolicyGroupSourceNodes(groups: Array<SubscriptionGroup>, subscriptionId: string, filter: string): Array<AdvancedOutboundSourceNode> {
+  const result = new Array<AdvancedOutboundSourceNode>();
+  const normalizedSubscriptionId = subscriptionId.trim();
+  for (let groupIndex = 0; groupIndex < groups.length; groupIndex++) {
+    const group = groups[groupIndex];
+    if (normalizedSubscriptionId.length > 0 && group.id !== normalizedSubscriptionId) {
+      continue;
+    }
+    for (let nodeIndex = 0; nodeIndex < group.nodes.length; nodeIndex++) {
+      const node = group.nodes[nodeIndex];
+      if (isAdvancedOutboundBuildableNode(node) && matchesPolicyGroupFilter(node.name, filter)) {
+        result.push({
+          groupId: group.id,
+          node
+        });
+      }
+    }
+  }
+  return result;
+}
+
+export function resolveDynamicPolicyGroupConfigJson(configJson: string, groups: Array<SubscriptionGroup>): string {
+  const dynamic = parseDynamicPolicyGroupConfig(configJson);
+  if (dynamic === null) {
+    return configJson;
+  }
+  const sourceNodes = collectPolicyGroupSourceNodes(groups, dynamic.subscriptionId, dynamic.filter);
+  const nodes = new Array<ProxyNode>();
+  for (let index = 0; index < sourceNodes.length; index++) {
+    nodes.push(sourceNodes[index].node);
+  }
+  const result = buildDynamicPolicyGroupConfigFromNodes(dynamic.name, dynamic.strategy, dynamic.subscriptionId, dynamic.filter, nodes);
+  return result.success ? result.configJson : configJson;
+}
+
+function buildPolicyGroupConfigFromNodesInternal(name: string, strategy: string, nodes: Array<ProxyNode>, subscriptionId: string, filter: string, dynamicSource: boolean): AdvancedOutboundBuildResult {
   const memberResult = normalizeAdvancedOutboundMembers(nodes);
   if (!memberResult.success) {
     return failedBuild('policy-group', memberResult.message, name, memberResult.members.length);
@@ -68,6 +139,14 @@ export function buildPolicyGroupConfigFromNodes(name: string, strategy: string, 
     strategy: normalizePolicyGroupBuilderStrategy(strategy),
     outbounds: buildMemberOutbounds(members)
   };
+  const normalizedSubscriptionId = subscriptionId.trim();
+  const normalizedFilter = filter.trim();
+  if (dynamicSource || normalizedSubscriptionId.length > 0) {
+    config.policyGroupSubscriptionId = normalizedSubscriptionId;
+  }
+  if (dynamicSource || normalizedFilter.length > 0) {
+    config.policyGroupFilter = normalizedFilter;
+  }
   return validateBuiltConfig('policy-group', config.remarks, JSON.stringify(config, null, 2), members.length);
 }
 
@@ -125,6 +204,61 @@ function buildMemberOutbounds(members: Array<AdvancedOutboundMember>): Array<Obj
     outbounds.push(JSON.parse(members[index].outboundJson) as Object);
   }
   return outbounds;
+}
+
+interface DynamicPolicyGroupConfig {
+  name: string;
+  strategy: string;
+  subscriptionId: string;
+  filter: string;
+}
+
+function parseDynamicPolicyGroupConfig(configJson: string): DynamicPolicyGroupConfig | null {
+  try {
+    const parsed = JSON.parse(configJson) as Record<string, Object>;
+    const type = typeof parsed.type === 'string' ? parsed.type : '';
+    const configType = typeof parsed.configType === 'string' ? parsed.configType : '';
+    if (type !== 'policy-group' && configType !== 'policy-group') {
+      return null;
+    }
+    const hasSubscriptionId = typeof parsed.policyGroupSubscriptionId === 'string';
+    const hasFilter = typeof parsed.policyGroupFilter === 'string';
+    if (!hasSubscriptionId && !hasFilter) {
+      return null;
+    }
+    const subscriptionId = typeof parsed.policyGroupSubscriptionId === 'string' ? parsed.policyGroupSubscriptionId.trim() : '';
+    const filter = typeof parsed.policyGroupFilter === 'string' ? parsed.policyGroupFilter.trim() : '';
+    return {
+      name: resolveDynamicPolicyGroupName(parsed),
+      strategy: typeof parsed.strategy === 'string' ? parsed.strategy : (typeof parsed.policyGroupType === 'string' ? parsed.policyGroupType : 'roundRobin'),
+      subscriptionId,
+      filter
+    };
+  } catch (error) {
+    return null;
+  }
+}
+
+function resolveDynamicPolicyGroupName(parsed: Record<string, Object>): string {
+  if (typeof parsed.remarks === 'string' && parsed.remarks.trim().length > 0) {
+    return parsed.remarks.trim();
+  }
+  if (typeof parsed.name === 'string' && parsed.name.trim().length > 0) {
+    return parsed.name.trim();
+  }
+  return '策略组';
+}
+
+function matchesPolicyGroupFilter(name: string, filter: string): boolean {
+  const normalized = filter.trim();
+  if (normalized.length === 0) {
+    return true;
+  }
+  try {
+    return new RegExp(normalized).test(name);
+  } catch (error) {
+    return name.indexOf(normalized) >= 0;
+  }
 }
 
 function validateBuiltConfig(configType: XrayConfigType, name: string, configJson: string, count: number): AdvancedOutboundBuildResult {

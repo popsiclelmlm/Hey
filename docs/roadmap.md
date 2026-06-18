@@ -12,7 +12,7 @@
 | 原生 TUN 数据通路 | ✅ 93% | 代码就位且**真机闭环验证通过（2026-06-15）**——TUN→Xray→出站→可上网；IPv6 地址/路由与 outbound Happy Eyeballs 已按设置生成，待真机回归 |
 | 分享链接解析 | ✅ 90% | vless/vmess/trojan/ss/socks/http/wireguard/hy2 已覆盖，WireGuard `.conf` 整段导入已支持；导入失败后可走 native 转换兜底支持 v2rayN 多行/base64 与 Clash.Meta YAML（待重建 `.so` 真机验证）；**缺 TUIC** |
 | 订阅管理 | 🟡 91% | 多分组 + 旧版迁移 + 编辑/重排/批量更新全部 + 订阅级不安全 URL 开关 + 当前分组删除全部 + 自动更新设置/前台到期刷新 + 本地 HTTP 代理经由更新；**缺后台调度** |
-| Xray 配置生成 | 🟡 82% | 普通节点生成 TUN/metrics/DNS/routing/HTTP 代理和本地 SOCKS 配置，HTTP/SOCKS 代理支持局域网共享监听，SOCKS 支持启动前动态端口；完整自定义 Xray config 可校验后原样运行；代理链和策略组 JSON 可生成多跳/负载均衡 outbounds，添加节点页可从已有普通节点创建代理链/策略组，路由规则可选择当前高级出站目标；订阅正则动态成员仍待补 |
+| Xray 配置生成 | 🟡 83% | 普通节点生成 TUN/metrics/DNS/routing/HTTP 代理和本地 SOCKS 配置，HTTP/SOCKS 代理支持局域网共享监听，SOCKS 支持启动前动态端口；完整自定义 Xray config 可校验后原样运行；代理链和策略组 JSON 可生成多跳/负载均衡 outbounds，添加节点页可从已有普通节点创建代理链/策略组，策略组支持按订阅分组与节点名正则动态成员，路由规则可选择当前高级出站目标 |
 | 节点延迟测速 / 排序 | ✅ 82% | `CGoPing` 真测速 + 排序，测速 SOCKS inbound 优先使用 `CGoGetFreePorts` 动态端口；需真机验证 |
 | 路由设置页 | ✅ 82% | 广告拦截、自定义规则、预设规则集导入/导出均已生效；自定义规则可选择当前高级出站目标；真机规则回归待补 |
 | Geo 资产管理 | ✅ 93% | 下载 / 自定义 URL / 剪贴板备份还原 / WebDAV ZIP 云备份还原已实现，恢复兼容旧 JSON 包；Geo 文件 native 计数/校验已接线，待重建 `.so` 真机验证 |
@@ -130,9 +130,10 @@
 | 2026-06-18 | 阶段 4 | ✅ 本地 SOCKS 代理设置完成；Settings 可配置启用、端口、UDP、用户名/密码认证，Xray 生成 `socks-in` 并随代理共享监听 LAN |
 | 2026-06-18 | 阶段 4 | ✅ 本地 SOCKS 动态端口完成；`localSocksDynamicPort` 开启后连接前通过 `CGoGetFreePorts` 写入运行端口，失败回退用户设置端口 |
 | 2026-06-18 | 阶段 5 | 🟡 代理链运行核心完成；JSON 导入支持 `proxy-chain`，运行时生成多跳 outbounds 并通过 `sockopt.dialerProxy` 串联，真机组合场景待回归 |
-| 2026-06-18 | 阶段 5 | 🟡 策略组/负载均衡运行核心完成；JSON 导入支持 `policy-group`，运行时生成 `routing.balancers`、leastPing/leastLoad 观测配置与默认 balancer 路由，订阅筛选待补 |
+| 2026-06-18 | 阶段 5 | 🟡 策略组/负载均衡运行核心完成；JSON 导入支持 `policy-group`，运行时生成 `routing.balancers`、leastPing/leastLoad 观测配置与默认 balancer 路由 |
 | 2026-06-18 | 阶段 5 | 🟡 高级出站构建器完成；可从已有普通 outbound 节点生成 `proxy-chain`/`policy-group` JSON，并拒绝完整配置、嵌套高级节点和无效节点 |
 | 2026-06-18 | 阶段 5 | ✅ 高级出站成员选择 UI 完成；添加节点页可创建代理链/策略组，支持全分组普通节点选择、顺序调整、策略选择并保存为手动高级节点 |
 | 2026-06-18 | 阶段 5 | ✅ 路由规则高级出站目标 UI 完成；规则编辑器按当前高级节点显示代理链/策略组目标，导入导出与运行时生成保留高级目标语义 |
+| 2026-06-18 | 阶段 5 | ✅ 策略组订阅动态成员完成；创建策略组可选择全部/指定订阅分组与节点名正则过滤，保存 `policyGroupSubscriptionId`/`policyGroupFilter` 快照并在启动时按最新订阅重新展开 |
 | 2026-06-18 | 阶段 5 | ✅ WebDAV 云备份/还原基础完成；Assets 页可保存 WebDAV 配置并上传/下载 Hey JSON 备份包，支持 Basic Auth 与 best-effort MKCOL |
 | 2026-06-18 | 阶段 5 | ✅ WebDAV ZIP 备份格式完成；默认 `backups/backup_ng.zip`，ZIP 内含 `hey_backup.json`，上传/下载走二进制并兼容旧 JSON 恢复 |
