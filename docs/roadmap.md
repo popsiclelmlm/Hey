@@ -10,7 +10,7 @@
 | --- | --- | --- |
 | 应用骨架 / 导航 / i18n | ✅ 99% | 双语、分层清晰、路由完整，语言设置已支持 v2rayNG 风格 `auto` 跟随系统/中文/英文三态，UI 模式可按设置跟随系统/浅色/深色，About 页已接 GitHub release 更新检查，并支持 v2rayNG 风格 pre-release 检查开关 |
 | 原生 TUN 数据通路 | ✅ 93% | 代码就位且**真机闭环验证通过（2026-06-15）**——TUN→Xray→出站→可上网；`ipv6Enabled` 控制 IPv6 地址/路由，`preferIpv6` 控制 outbound Happy Eyeballs，待真机回归 |
-| 分享链接解析 | ✅ 91% | vless/vmess/trojan/ss/socks/http/wireguard/hy2 已覆盖，Reality `spx`/`pqv` 已按 v2rayNG 映射为 `spiderX`/`mldsa65Verify` 并可导入导出，WireGuard `.conf` 整段导入已支持；导入失败后可走 native 转换兜底支持 v2rayN 多行/base64 与 Clash.Meta YAML（待重建 `.so` 真机验证）；TUIC 在 v2rayNG 当前枚举中未启用且 Xray-core 官方配置不支持，暂不列为运行目标 |
+| 分享链接解析 | ✅ 92% | vless/vmess/trojan/ss/socks/http/wireguard/hy2 已覆盖，VLESS `flow` 含 `xtls-rprx-vision-udp443`、uTLS `fp` 含 `ios/android/randomized` 均可导入导出并在手动编辑器选择，Reality `spx`/`pqv` 已按 v2rayNG 映射为 `spiderX`/`mldsa65Verify` 并可导入导出，WireGuard `.conf` 整段导入已支持；导入失败后可走 native 转换兜底支持 v2rayN 多行/base64 与 Clash.Meta YAML（待重建 `.so` 真机验证）；TUIC 在 v2rayNG 当前枚举中未启用且 Xray-core 官方配置不支持，暂不列为运行目标 |
 | 订阅管理 | 🟡 96% | 多分组 + 旧版迁移 + 编辑/重排/批量更新全部 + 订阅级不安全 URL 开关 + 当前分组删除全部 + 自动更新设置/前台到期刷新 + 本地 HTTP 代理经由更新 + WorkScheduler 后台调度接线 + 订阅链接二维码/系统分享；待真机触发回归 |
 | Xray 配置生成 | 🟡 89% | 普通节点生成 TUN/DNS/routing/HTTP 代理和本地 SOCKS 配置，速度显示开启时才生成 metrics/stats/policy；DNS hosts 支持 v2rayNG `domain:address,...` 格式写入 `dns.hosts`，并内置 v2rayNG `googleapis.cn` 与 Android Private DNS 默认 hosts，用户 hosts 可覆盖默认值；remote/domestic DNS 会按自定义 proxy/direct/block 规则生成 `domains`、`expectIPs`、DNS 专用路由和 block hosts，出站域名预解析方式 `0/1/2` 已持久化，并会在启动前用 Harmony 系统 DNS 补齐 live 解析结果，再按模式写入 DNS hosts/UseIP 或替换 outbound 域名；HTTP/SOCKS 代理支持局域网共享监听，SOCKS 支持启动前动态端口；完整自定义 Xray config 可校验后原样运行；代理链和策略组 JSON 可生成多跳/负载均衡 outbounds，添加节点页可从已有普通节点创建代理链/策略组，策略组支持按订阅分组与节点名正则动态成员，路由规则可选择当前高级出站目标 |
 | 节点延迟测速 / 排序 | ✅ 84% | `CGoPing` 真测速 + 排序，测速 SOCKS inbound 优先使用 `CGoGetFreePorts` 动态端口；批量测速并发数已按 v2rayNG 设置接线；需真机验证 |
@@ -171,3 +171,4 @@
 | 2026-06-19 | 阶段 3 | ✅ 分应用代理批处理完成；PerApp 页支持全选/清除/反选当前筛选列表，按 v2rayNG 剪贴板格式导入/导出 `bypass + package list`，默认“代理选中的应用”，导入后自动启用分应用代理 |
 | 2026-06-19 | 阶段 3 | ✅ 分应用自动选择完成；PerApp 页新增“自动选择代理应用”，按内置代理应用清单和 v2rayNG `com.google*` 强制匹配规则选择当前筛选列表，bypass 模式选择补集 |
 | 2026-06-19 | 阶段 4 | ✅ 订阅链接分享完成；订阅详情页可生成订阅 URL 二维码并复制/系统分享，订阅分组左滑分享走 Harmony 分享面板并回退剪贴板 |
+| 2026-06-19 | 协议点检 | ✅ `flow`/uTLS 指纹选项完成；NodeEdit 手动编辑补齐 `xtls-rprx-vision-udp443` 与 `ios/android/randomized`，分享链接导入导出 round-trip 保留 |

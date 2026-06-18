@@ -25,6 +25,7 @@ import { buildSubscriptionAutoUpdateSchedulePlan } from '../main/ets/core/Subscr
 import { buildSpeedNotificationAdditionalText, buildSpeedNotificationText, calculateSpeedNotificationRates, sampleSpeedNotificationStats, shouldPublishSpeedNotification } from '../main/ets/core/SpeedNotification';
 import { DEFAULT_WEBDAV_BACKUP_FILE_NAME, buildWebDavAuthorizationHeader, buildWebDavMkcolUrls, buildWebDavRemoteUrl, isWebDavMkcolAcceptedStatus, normalizeWebDavConfig, validateWebDavConfig } from '../main/ets/core/WebDav';
 import { CURRENT_APP_VERSION, buildUpdateCheckResult, compareVersions, normalizeVersionTag } from '../main/ets/core/UpdateChecker';
+import { V2RAYNG_FLOW_OPTIONS, V2RAYNG_UTLS_FINGERPRINT_OPTIONS } from '../main/ets/core/V2rayNgOptions';
 import { dedupeNodes, exportNodesText, filterNodes, findInvalidNodes, sortNodes } from '../main/ets/features/nodes/NodeOperations';
 import { SETTINGS_CONTROLLER } from '../main/ets/features/settings/SettingsController';
 import { normalizeIpApiUrl, parseRemoteIpInfoContent } from '../main/ets/services/RemoteIpInfo';
@@ -1402,6 +1403,20 @@ export default function localUnitTest() {
       expect(validation.valid).assertTrue();
       expect(validation.normalizedJson).assertContain('"flow": "xtls-rprx-vision"');
       expect(validation.normalizedJson).assertContain('"mldsa65Verify": "test-mldsa65-verify"');
+    });
+
+    it('keeps v2rayNG flow and uTLS fingerprint options complete', 0, () => {
+      expect(V2RAYNG_FLOW_OPTIONS.join('|')).assertEqual('none|xtls-rprx-vision|xtls-rprx-vision-udp443');
+      expect(V2RAYNG_UTLS_FINGERPRINT_OPTIONS.join('|')).assertEqual('none|chrome|firefox|safari|ios|android|edge|360|qq|random|randomized');
+
+      const link = 'vless://00000000-0000-0000-0000-000000000000@example.com:443?encryption=none&flow=xtls-rprx-vision-udp443&security=reality&sni=www.example.com&fp=randomized&pbk=test-public-key&sid=abcd&type=tcp#udp443';
+      const imported = parseShareLinkToOutboundJson(link);
+      expect(imported.success).assertTrue();
+      expect(imported.outboundJson).assertContain('"flow": "xtls-rprx-vision-udp443"');
+      expect(imported.outboundJson).assertContain('"fingerprint": "randomized"');
+      const exported = formatOutboundJsonToShareLink(imported.outboundJson, 'udp443');
+      expect(exported).assertContain('flow=xtls-rprx-vision-udp443');
+      expect(exported).assertContain('fp=randomized');
     });
 
     it('imports trojan ws tls share link as outbound json', 0, () => {

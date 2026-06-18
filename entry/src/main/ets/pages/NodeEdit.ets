@@ -3,6 +3,7 @@ import { router, promptAction } from '@kit.ArkUI';
 import { DEFAULT_LANGUAGE, translate } from '../core/I18n';
 import { buildManualHysteria2Outbound, buildManualWireguardOutbound } from '../core/ManualOutboundBuilder';
 import { AppLanguage } from '../core/Profile';
+import { V2RAYNG_FLOW_OPTIONS, V2RAYNG_UTLS_FINGERPRINT_OPTIONS } from '../core/V2rayNgOptions';
 import { NODES_CONTROLLER } from '../features/nodes/NodesController';
 import { SETTINGS_CONTROLLER } from '../features/settings/SettingsController';
 import { SHARED_RUNTIME_CONTROLLER } from '../features/runtime/RuntimeController';
@@ -97,8 +98,9 @@ struct PickerRow {
           .fontSize(FontSz.body)
           .fontColor(AppColor.textPrimary)
           .fontWeight(FontWeight.Medium)
-
-        Blank()
+          .layoutWeight(1)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
 
         Image($r('app.media.ic_chevron_right'))
           .width(18)
@@ -458,10 +460,10 @@ struct NodeEditPage {
                   options: ['none', 'aes-128-gcm', 'chacha20-ietf-poly1305'],
                   selectedValue: $securityOrMethod
                 })
-                SegmentedControl({
+                PickerRow({
                   label: '流控协议 (flow)',
-                  options: ['none', 'xtls-rprx-vision'],
-                  selected: $vlessFlow
+                  options: V2RAYNG_FLOW_OPTIONS,
+                  selectedValue: $vlessFlow
                 })
               } else if (this.protocol === 'vmess') {
                 PickerRow({
@@ -593,7 +595,7 @@ struct NodeEditPage {
                     })
                     PickerRow({
                       label: '客户端指纹 (fingerprint)',
-                      options: ['chrome', 'firefox', 'safari', 'edge', '360', 'qq', 'random', 'none'],
+                      options: V2RAYNG_UTLS_FINGERPRINT_OPTIONS,
                       selectedValue: $tlsFingerprint
                     })
                   }
@@ -622,7 +624,7 @@ struct NodeEditPage {
                     })
                     PickerRow({
                       label: '客户端指纹 (fingerprint)',
-                      options: ['chrome', 'firefox', 'safari', 'edge', '360', 'qq', 'random', 'none'],
+                      options: V2RAYNG_UTLS_FINGERPRINT_OPTIONS,
                       selectedValue: $tlsFingerprint
                     })
                   }
