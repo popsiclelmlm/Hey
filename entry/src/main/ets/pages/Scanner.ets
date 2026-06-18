@@ -27,19 +27,14 @@ struct ScannerPage {
   @State private isPressedScanCard: boolean = false;
   @State private isPressedImportBtn: boolean = false;
   private subscriptionProxyPort: number = 0;
+  private startScanImmediate: boolean = false;
 
   aboutToAppear(): void {
     this.loadState();
   }
 
   onPageShow(): void {
-    if (!this.hasAutoScanned) {
-      this.hasAutoScanned = true;
-      // 延迟 300 毫秒拉起扫码，确保转场动画完全结束后再加载扫码面板，体验更流畅
-      setTimeout(() => {
-        this.startCameraScan();
-      }, 300);
-    }
+    this.tryStartImmediateScan();
   }
 
   build() {
@@ -258,11 +253,24 @@ struct ScannerPage {
       const context = getContext(this) as common.Context;
       const settings = await SETTINGS_CONTROLLER.load(context);
       this.language = settings.language;
+      this.startScanImmediate = settings.startScanImmediate;
       this.subscriptionProxyPort = settings.appendHttpProxy && SHARED_RUNTIME_CONTROLLER.isRunning() ? LOCAL_HTTP_PROXY_PORT : 0;
       this.selectedNodeId = (await NODES_CONTROLLER.load(context, this.language)).selectedNodeId;
+      this.tryStartImmediateScan();
     } catch (error) {
       this.lastError = '加载配置状态失败: ' + JSON.stringify(error);
     }
+  }
+
+  private tryStartImmediateScan(): void {
+    if (!this.startScanImmediate || this.hasAutoScanned) {
+      return;
+    }
+    this.hasAutoScanned = true;
+    // 延迟拉起扫码，确保转场动画完全结束后再加载扫码面板，体验更流畅。
+    setTimeout(() => {
+      this.startCameraScan();
+    }, 300);
   }
 
   private async startCameraScan(): Promise<void> {

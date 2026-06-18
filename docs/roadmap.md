@@ -17,8 +17,8 @@
 | 路由设置页 | ✅ 82% | 广告拦截、自定义规则、预设规则集导入/导出均已生效；自定义规则可选择当前高级出站目标；真机规则回归待补 |
 | Geo 资产管理 | ✅ 93% | 下载 / 自定义 URL / 剪贴板备份还原 / WebDAV ZIP 云备份还原已实现，恢复兼容旧 JSON 包；Geo 文件 native 计数/校验已接线，待重建 `.so` 真机验证 |
 | 分应用代理 | 🟡 70% | 开关、黑白名单、手动包名、应用枚举和 VPN 应用映射已接线；仍受平台可见性限制，待真机回归 |
-| 设置页 | 🟡 80% | 核心项持久化并生效，本地 SOCKS 代理静态/动态端口、UDP、认证已写入运行配置；mux/XUDP/fragment 高级参数、DNS hosts、删除配置确认与日志级别选择器已接线 |
-| 扫码导入 | ✅ 80% | 粘贴导入和 ScanKit 相机扫码已接线，待真机相机权限/机型回归 |
+| 设置页 | 🟡 81% | 核心项持久化并生效，本地 SOCKS 代理静态/动态端口、UDP、认证已写入运行配置；mux/XUDP/fragment 高级参数、DNS hosts、删除配置确认、立即启动扫码与日志级别选择器已接线 |
+| 扫码导入 | ✅ 82% | 粘贴导入和 ScanKit 相机扫码已接线；`startScanImmediate` 开启时进入扫码页自动拉起相机，待真机相机权限/机型回归 |
 | 导出 / 分享 | ✅ 82% | 文本/文件导出、节点二维码与系统分享面板已完成；后续主要是真机分享目标兼容回归 |
 | 平台集成 | 🔴 20% | Want / URL Scheme 深链导入已完成；快捷方式 / 卡片仍待补 |
 
@@ -134,6 +134,7 @@
 | 2026-06-18 | 阶段 4 | ✅ DNS hosts 设置完成；Settings 可保存 v2rayNG `domain:address,...` 格式并生成 Xray `dns.hosts`，同时兼容 JSON object 输入 |
 | 2026-06-18 | 阶段 4 | ✅ 真连接延迟测试并发设置完成；Settings 保存 `realPingConcurrency`（默认 16、范围 1..128），首页批量测速按配置分批并发执行并串行保存结果 |
 | 2026-06-18 | 阶段 4 | ✅ 删除配置确认设置完成；Settings 保存 `confirmRemove`（默认关闭），开启后单节点删除与订阅分组删除会弹二次确认 |
+| 2026-06-18 | 阶段 4 | ✅ 立即启动扫码设置完成；Settings 保存 `startScanImmediate`（默认关闭），开启后进入 Scanner 页自动拉起 ScanKit 相机扫码 |
 | 2026-06-18 | 阶段 5 | 🟡 代理链运行核心完成；JSON 导入支持 `proxy-chain`，运行时生成多跳 outbounds 并通过 `sockopt.dialerProxy` 串联，真机组合场景待回归 |
 | 2026-06-18 | 阶段 5 | 🟡 策略组/负载均衡运行核心完成；JSON 导入支持 `policy-group`，运行时生成 `routing.balancers`、leastPing/leastLoad 观测配置与默认 balancer 路由 |
 | 2026-06-18 | 阶段 5 | 🟡 高级出站构建器完成；可从已有普通 outbound 节点生成 `proxy-chain`/`policy-group` JSON，并拒绝完整配置、嵌套高级节点和无效节点 |

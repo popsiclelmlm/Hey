@@ -177,6 +177,7 @@ function normalizeRealPingConcurrencyFallback(value: number): number {
 export interface AppSettings {
   language: AppLanguage;
   confirmRemove: boolean;
+  startScanImmediate: boolean;
   sniffingEnabled: boolean;
   routeOnlyEnabled: boolean;
   perAppProxyEnabled: boolean;

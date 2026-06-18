@@ -347,6 +347,7 @@ export default function localUnitTest() {
       const settings: AppSettings = {
         language: 'zh',
         confirmRemove: false,
+        startScanImmediate: false,
         sniffingEnabled: true,
         routeOnlyEnabled: true,
         perAppProxyEnabled: false,
@@ -718,8 +719,10 @@ export default function localUnitTest() {
       settings.dnsHosts = 'dns.google:8.8.8.8,cloudflare-dns.com:1.1.1.1';
       settings.realPingConcurrency = 32;
       settings.confirmRemove = true;
+      settings.startScanImmediate = true;
       const draft = SETTINGS_CONTROLLER.toDraft(settings);
       expect(draft.confirmRemove).assertTrue();
+      expect(draft.startScanImmediate).assertTrue();
       expect(draft.preferIpv6).assertTrue();
       expect(draft.localDnsPort).assertEqual('1053');
       expect(draft.localSocksEnabled).assertTrue();
@@ -744,6 +747,7 @@ export default function localUnitTest() {
       expect(draft.realPingConcurrency).assertEqual('32');
       const rebuilt = SETTINGS_CONTROLLER.buildSettings(draft);
       expect(rebuilt.confirmRemove).assertTrue();
+      expect(rebuilt.startScanImmediate).assertTrue();
       expect(rebuilt.preferIpv6).assertTrue();
       expect(rebuilt.localDnsPort).assertEqual(1053);
       expect(rebuilt.localSocksEnabled).assertTrue();
@@ -1117,6 +1121,7 @@ function buildSettingsFixture(): AppSettings {
   return {
     language: 'zh',
     confirmRemove: false,
+    startScanImmediate: false,
     sniffingEnabled: true,
     routeOnlyEnabled: false,
     perAppProxyEnabled: false,

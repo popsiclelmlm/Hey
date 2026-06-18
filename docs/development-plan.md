@@ -283,6 +283,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 - [x] 测速后自动操作：`autoSortAfterTest` / `autoRemoveInvalidAfterTest` 设置项 + 设置页开关 + 批量测速后触发（按延迟排序 / 删除超时节点，2026-06-15）
 - [x] 真连接延迟测试并发：Settings 保存 `realPingConcurrency`，默认 16、范围 1..128，批量测速按配置分批并发执行且串行落盘（2026-06-18）
 - [x] 删除配置确认：Settings 保存 `confirmRemove`，默认关闭；开启后单节点删除与订阅分组删除弹二次确认（2026-06-18）
+- [x] 立即启动扫码：Settings 保存 `startScanImmediate`，默认关闭；开启后进入 Scanner 页自动拉起 ScanKit 相机扫码（2026-06-18）
 - [x] 二维码生成：节点详情页用 `@kit.ScanKit` `generateBarcode.createBarcode` 渲染分享链接 QR + 复制链接（2026-06-15）
 - [x] URL Scheme / Want 深链导入：`hey://install-sub` / `hey://install-config?url=` 注册 scheme + `EntryAbility.onCreate/onNewWant` 暂存 + Index `onPageShow` 解析导入（2026-06-15）
 
@@ -351,6 +352,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-18 | M4 | ✅ DNS hosts 设置完成（Settings 保存 v2rayNG `domain:address,...` 输入，Xray 生成 `dns.hosts`；同时兼容 JSON object 输入并补配置生成单测） |
 | 2026-06-18 | M4 | ✅ 真连接延迟测试并发设置完成（`realPingConcurrency` 按 v2rayNG 默认 16 与 1..128 范围保存，首页批量测速按配置并发测量、串行保存结果，并补 Settings 往返/归一化单测） |
 | 2026-06-18 | M4 | ✅ 删除配置确认设置完成（`confirmRemove` 默认关闭，Settings 开关保存后控制单节点删除和订阅分组删除确认弹窗，并补 Settings 往返单测） |
+| 2026-06-18 | M4 | ✅ 立即启动扫码设置完成（`startScanImmediate` 默认关闭，Settings 开关保存后控制 Scanner 页是否自动拉起 ScanKit，并修正此前无条件自动扫码行为） |
 | 2026-06-18 | M5 | 🟡 代理链运行核心完成（`proxy-chain` configType + JSON 导入识别 + 多跳 outbounds `dialerProxy` 串联 + 单测）；真机组合场景待回归 |
 | 2026-06-18 | M5 | 🟡 策略组/负载均衡运行核心完成（`policy-group` configType + JSON 导入识别 + `routing.balancers` + leastPing/leastLoad 观测配置 + 单测） |
 | 2026-06-18 | M5 | 🟡 高级出站构建器完成（已有普通 outbound 节点 → `proxy-chain`/`policy-group` JSON + strategy 映射 + 嵌套/无效节点拒绝 + 单测） |

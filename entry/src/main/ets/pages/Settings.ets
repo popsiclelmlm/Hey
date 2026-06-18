@@ -27,6 +27,7 @@ import { AppColor, FontSz, Radius, Space } from '../theme/Theme';
 struct SettingsPage {
   @State private language: AppLanguage = DEFAULT_LANGUAGE;
   @State private settingConfirmRemove: boolean = false;
+  @State private settingStartScanImmediate: boolean = false;
   @State private settingSniffing: boolean = true;
   @State private settingRouteOnly: boolean = false;
   @State private settingLocalDns: boolean = false;
@@ -92,6 +93,8 @@ struct SettingsPage {
             this.LanguageToggle()
             this.RowDivider()
             this.SettingToggle(this.t('settings.confirmRemove'), this.settingConfirmRemove, 'confirmRemove')
+            this.RowDivider()
+            this.SettingToggle(this.t('settings.startScanImmediate'), this.settingStartScanImmediate, 'startScanImmediate')
           }
           .width('100%')
           .backgroundColor(AppColor.surface)
@@ -346,6 +349,9 @@ struct SettingsPage {
       case 'confirmRemove':
         this.settingConfirmRemove = !this.settingConfirmRemove;
         break;
+      case 'startScanImmediate':
+        this.settingStartScanImmediate = !this.settingStartScanImmediate;
+        break;
       case 'routeOnly':
         this.settingRouteOnly = !this.settingRouteOnly;
         break;
@@ -482,6 +488,7 @@ struct SettingsPage {
     return {
       language: this.language,
       confirmRemove: this.settingConfirmRemove,
+      startScanImmediate: this.settingStartScanImmediate,
       sniffingEnabled: this.settingSniffing,
       routeOnlyEnabled: this.settingRouteOnly,
       perAppProxyEnabled: this.settingPerAppProxy,
@@ -530,6 +537,7 @@ struct SettingsPage {
   private applyDraft(draft: SettingsDraft): void {
     this.language = draft.language;
     this.settingConfirmRemove = draft.confirmRemove;
+    this.settingStartScanImmediate = draft.startScanImmediate;
     this.settingSniffing = draft.sniffingEnabled;
     this.settingRouteOnly = draft.routeOnlyEnabled;
     this.settingPerAppProxy = draft.perAppProxyEnabled;
