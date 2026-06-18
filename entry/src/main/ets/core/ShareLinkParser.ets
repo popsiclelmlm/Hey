@@ -258,6 +258,10 @@ function makeSuccess(protocol: string, name: string, outbound: XrayOutbound): Sh
   };
 }
 
+function defaultShareName(name: string): string {
+  return name.length > 0 ? name : 'none';
+}
+
 export function isSupportedShareLink(input: string): boolean {
   const lower = input.trim().toLowerCase();
   return lower.startsWith('vless://') ||
@@ -402,7 +406,7 @@ function parseVlessLink(input: string): ShareLinkParseResult {
     settings,
     streamSettings: buildStreamSettings(parsed.query, '')
   };
-  return makeSuccess('vless', parsed.fragment, outbound);
+  return makeSuccess('vless', defaultShareName(parsed.fragment), outbound);
 }
 
 function parseVmessLink(input: string): ShareLinkParseResult {
@@ -478,7 +482,7 @@ function parseVmessAeadLink(input: string): ShareLinkParseResult {
     settings,
     streamSettings: buildStreamSettings(parsed.query, '')
   };
-  return makeSuccess('vmess', parsed.fragment, outbound);
+  return makeSuccess('vmess', defaultShareName(parsed.fragment), outbound);
 }
 
 function parseTrojanLink(input: string): ShareLinkParseResult {
@@ -507,7 +511,7 @@ function parseTrojanLink(input: string): ShareLinkParseResult {
     settings,
     streamSettings: buildStreamSettings(parsed.query, 'tls')
   };
-  return makeSuccess('trojan', parsed.fragment, outbound);
+  return makeSuccess('trojan', defaultShareName(parsed.fragment), outbound);
 }
 
 function parseShadowsocksLink(input: string): ShareLinkParseResult {
@@ -534,7 +538,7 @@ function parseShadowsocksSip002(input: string): ShareLinkParseResult | null {
     methodPassword.substring(splitIndex + 1),
     parsed.host,
     parsed.port,
-    parsed.fragment,
+    defaultShareName(parsed.fragment),
     parsed.query,
     input
   );
@@ -626,7 +630,7 @@ function parseSocksLink(input: string): ShareLinkParseResult {
       servers: [server]
     }
   };
-  return makeSuccess('socks', parsed.fragment, outbound);
+  return makeSuccess('socks', defaultShareName(parsed.fragment), outbound);
 }
 
 function parseHttpProxyLink(input: string, scheme: string): ShareLinkParseResult {
@@ -647,7 +651,7 @@ function parseHttpProxyLink(input: string, scheme: string): ShareLinkParseResult
       servers: [server]
     }
   };
-  return makeSuccess('http', parsed.fragment, outbound);
+  return makeSuccess('http', defaultShareName(parsed.fragment), outbound);
 }
 
 function parseWireguardLink(input: string): ShareLinkParseResult {
@@ -688,7 +692,7 @@ function parseWireguardLink(input: string): ShareLinkParseResult {
     tag: 'proxy',
     settings
   };
-  return makeSuccess('wireguard', parsed.fragment, outbound);
+  return makeSuccess('wireguard', defaultShareName(parsed.fragment), outbound);
 }
 
 function parseHysteria2Link(input: string): ShareLinkParseResult {
@@ -739,7 +743,7 @@ function parseHysteria2Link(input: string): ShareLinkParseResult {
       servers: [server]
     }
   };
-  return makeSuccess('hysteria2', parsed.fragment, outbound);
+  return makeSuccess('hysteria2', defaultShareName(parsed.fragment), outbound);
 }
 
 function tryParseUrlStyleShareLink(input: string, scheme: string): ParsedShareUrl | null {

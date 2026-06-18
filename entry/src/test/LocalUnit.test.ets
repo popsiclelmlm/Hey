@@ -1614,6 +1614,29 @@ export default function localUnitTest() {
       expect(ssResult.outboundJson).assertContain('"method": "aes-128-gcm"');
     });
 
+    it('defaults unnamed url-style share links to v2rayNG none remarks', 0, () => {
+      const unnamedVlessLink = 'vless://00000000-0000-0000-0000-000000000000@example.com:443?encryption=none&type=tcp';
+      const unnamedVless = parseShareLinkToOutboundJson(unnamedVlessLink);
+      expect(unnamedVless.success).assertTrue();
+      expect(unnamedVless.name).assertEqual('none');
+
+      const unnamedSocks = parseShareLinkToOutboundJson('socks://example.com:1080');
+      expect(unnamedSocks.success).assertTrue();
+      expect(unnamedSocks.name).assertEqual('none');
+
+      const unnamedSs = parseShareLinkToOutboundJson('ss://YWVzLTEyOC1nY206c2VjcmV0@example.com:8388');
+      expect(unnamedSs.success).assertTrue();
+      expect(unnamedSs.name).assertEqual('none');
+
+      const namedTrojan = parseShareLinkToOutboundJson('trojan://secret@example.com:443?security=tls&type=tcp#named');
+      expect(namedTrojan.success).assertTrue();
+      expect(namedTrojan.name).assertEqual('named');
+
+      const nodes = SubscriptionManager.parseSubscriptionContent(unnamedVlessLink, 'https://sub.example/unnamed');
+      expect(nodes.length).assertEqual(1);
+      expect(nodes[0].name).assertEqual('none');
+    });
+
     it('imports socks http wireguard and hysteria2 share links as outbound json', 0, () => {
       const socks = parseShareLinkToOutboundJson('socks://dXNlcjpwYXNz@example.com:1080#socks-demo');
       expect(socks.success).assertTrue();
