@@ -179,7 +179,7 @@ export class ConnectionController {
 
   private reservedRuntimePorts(settings: AppSettings): Array<number> {
     const ports: Array<number> = [METRICS_PORT];
-    if (settings.appendHttpProxy) {
+    if (settings.appendHttpProxy && settings.localSocksEnabled) {
       ports.push(LOCAL_HTTP_PROXY_PORT);
     }
     return ports;

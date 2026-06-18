@@ -359,7 +359,8 @@ struct SubscriptionDetailPage {
     const context = getContext(this) as common.Context;
     const settings = await SETTINGS_CONTROLLER.load(context);
     this.language = settings.language;
-    this.subscriptionProxyPort = settings.appendHttpProxy && SHARED_RUNTIME_CONTROLLER.isRunning() ? LOCAL_HTTP_PROXY_PORT : 0;
+    this.subscriptionProxyPort = settings.appendHttpProxy && settings.localSocksEnabled &&
+      SHARED_RUNTIME_CONTROLLER.isRunning() ? LOCAL_HTTP_PROXY_PORT : 0;
     let state = await SUBSCRIPTIONS_CONTROLLER.load(context, this.language);
 
     // 寻找对应的分组，激活它以加载节点

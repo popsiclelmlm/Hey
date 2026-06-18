@@ -139,6 +139,7 @@ export default function localUnitTest() {
       expect(localizeCoreMessage('en', '策略组第 1 个成员无效：outbound 缺少 protocol 字段。')).assertEqual('Policy group member 1 is invalid: outbound is missing the protocol field.');
 
       const settings = buildSettingsFixture();
+      settings.localSocksEnabled = true;
       settings.appendHttpProxy = true;
       const result = buildRuntimeXrayConfig(validation.normalizedJson, settings, 'policy-group');
       expect(result.configJson).assertContain('"tag": "proxy-policy-group-1"');
@@ -841,6 +842,11 @@ export default function localUnitTest() {
 
       settings.appendHttpProxy = true;
       result = buildXrayConfigWithSettings(VLESS_REALITY_OUTBOUND, settings);
+      expect(result.configJson.indexOf('"tag": "http-in"')).assertEqual(-1);
+      expect(result.httpProxyPort === undefined).assertTrue();
+
+      settings.localSocksEnabled = true;
+      result = buildXrayConfigWithSettings(VLESS_REALITY_OUTBOUND, settings);
       expect(result.configJson).assertContain('"tag": "http-in"');
       expect(result.configJson).assertContain('"listen": "127.0.0.1"');
       expect(result.configJson).assertContain('"protocol": "http"');
@@ -914,6 +920,7 @@ export default function localUnitTest() {
     it('routes proxy only policy groups through local proxy inbounds', 0, () => {
       const settings = buildSettingsFixture();
       settings.mode = APP_MODE_PROXY_ONLY;
+      settings.localSocksEnabled = true;
       settings.appendHttpProxy = true;
       const result = buildRuntimeXrayConfig(POLICY_GROUP_CONFIG, settings, 'policy-group');
       expect(result.configJson.indexOf('"tag": "tun-in"')).assertEqual(-1);
@@ -1197,6 +1204,7 @@ export default function localUnitTest() {
       settings.preferIpv6 = true;
       settings.localDnsPort = 1053;
       settings.localSocksEnabled = true;
+      settings.appendHttpProxy = true;
       settings.localSocksPort = 10818;
       settings.localSocksDynamicPort = true;
       settings.localSocksUdpEnabled = false;
@@ -1240,6 +1248,7 @@ export default function localUnitTest() {
       expect(draft.preferIpv6).assertTrue();
       expect(draft.localDnsPort).assertEqual('1053');
       expect(draft.localSocksEnabled).assertTrue();
+      expect(draft.appendHttpProxy).assertTrue();
       expect(draft.localSocksPort).assertEqual('10818');
       expect(draft.localSocksDynamicPort).assertTrue();
       expect(draft.localSocksUdpEnabled).assertFalse();
@@ -1275,6 +1284,7 @@ export default function localUnitTest() {
       expect(rebuilt.preferIpv6).assertTrue();
       expect(rebuilt.localDnsPort).assertEqual(1053);
       expect(rebuilt.localSocksEnabled).assertTrue();
+      expect(rebuilt.appendHttpProxy).assertTrue();
       expect(rebuilt.localSocksPort).assertEqual(10818);
       expect(rebuilt.localSocksDynamicPort).assertTrue();
       expect(rebuilt.localSocksUdpEnabled).assertFalse();
@@ -1334,6 +1344,9 @@ export default function localUnitTest() {
       expect(SETTINGS_CONTROLLER.buildSettings(draft).realPingConcurrency).assertEqual(16);
       draft.uiModeNight = 'bad';
       expect(SETTINGS_CONTROLLER.buildSettings(draft).uiModeNight).assertEqual('0');
+      draft.localSocksEnabled = false;
+      draft.appendHttpProxy = true;
+      expect(SETTINGS_CONTROLLER.buildSettings(draft).appendHttpProxy).assertFalse();
     });
 
     it('normalizes real ping concurrency like v2rayNG', 0, () => {

@@ -1624,7 +1624,8 @@ struct Index {
   }
 
   private subscriptionProxyPort(): number {
-    return this.isRunning() && this.currentSettings.appendHttpProxy ? LOCAL_HTTP_PROXY_PORT : 0;
+    return this.isRunning() && this.currentSettings.appendHttpProxy && this.currentSettings.localSocksEnabled ?
+      LOCAL_HTTP_PROXY_PORT : 0;
   }
 
   private async reconnectService(): Promise<void> {

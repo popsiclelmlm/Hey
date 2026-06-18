@@ -138,7 +138,8 @@ export class RuntimeController {
   }
 
   private async appendRemoteIpInfo(profile: ProxyProfile, settings: AppSettings, language: AppLanguage): Promise<void> {
-    if (this.status !== ConnectionStatus.RUNNING || !settings.appendHttpProxy || (profile.configType ?? 'outbound') === 'full') {
+    if (this.status !== ConnectionStatus.RUNNING || !settings.appendHttpProxy || !settings.localSocksEnabled ||
+      (profile.configType ?? 'outbound') === 'full') {
       return;
     }
     const result: RemoteIpInfoResult = await fetchRemoteIpInfo(settings.ipApiUrl, LOCAL_HTTP_PROXY_PORT);

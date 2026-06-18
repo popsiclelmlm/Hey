@@ -432,10 +432,13 @@ struct SettingsPage {
         this.settingProxySharing = !this.settingProxySharing;
         break;
       case 'appendHttpProxy':
-        this.settingAppendHttpProxy = !this.settingAppendHttpProxy;
+        this.settingAppendHttpProxy = this.settingLocalSocks ? !this.settingAppendHttpProxy : false;
         break;
       case 'localSocks':
         this.settingLocalSocks = !this.settingLocalSocks;
+        if (!this.settingLocalSocks) {
+          this.settingAppendHttpProxy = false;
+        }
         break;
       case 'localSocksDynamicPort':
         this.settingLocalSocksDynamicPort = !this.settingLocalSocksDynamicPort;

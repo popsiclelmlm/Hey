@@ -254,7 +254,8 @@ struct ScannerPage {
       const settings = await SETTINGS_CONTROLLER.load(context);
       this.language = settings.language;
       this.startScanImmediate = settings.startScanImmediate;
-      this.subscriptionProxyPort = settings.appendHttpProxy && SHARED_RUNTIME_CONTROLLER.isRunning() ? LOCAL_HTTP_PROXY_PORT : 0;
+      this.subscriptionProxyPort = settings.appendHttpProxy && settings.localSocksEnabled &&
+        SHARED_RUNTIME_CONTROLLER.isRunning() ? LOCAL_HTTP_PROXY_PORT : 0;
       this.selectedNodeId = (await NODES_CONTROLLER.load(context, this.language)).selectedNodeId;
       this.tryStartImmediateScan();
     } catch (error) {

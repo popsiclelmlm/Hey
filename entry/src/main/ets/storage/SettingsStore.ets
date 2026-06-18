@@ -114,6 +114,7 @@ export class SettingsStore {
 
   private static normalize(raw: AppSettings): AppSettings {
     const base = SettingsStore.copy(DEFAULT_APP_SETTINGS);
+    const localSocksEnabled = SettingsStore.boolValue(raw.localSocksEnabled, base.localSocksEnabled);
     return {
       language: normalizeLanguage(raw.language),
       uiModeNight: normalizeUiModeNight(raw.uiModeNight, base.uiModeNight),
@@ -131,8 +132,8 @@ export class SettingsStore {
       perAppProxyBypass: SettingsStore.boolValue(raw.perAppProxyBypass, base.perAppProxyBypass),
       localDnsEnabled: SettingsStore.boolValue(raw.localDnsEnabled, base.localDnsEnabled),
       fakeDnsEnabled: SettingsStore.boolValue(raw.fakeDnsEnabled, base.fakeDnsEnabled),
-      appendHttpProxy: SettingsStore.boolValue(raw.appendHttpProxy, base.appendHttpProxy),
-      localSocksEnabled: SettingsStore.boolValue(raw.localSocksEnabled, base.localSocksEnabled),
+      appendHttpProxy: SettingsStore.boolValue(raw.appendHttpProxy, base.appendHttpProxy) && localSocksEnabled,
+      localSocksEnabled,
       localSocksPort: SettingsStore.portValue(raw.localSocksPort, base.localSocksPort),
       localSocksDynamicPort: SettingsStore.boolValue(raw.localSocksDynamicPort, base.localSocksDynamicPort),
       localSocksUdpEnabled: SettingsStore.boolValue(raw.localSocksUdpEnabled, base.localSocksUdpEnabled),

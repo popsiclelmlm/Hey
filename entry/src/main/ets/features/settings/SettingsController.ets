@@ -130,6 +130,7 @@ export class SettingsController {
   }
 
   buildSettings(draft: SettingsDraft): AppSettings {
+    const localSocksEnabled = draft.localSocksEnabled;
     return {
       language: draft.language,
       uiModeNight: normalizeUiModeNight(draft.uiModeNight, DEFAULT_APP_SETTINGS.uiModeNight),
@@ -147,8 +148,8 @@ export class SettingsController {
       perAppProxyBypass: draft.perAppProxyBypass,
       localDnsEnabled: draft.localDnsEnabled,
       fakeDnsEnabled: draft.fakeDnsEnabled,
-      appendHttpProxy: draft.appendHttpProxy,
-      localSocksEnabled: draft.localSocksEnabled,
+      appendHttpProxy: draft.appendHttpProxy && localSocksEnabled,
+      localSocksEnabled,
       localSocksPort: this.portValue(draft.localSocksPort, DEFAULT_APP_SETTINGS.localSocksPort),
       localSocksDynamicPort: draft.localSocksDynamicPort,
       localSocksUdpEnabled: draft.localSocksUdpEnabled,

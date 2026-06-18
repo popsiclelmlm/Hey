@@ -1281,7 +1281,7 @@ function buildXrayConfigFromOutbounds(
   const vpnMode = settings === undefined || isVpnRuntimeMode(settings.mode);
   const proxyOnlyMode = settings !== undefined && isProxyOnlyRuntimeMode(settings.mode);
   const localSocksEnabled = settings !== undefined && (settings.localSocksEnabled || proxyOnlyMode);
-  const appendHttpProxy = settings !== undefined && settings.appendHttpProxy;
+  const appendHttpProxy = settings !== undefined && settings.appendHttpProxy && settings.localSocksEnabled;
   const directOutbound: XrayOutbound = {
     tag: 'direct',
     protocol: 'freedom',
@@ -1431,8 +1431,8 @@ function buildXrayConfigFromOutbounds(
     config.burstObservatory = burstObservatory;
   }
 
-  const runtimeHttpProxyHost = settings !== undefined && settings.appendHttpProxy ? resolveLocalProxyHost(settings) : undefined;
-  const runtimeHttpProxyPort = settings !== undefined && settings.appendHttpProxy ? LOCAL_HTTP_PROXY_PORT : undefined;
+  const runtimeHttpProxyHost = appendHttpProxy ? resolveLocalProxyHost(settings as AppSettings) : undefined;
+  const runtimeHttpProxyPort = appendHttpProxy ? LOCAL_HTTP_PROXY_PORT : undefined;
   const runtimeSocksHost = localSocksEnabled ? resolveLocalProxyHost(settings as AppSettings) : undefined;
   const runtimeSocksPort = localSocksEnabled ? (settings as AppSettings).localSocksPort : undefined;
 

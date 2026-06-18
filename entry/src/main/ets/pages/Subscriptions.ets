@@ -253,7 +253,8 @@ struct SubscriptionsPage {
       const settings = await SETTINGS_CONTROLLER.load(context);
       this.language = settings.language;
       this.confirmRemove = settings.confirmRemove;
-      this.subscriptionProxyPort = settings.appendHttpProxy && SHARED_RUNTIME_CONTROLLER.isRunning() ? LOCAL_HTTP_PROXY_PORT : 0;
+      this.subscriptionProxyPort = settings.appendHttpProxy && settings.localSocksEnabled &&
+        SHARED_RUNTIME_CONTROLLER.isRunning() ? LOCAL_HTTP_PROXY_PORT : 0;
       this.applySubscriptionsState(await SUBSCRIPTIONS_CONTROLLER.load(context, this.language));
     } finally {
       this.isBusy = false;
