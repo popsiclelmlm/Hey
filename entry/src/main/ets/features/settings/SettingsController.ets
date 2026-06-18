@@ -19,7 +19,13 @@ export interface SettingsDraft {
   localSocksUsername: string;
   localSocksPassword: string;
   muxEnabled: boolean;
+  muxConcurrency: string;
+  muxXudpConcurrency: string;
+  muxXudpQuic: string;
   fragmentEnabled: boolean;
+  fragmentPackets: string;
+  fragmentLength: string;
+  fragmentInterval: string;
   preferIpv6: boolean;
   proxySharingEnabled: boolean;
   allowInsecure: boolean;
@@ -67,7 +73,13 @@ export class SettingsController {
       localSocksUsername: settings.localSocksUsername,
       localSocksPassword: settings.localSocksPassword,
       muxEnabled: settings.muxEnabled,
+      muxConcurrency: settings.muxConcurrency.toString(),
+      muxXudpConcurrency: settings.muxXudpConcurrency.toString(),
+      muxXudpQuic: settings.muxXudpQuic,
       fragmentEnabled: settings.fragmentEnabled,
+      fragmentPackets: settings.fragmentPackets,
+      fragmentLength: settings.fragmentLength,
+      fragmentInterval: settings.fragmentInterval,
       preferIpv6: settings.preferIpv6,
       proxySharingEnabled: settings.proxySharingEnabled,
       allowInsecure: settings.allowInsecure,
@@ -107,13 +119,13 @@ export class SettingsController {
       localSocksUsername: draft.localSocksUsername.trim(),
       localSocksPassword: draft.localSocksPassword.trim(),
       muxEnabled: draft.muxEnabled,
-      muxConcurrency: DEFAULT_APP_SETTINGS.muxConcurrency,
-      muxXudpConcurrency: DEFAULT_APP_SETTINGS.muxXudpConcurrency,
-      muxXudpQuic: DEFAULT_APP_SETTINGS.muxXudpQuic,
+      muxConcurrency: this.positiveIntValue(draft.muxConcurrency, DEFAULT_APP_SETTINGS.muxConcurrency),
+      muxXudpConcurrency: this.positiveIntValue(draft.muxXudpConcurrency, DEFAULT_APP_SETTINGS.muxXudpConcurrency),
+      muxXudpQuic: this.muxXudpQuicValue(draft.muxXudpQuic, DEFAULT_APP_SETTINGS.muxXudpQuic),
       fragmentEnabled: draft.fragmentEnabled,
-      fragmentPackets: DEFAULT_APP_SETTINGS.fragmentPackets,
-      fragmentLength: DEFAULT_APP_SETTINGS.fragmentLength,
-      fragmentInterval: DEFAULT_APP_SETTINGS.fragmentInterval,
+      fragmentPackets: this.nonEmptyString(draft.fragmentPackets, DEFAULT_APP_SETTINGS.fragmentPackets),
+      fragmentLength: this.nonEmptyString(draft.fragmentLength, DEFAULT_APP_SETTINGS.fragmentLength),
+      fragmentInterval: this.nonEmptyString(draft.fragmentInterval, DEFAULT_APP_SETTINGS.fragmentInterval),
       preferIpv6: draft.preferIpv6,
       proxySharingEnabled: draft.proxySharingEnabled,
       allowInsecure: draft.allowInsecure,
@@ -126,7 +138,7 @@ export class SettingsController {
       domesticDns: draft.domesticDns.trim(),
       dnsHosts: DEFAULT_APP_SETTINGS.dnsHosts,
       delayTestUrl: draft.delayTestUrl.trim(),
-      logLevel: draft.logLevel.trim().length > 0 ? draft.logLevel.trim() : DEFAULT_APP_SETTINGS.logLevel,
+      logLevel: this.logLevelValue(draft.logLevel, DEFAULT_APP_SETTINGS.logLevel),
       mode: DEFAULT_APP_SETTINGS.mode,
       trafficMode: draft.trafficMode,
       routingDomainStrategy: draft.routingDomainStrategy,
@@ -184,6 +196,44 @@ export class SettingsController {
       return fallback;
     }
     return port;
+  }
+
+  private positiveIntValue(value: string, fallback: number): number {
+    const normalized = value.trim();
+    if (normalized.length === 0) {
+      return fallback;
+    }
+    const parsed = Number(normalized);
+    if (Number.isNaN(parsed)) {
+      return fallback;
+    }
+    const result = Math.floor(parsed);
+    if (result < 1 || result > 1024) {
+      return fallback;
+    }
+    return result;
+  }
+
+  private nonEmptyString(value: string, fallback: string): string {
+    const normalized = value.trim();
+    return normalized.length > 0 ? normalized : fallback;
+  }
+
+  private muxXudpQuicValue(value: string, fallback: string): string {
+    const normalized = value.trim();
+    if (normalized === 'reject' || normalized === 'allow' || normalized === 'skip') {
+      return normalized;
+    }
+    return fallback;
+  }
+
+  private logLevelValue(value: string, fallback: string): string {
+    const normalized = value.trim();
+    if (normalized === 'debug' || normalized === 'info' || normalized === 'warning' ||
+      normalized === 'error' || normalized === 'none') {
+      return normalized;
+    }
+    return fallback;
   }
 
 }

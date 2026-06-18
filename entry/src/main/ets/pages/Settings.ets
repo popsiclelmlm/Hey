@@ -38,7 +38,13 @@ struct SettingsPage {
   @State private settingLocalSocksUsername: string = '';
   @State private settingLocalSocksPassword: string = '';
   @State private settingMux: boolean = false;
+  @State private settingMuxConcurrency: string = '8';
+  @State private settingMuxXudpConcurrency: string = '8';
+  @State private settingMuxXudpQuic: string = 'reject';
   @State private settingFragment: boolean = false;
+  @State private settingFragmentPackets: string = 'tlshello';
+  @State private settingFragmentLength: string = '50-100';
+  @State private settingFragmentInterval: string = '10-20';
   @State private settingPreferIpv6: boolean = false;
   @State private settingProxySharing: boolean = false;
   @State private settingAllowInsecure: boolean = false;
@@ -150,8 +156,24 @@ struct SettingsPage {
           SectionHeader({ title: this.t('settings.transport'), detail: this.t('settings.transport.detail') })
           Column() {
             this.SettingToggle(this.t('settings.mux'), this.settingMux, 'mux')
+            if (this.settingMux) {
+              this.RowDivider()
+              this.SettingInput(this.t('settings.muxConcurrency'), this.settingMuxConcurrency, 'muxConcurrency')
+              this.RowDivider()
+              this.SettingInput(this.t('settings.muxXudpConcurrency'), this.settingMuxXudpConcurrency, 'muxXudpConcurrency')
+              this.RowDivider()
+              this.SettingOption(this.t('settings.muxXudpQuic'), this.muxXudpQuicLabel(), 'muxXudpQuic')
+            }
             this.RowDivider()
             this.SettingToggle(this.t('settings.fragment'), this.settingFragment, 'fragment')
+            if (this.settingFragment) {
+              this.RowDivider()
+              this.SettingInput(this.t('settings.fragmentPackets'), this.settingFragmentPackets, 'fragmentPackets')
+              this.RowDivider()
+              this.SettingInput(this.t('settings.fragmentLength'), this.settingFragmentLength, 'fragmentLength')
+              this.RowDivider()
+              this.SettingInput(this.t('settings.fragmentInterval'), this.settingFragmentInterval, 'fragmentInterval')
+            }
           }
           .width('100%')
           .backgroundColor(AppColor.surface)
@@ -168,7 +190,7 @@ struct SettingsPage {
             this.RowDivider()
             this.SettingInput(this.t('settings.delayTestUrl'), this.settingDelayTestUrl, 'delayTestUrl')
             this.RowDivider()
-            this.SettingInput(this.t('settings.logLevel'), this.settingLogLevel, 'logLevel')
+            this.SettingOption(this.t('settings.logLevel'), this.logLevelLabel(), 'logLevel')
           }
           .width('100%')
           .backgroundColor(AppColor.surface)
@@ -393,8 +415,20 @@ struct SettingsPage {
       case 'delayTestUrl':
         this.settingDelayTestUrl = value;
         break;
-      case 'logLevel':
-        this.settingLogLevel = value;
+      case 'muxConcurrency':
+        this.settingMuxConcurrency = value;
+        break;
+      case 'muxXudpConcurrency':
+        this.settingMuxXudpConcurrency = value;
+        break;
+      case 'fragmentPackets':
+        this.settingFragmentPackets = value;
+        break;
+      case 'fragmentLength':
+        this.settingFragmentLength = value;
+        break;
+      case 'fragmentInterval':
+        this.settingFragmentInterval = value;
         break;
       default:
         break;
@@ -444,7 +478,13 @@ struct SettingsPage {
       localSocksUsername: this.settingLocalSocksUsername,
       localSocksPassword: this.settingLocalSocksPassword,
       muxEnabled: this.settingMux,
+      muxConcurrency: this.settingMuxConcurrency,
+      muxXudpConcurrency: this.settingMuxXudpConcurrency,
+      muxXudpQuic: this.settingMuxXudpQuic,
       fragmentEnabled: this.settingFragment,
+      fragmentPackets: this.settingFragmentPackets,
+      fragmentLength: this.settingFragmentLength,
+      fragmentInterval: this.settingFragmentInterval,
       preferIpv6: this.settingPreferIpv6,
       proxySharingEnabled: this.settingProxySharing,
       allowInsecure: this.settingAllowInsecure,
@@ -483,7 +523,13 @@ struct SettingsPage {
     this.settingLocalSocksUsername = draft.localSocksUsername;
     this.settingLocalSocksPassword = draft.localSocksPassword;
     this.settingMux = draft.muxEnabled;
+    this.settingMuxConcurrency = draft.muxConcurrency;
+    this.settingMuxXudpConcurrency = draft.muxXudpConcurrency;
+    this.settingMuxXudpQuic = draft.muxXudpQuic;
     this.settingFragment = draft.fragmentEnabled;
+    this.settingFragmentPackets = draft.fragmentPackets;
+    this.settingFragmentLength = draft.fragmentLength;
+    this.settingFragmentInterval = draft.fragmentInterval;
     this.settingPreferIpv6 = draft.preferIpv6;
     this.settingProxySharing = draft.proxySharingEnabled;
     this.settingAllowInsecure = draft.allowInsecure;
@@ -532,6 +578,14 @@ struct SettingsPage {
     }
     if (action === 'vpnInterfaceAddress') {
       this.showVpnInterfaceAddressMenu();
+      return;
+    }
+    if (action === 'logLevel') {
+      this.showLogLevelMenu();
+      return;
+    }
+    if (action === 'muxXudpQuic') {
+      this.showMuxXudpQuicMenu();
     }
   }
 
@@ -600,6 +654,48 @@ struct SettingsPage {
     });
   }
 
+  private showLogLevelMenu(): void {
+    const values: string[] = ['debug', 'info', 'warning', 'error', 'none'];
+    const buttons: [promptAction.Button, promptAction.Button, promptAction.Button, promptAction.Button, promptAction.Button] = [
+      { text: this.t('settings.logLevel.debug'), color: AppColor.brand } as promptAction.Button,
+      { text: this.t('settings.logLevel.info'), color: AppColor.brand } as promptAction.Button,
+      { text: this.t('settings.logLevel.warning'), color: AppColor.brand } as promptAction.Button,
+      { text: this.t('settings.logLevel.error'), color: AppColor.brand } as promptAction.Button,
+      { text: this.t('settings.logLevel.none'), color: AppColor.brand } as promptAction.Button
+    ];
+
+    promptAction.showActionMenu({
+      title: this.t('settings.logLevel'),
+      buttons
+    }).then((result) => {
+      if (result.index >= 0 && result.index < values.length) {
+        this.settingLogLevel = values[result.index];
+        SHARED_RUNTIME_CONTROLLER.appendLog(this.f1('log.settingsChanged', 'action', this.t('settings.logLevel')));
+        this.persistSettings(false);
+      }
+    });
+  }
+
+  private showMuxXudpQuicMenu(): void {
+    const values: string[] = ['reject', 'allow', 'skip'];
+    const buttons: [promptAction.Button, promptAction.Button, promptAction.Button] = [
+      { text: this.t('settings.muxXudpQuic.reject'), color: AppColor.brand } as promptAction.Button,
+      { text: this.t('settings.muxXudpQuic.allow'), color: AppColor.brand } as promptAction.Button,
+      { text: this.t('settings.muxXudpQuic.skip'), color: AppColor.brand } as promptAction.Button
+    ];
+
+    promptAction.showActionMenu({
+      title: this.t('settings.muxXudpQuic'),
+      buttons
+    }).then((result) => {
+      if (result.index >= 0 && result.index < values.length) {
+        this.settingMuxXudpQuic = values[result.index];
+        SHARED_RUNTIME_CONTROLLER.appendLog(this.f1('log.settingsChanged', 'action', this.t('settings.muxXudpQuic')));
+        this.persistSettings(false);
+      }
+    });
+  }
+
   private toActionMenuButtons(buttons: Array<promptAction.Button>): [promptAction.Button, promptAction.Button?, promptAction.Button?, promptAction.Button?, promptAction.Button?, promptAction.Button?] {
     return buttons as [promptAction.Button, promptAction.Button?, promptAction.Button?, promptAction.Button?, promptAction.Button?, promptAction.Button?];
   }
@@ -616,6 +712,32 @@ struct SettingsPage {
       return this.t('settings.vpnBypassLan.proxy');
     }
     return this.t('settings.vpnBypassLan.bypass');
+  }
+
+  private logLevelLabel(): string {
+    if (this.settingLogLevel === 'debug') {
+      return this.t('settings.logLevel.debug');
+    }
+    if (this.settingLogLevel === 'info') {
+      return this.t('settings.logLevel.info');
+    }
+    if (this.settingLogLevel === 'error') {
+      return this.t('settings.logLevel.error');
+    }
+    if (this.settingLogLevel === 'none') {
+      return this.t('settings.logLevel.none');
+    }
+    return this.t('settings.logLevel.warning');
+  }
+
+  private muxXudpQuicLabel(): string {
+    if (this.settingMuxXudpQuic === 'allow') {
+      return this.t('settings.muxXudpQuic.allow');
+    }
+    if (this.settingMuxXudpQuic === 'skip') {
+      return this.t('settings.muxXudpQuic.skip');
+    }
+    return this.t('settings.muxXudpQuic.reject');
   }
 
   private t(key: string): string {

@@ -697,6 +697,15 @@ export default function localUnitTest() {
       settings.vpnInterfaceAddressIndex = 5;
       settings.vpnBypassLan = '2';
       settings.vpnMtu = 1420;
+      settings.muxEnabled = true;
+      settings.muxConcurrency = 16;
+      settings.muxXudpConcurrency = 12;
+      settings.muxXudpQuic = 'allow';
+      settings.fragmentEnabled = true;
+      settings.fragmentPackets = '1-2';
+      settings.fragmentLength = '100-200';
+      settings.fragmentInterval = '5-8';
+      settings.logLevel = 'error';
       const draft = SETTINGS_CONTROLLER.toDraft(settings);
       expect(draft.preferIpv6).assertTrue();
       expect(draft.localDnsPort).assertEqual('1053');
@@ -709,6 +718,15 @@ export default function localUnitTest() {
       expect(draft.vpnInterfaceAddressIndex).assertEqual(5);
       expect(draft.vpnBypassLan).assertEqual('2');
       expect(draft.vpnMtu).assertEqual('1420');
+      expect(draft.muxEnabled).assertTrue();
+      expect(draft.muxConcurrency).assertEqual('16');
+      expect(draft.muxXudpConcurrency).assertEqual('12');
+      expect(draft.muxXudpQuic).assertEqual('allow');
+      expect(draft.fragmentEnabled).assertTrue();
+      expect(draft.fragmentPackets).assertEqual('1-2');
+      expect(draft.fragmentLength).assertEqual('100-200');
+      expect(draft.fragmentInterval).assertEqual('5-8');
+      expect(draft.logLevel).assertEqual('error');
       const rebuilt = SETTINGS_CONTROLLER.buildSettings(draft);
       expect(rebuilt.preferIpv6).assertTrue();
       expect(rebuilt.localDnsPort).assertEqual(1053);
@@ -721,6 +739,15 @@ export default function localUnitTest() {
       expect(rebuilt.vpnInterfaceAddressIndex).assertEqual(5);
       expect(rebuilt.vpnBypassLan).assertEqual('2');
       expect(rebuilt.vpnMtu).assertEqual(1420);
+      expect(rebuilt.muxEnabled).assertTrue();
+      expect(rebuilt.muxConcurrency).assertEqual(16);
+      expect(rebuilt.muxXudpConcurrency).assertEqual(12);
+      expect(rebuilt.muxXudpQuic).assertEqual('allow');
+      expect(rebuilt.fragmentEnabled).assertTrue();
+      expect(rebuilt.fragmentPackets).assertEqual('1-2');
+      expect(rebuilt.fragmentLength).assertEqual('100-200');
+      expect(rebuilt.fragmentInterval).assertEqual('5-8');
+      expect(rebuilt.logLevel).assertEqual('error');
 
       draft.vpnInterfaceAddressIndex = 99;
       expect(SETTINGS_CONTROLLER.buildSettings(draft).vpnInterfaceAddressIndex).assertEqual(0);
@@ -736,6 +763,16 @@ export default function localUnitTest() {
       expect(SETTINGS_CONTROLLER.buildSettings(draft).vpnMtu).assertEqual(1400);
       draft.vpnMtu = '';
       expect(SETTINGS_CONTROLLER.buildSettings(draft).vpnMtu).assertEqual(1400);
+      draft.muxConcurrency = '0';
+      expect(SETTINGS_CONTROLLER.buildSettings(draft).muxConcurrency).assertEqual(8);
+      draft.muxXudpConcurrency = 'bad';
+      expect(SETTINGS_CONTROLLER.buildSettings(draft).muxXudpConcurrency).assertEqual(8);
+      draft.muxXudpQuic = 'bad';
+      expect(SETTINGS_CONTROLLER.buildSettings(draft).muxXudpQuic).assertEqual('reject');
+      draft.fragmentPackets = '';
+      expect(SETTINGS_CONTROLLER.buildSettings(draft).fragmentPackets).assertEqual('tlshello');
+      draft.logLevel = 'verbose';
+      expect(SETTINGS_CONTROLLER.buildSettings(draft).logLevel).assertEqual('warning');
     });
 
     it('formats runtime values through shared helpers', 0, () => {
