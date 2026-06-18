@@ -1575,13 +1575,18 @@ export default function localUnitTest() {
     });
 
     it('imports vmess and shadowsocks share links as outbound json', 0, () => {
-      const vmess = 'vmess://eyJ2IjoiMiIsInBzIjoidm1lc3MtZGVtbyIsImFkZCI6ImV4YW1wbGUuY29tIiwicG9ydCI6IjQ0MyIsImlkIjoiMDAwMDAwMDAtMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAwIiwiYWlkIjoiMCIsInNjeSI6ImF1dG8iLCJuZXQiOiJ3cyIsInR5cGUiOiJub25lIiwiaG9zdCI6ImNkbi5leGFtcGxlIiwicGF0aCI6Ii93cyIsInRscyI6InRscyIsInNuaSI6InZtZXNzLmV4YW1wbGUiLCJmcCI6ImNocm9tZSIsImFscG4iOiJoMiJ9';
+      const vmess = 'vmess://eyJ2IjoiMiIsInBzIjoidm1lc3MtaW5zZWN1cmUiLCJhZGQiOiJleGFtcGxlLmNvbSIsInBvcnQiOiI0NDMiLCJpZCI6IjAwMDAwMDAwLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMCIsImFpZCI6IjAiLCJzY3kiOiJhdXRvIiwibmV0Ijoid3MiLCJ0eXBlIjoibm9uZSIsImhvc3QiOiJjZG4uZXhhbXBsZSIsInBhdGgiOiIvd3MiLCJ0bHMiOiJ0bHMiLCJzbmkiOiJ2bWVzcy5leGFtcGxlIiwiZnAiOiJjaHJvbWUiLCJhbHBuIjoiaDIiLCJpbnNlY3VyZSI6IjEifQ==';
       const ss = 'ss://YWVzLTEyOC1nY206c2VjcmV0QGV4YW1wbGUuY29tOjgzODg=#ss-demo';
 
       const vmessResult = parseShareLinkToOutboundJson(vmess);
       expect(vmessResult.success).assertTrue();
       expect(vmessResult.outboundJson).assertContain('"protocol": "vmess"');
       expect(vmessResult.outboundJson).assertContain('"security": "auto"');
+      expect(vmessResult.outboundJson).assertContain('"allowInsecure": true');
+      const exportedVmess = formatOutboundJsonToShareLink(vmessResult.outboundJson, 'vmess-insecure');
+      const roundTripVmess = parseShareLinkToOutboundJson(exportedVmess);
+      expect(roundTripVmess.success).assertTrue();
+      expect(roundTripVmess.outboundJson).assertContain('"allowInsecure": true');
 
       const ssResult = parseShareLinkToOutboundJson(ss);
       expect(ssResult.success).assertTrue();

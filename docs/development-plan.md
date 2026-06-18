@@ -269,6 +269,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 - ✅ Reality 全参数（`spiderX`、`mldsa65Verify`/`pqv`）解析与下发：分享链接导入/导出、Clash.Meta 订阅解析和 NodeEdit Reality 表单均会保留后量子验签公钥（2026-06-18）
 - ✅ `flow`（`xtls-rprx-vision` / `xtls-rprx-vision-udp443`）字段：分享链接导入导出保留，NodeEdit 手动编辑选项对齐 v2rayNG（2026-06-19）
 - ✅ uTLS fingerprint（`fp`）：分享链接导入导出保留，NodeEdit 指纹选项对齐 v2rayNG `chrome/firefox/safari/ios/android/edge/360/qq/random/randomized`（2026-06-19）
+- ✅ VMess QR TLS insecure：旧版 VMess JSON 分享里的 `insecure=1` 会导入为 `tlsSettings.allowInsecure`，导出再导入仍保留（2026-06-19）
 - ✅ finalMask（`fm`）：分享链接导入导出保留 `streamSettings.finalmask`，NodeEdit 可填写 FinalMask raw JSON（2026-06-19）
 - ✅ TCP HTTP 头伪装：`type=tcp&headerType=http` 可导入导出，NodeEdit 手动编辑可选择 `none/http` 并写入 `tcpSettings.header.request`（2026-06-19）
 - ✅ HTTPUpgrade / XHTTP 传输参数：`httpupgrade` host/path 导入导出保留，NodeEdit 可选择；XHTTP `mode/extra` 可手动填写并导入导出保留（2026-06-19）
@@ -418,6 +419,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-19 | M3 | ✅ 分应用自动选择完成（PerApp 页新增自动选择需代理应用，使用内置代理应用清单并保留 v2rayNG `com.google*` 强制匹配、WebView 排除和 bypass 补集语义；补 helper 单测） |
 | 2026-06-19 | M4 | ✅ 订阅链接二维码/分享完成（订阅详情页生成订阅 URL QR，支持复制与系统分享；订阅分组左滑分享走 Harmony `sendData`，失败回退剪贴板；补分享 Want 单测） |
 | 2026-06-19 | 协议点检 | ✅ `flow`/uTLS 指纹选项完成（NodeEdit 手动编辑补齐 `xtls-rprx-vision-udp443` 与 `ios/android/randomized` 指纹选项，分享链接导入导出保留这些值；补选项和 round-trip 单测） |
+| 2026-06-19 | 协议点检 | ✅ VMess QR TLS insecure 完成（旧版 VMess JSON `insecure=1` 导入为 `tlsSettings.allowInsecure`，导出后再导入仍保留；补 round-trip 单测） |
 | 2026-06-19 | 协议点检 | ✅ finalMask `fm` 完成（分享链接 `fm` raw JSON 导入为 `streamSettings.finalmask`，导出保留；NodeEdit 手动编辑可填写 FinalMask JSON；补 round-trip 单测） |
 | 2026-06-19 | 协议点检 | ✅ TCP HTTP 头伪装完成（NodeEdit 可选择 v2rayNG `none/http`，保存 `tcpSettings.header.request`；分享链接 `headerType=http` host/path round-trip 保留） |
 | 2026-06-19 | 协议点检 | ✅ HTTPUpgrade/XHTTP 传输参数完成（分享链接 `type=httpupgrade` 的 host/path 导出不再丢失，NodeEdit 可选择 httpupgrade；XHTTP `mode/extra` 可手动填写并 round-trip 保留；补传输选项与参数单测） |

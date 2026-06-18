@@ -426,6 +426,7 @@ function parseVmessLink(input: string): ShareLinkParseResult {
   query.set('sni', valueOr(vmess.sni, ''));
   query.set('fp', valueOr(vmess.fp, ''));
   query.set('alpn', valueOr(vmess.alpn, ''));
+  query.set('insecure', valueOr(vmess.insecure, ''));
   const vmessNetwork = valueOr(vmess.net, '').toLowerCase();
   if (vmessNetwork === 'kcp') {
     query.set('seed', valueOr(vmess.path, ''));
