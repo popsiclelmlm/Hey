@@ -181,7 +181,7 @@ UDP 出站确认。VPN 接口 `dnsAddresses` 已于 2026-06-18 改为读取 `vpn
 **进展（2026-06-18 续）**：节点配置文件导出已落地：
 - Export 页可将当前分组导出内容复制到剪贴板或通过系统文件选择器保存为 `.txt`
 - 导出内容复用节点导出模型，分享链接节点输出 share link，完整自定义配置输出 JSON 文本
-- 系统分享面板仍待按 Harmony 能力补齐
+- ✅ 系统分享面板：Export 页批量文本、节点详情单节点链接均可拉起 Harmony `sendData` 分享；无可用目标时回退复制剪贴板（2026-06-18）
 
 **任务**
 - ✅ **完整自定义配置导入**：对应 v2rayNG `ServerCustomConfigActivity` 的粘贴导入与运行路径
@@ -304,5 +304,6 @@ UDP 出站确认。VPN 接口 `dnsAddresses` 已于 2026-06-18 改为读取 `vpn
 | 2026-06-18 | M3 | ✅ 订阅自动更新设置与前台到期刷新（`autoUpdate`/`updateIntervalMinutes` + 1440/15 分钟规则 + 首页节流到期刷新 + 单测）；后台任务调度仍待补 |
 | 2026-06-18 | M3 | ✅ 运行中经由本地 HTTP 代理更新订阅（`appendHttpProxy` 设置 + `http-in` inbound 10808 + 订阅拉取 `usingProxy` 优先/直连回退 + 单测） |
 | 2026-06-18 | M0 补点 | ✅ VPN 接口 DNS 不再写死，`settings.vpnDns` 会规范化后写入 Harmony `VpnConfig.dnsAddresses`，空值回退 `1.1.1.1/8.8.8.8` |
+| 2026-06-18 | M4 | ✅ 系统分享面板接入（批量导出文本 + 单节点分享链接走 `ohos.want.action.sendData`，失败回退剪贴板，并补分享 Want 单测） |
 | 2026-06-15 | 自查 | ✅ 字段一致性总扫：AppSettings/SettingsDraft 5 个构造点字段完整一致，SubscriptionGroup.filter 贯通，无需修改 |
 | 2026-06-15 | 自查 | ✅ 深链/metrics 配置形状核对 Xray 官方一致；自查清单收尾（净修复：预检非阻断 + 清理未用导入） |

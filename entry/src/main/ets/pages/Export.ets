@@ -8,6 +8,7 @@ import { buildNodeExportModel, NodeExportModel } from '../features/nodes/NodeOpe
 import { NODES_CONTROLLER } from '../features/nodes/NodesController';
 import { SETTINGS_CONTROLLER } from '../features/settings/SettingsController';
 import { SHARED_RUNTIME_CONTROLLER } from '../features/runtime/RuntimeController';
+import { shareText, TextShareResult } from '../services/SystemShare';
 import { SectionHeader } from '../components/SectionHeader';
 import { PageHeader } from '../shell/PageHeader';
 import { formatOne } from '../utils/LocalizationPresenter';
@@ -81,11 +82,22 @@ struct ExportPage {
               .height(44)
               .layoutWeight(1)
               .enabled(this.hasExportContent())
+              .backgroundColor(this.hasExportContent() ? AppColor.surfaceAlt : AppColor.border)
+              .fontColor(this.hasExportContent() ? AppColor.textPrimary : AppColor.textTertiary)
+              .borderRadius(Radius.pill)
+              .onClick(() => {
+                this.saveExportFile();
+              })
+
+            Button(this.t('action.share'))
+              .height(44)
+              .layoutWeight(1)
+              .enabled(this.hasExportContent())
               .backgroundColor(this.hasExportContent() ? AppColor.brand : AppColor.border)
               .fontColor(this.hasExportContent() ? AppColor.onBrand : AppColor.textTertiary)
               .borderRadius(Radius.pill)
               .onClick(() => {
-                this.saveExportFile();
+                this.shareExportContent();
               })
           }
           .width('100%')
@@ -155,6 +167,31 @@ struct ExportPage {
     } catch (error) {
       promptAction.showToast({ message: this.f1('export.fileFailed', 'error', JSON.stringify(error)) });
     }
+  }
+
+  private async shareExportContent(): Promise<void> {
+    if (!this.hasExportContent()) {
+      promptAction.showToast({ message: this.t('export.empty') });
+      return;
+    }
+
+    const context = getContext(this) as common.UIAbilityContext;
+    const result = await shareText(context, this.exportTitle, this.exportContent);
+    this.handleShareResult(result);
+  }
+
+  private handleShareResult(result: TextShareResult): void {
+    if (result.systemShareStarted) {
+      promptAction.showToast({ message: this.t('share.started') });
+      SHARED_RUNTIME_CONTROLLER.appendLog(this.t('share.started'));
+      return;
+    }
+    if (result.copiedToClipboard) {
+      promptAction.showToast({ message: this.t('share.fallbackCopied') });
+      SHARED_RUNTIME_CONTROLLER.appendLog(this.t('share.fallbackCopied'));
+      return;
+    }
+    promptAction.showToast({ message: this.f1('share.failed', 'error', result.errorMessage) });
   }
 
   private writeTextToUri(uri: string, content: string): void {

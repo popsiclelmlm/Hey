@@ -9,6 +9,7 @@ import { formatOutboundJsonToShareLink } from '../core/ShareLinkParser';
 import { NODES_CONTROLLER } from '../features/nodes/NodesController';
 import { SETTINGS_CONTROLLER } from '../features/settings/SettingsController';
 import { SHARED_RUNTIME_CONTROLLER } from '../features/runtime/RuntimeController';
+import { shareText, TextShareResult } from '../services/SystemShare';
 import { SectionHeader } from '../components/SectionHeader';
 import { PageHeader } from '../shell/PageHeader';
 import { formatOne } from '../utils/LocalizationPresenter';
@@ -147,16 +148,29 @@ struct NodeDetailPage {
                 .fontSize(FontSz.footnote)
                 .fontColor(AppColor.textTertiary)
                 .textAlign(TextAlign.Center)
-              Button(this.t('node.detail.copyLink'))
-                .height(40)
-                .width('100%')
-                .backgroundColor(AppColor.surfaceAlt)
-                .fontColor(AppColor.textPrimary)
-                .fontSize(FontSz.callout)
-                .borderRadius(Radius.pill)
-                .onClick(() => {
-                  this.copyShareLink();
-                })
+              Row({ space: Space.md }) {
+                Button(this.t('node.detail.copyLink'))
+                  .height(40)
+                  .layoutWeight(1)
+                  .backgroundColor(AppColor.surfaceAlt)
+                  .fontColor(AppColor.textPrimary)
+                  .fontSize(FontSz.callout)
+                  .borderRadius(Radius.pill)
+                  .onClick(() => {
+                    this.copyShareLink();
+                  })
+                Button(this.t('action.share'))
+                  .height(40)
+                  .layoutWeight(1)
+                  .backgroundColor(AppColor.brand)
+                  .fontColor(AppColor.onBrand)
+                  .fontSize(FontSz.callout)
+                  .borderRadius(Radius.pill)
+                  .onClick(() => {
+                    this.shareNodeLink();
+                  })
+              }
+              .width('100%')
             }
             .width('100%')
             .padding(Space.lg)
@@ -281,6 +295,28 @@ struct NodeDetailPage {
     } catch (error) {
       promptAction.showToast({ message: this.t('prompt.copiedToClipboard') });
     }
+  }
+
+  private async shareNodeLink(): Promise<void> {
+    const content = this.nodeShareLink();
+    if (content.length === 0) {
+      return;
+    }
+    const context = getContext(this) as common.UIAbilityContext;
+    const result = await shareText(context, this.node.name, content);
+    this.handleShareResult(result);
+  }
+
+  private handleShareResult(result: TextShareResult): void {
+    if (result.systemShareStarted) {
+      promptAction.showToast({ message: this.t('share.started') });
+      return;
+    }
+    if (result.copiedToClipboard) {
+      promptAction.showToast({ message: this.t('share.fallbackCopied') });
+      return;
+    }
+    promptAction.showToast({ message: this.f1('share.failed', 'error', result.errorMessage) });
   }
 
   private async selectNode(): Promise<void> {

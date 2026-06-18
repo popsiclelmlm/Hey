@@ -13,6 +13,7 @@ import {
 } from '../main/ets/core/SubscriptionGroups';
 import { dedupeNodes, exportNodesText, filterNodes, findInvalidNodes, sortNodes } from '../main/ets/features/nodes/NodeOperations';
 import { SubscriptionManager } from '../main/ets/services/SubscriptionManager';
+import { buildTextShareWant } from '../main/ets/services/SystemShare';
 import { formatBytes, formatDuration } from '../main/ets/utils/Formatters';
 import { formatOne, localizedProfileSavedText, localizeCoreMessage } from '../main/ets/utils/LocalizationPresenter';
 
@@ -251,6 +252,17 @@ export default function localUnitTest() {
       expect(formatBytes(512)).assertEqual('512 B');
       expect(formatBytes(2048)).assertEqual('2.0 KB');
       expect(formatDuration(65)).assertEqual('01:05');
+    });
+
+    it('builds system text share wants', 0, () => {
+      const want = buildTextShareWant('Hey nodes', '  vless://example  ');
+      const entities = want.entities === undefined ? [] : want.entities;
+      expect(want.action).assertEqual('ohos.want.action.sendData');
+      expect(want.type).assertEqual('text/plain');
+      expect(entities.join('|')).assertEqual('entity.system.default');
+      expect(want.parameters?.['ohos.extra.param.key.contentTitle']?.toString()).assertEqual('Hey nodes');
+      expect(want.parameters?.['ohos.extra.param.key.shareAbstract']?.toString()).assertEqual('vless://example');
+      expect(want.parameters?.['ohos.extra.param.key.shareUrl']?.toString()).assertEqual('vless://example');
     });
 
     it('filters nodes by name protocol and source', 0, () => {
