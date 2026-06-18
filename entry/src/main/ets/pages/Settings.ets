@@ -31,6 +31,11 @@ struct SettingsPage {
   @State private settingLocalDns: boolean = false;
   @State private settingFakeDns: boolean = false;
   @State private settingAppendHttpProxy: boolean = false;
+  @State private settingLocalSocks: boolean = false;
+  @State private settingLocalSocksPort: string = '10809';
+  @State private settingLocalSocksUdp: boolean = true;
+  @State private settingLocalSocksUsername: string = '';
+  @State private settingLocalSocksPassword: string = '';
   @State private settingMux: boolean = false;
   @State private settingFragment: boolean = false;
   @State private settingPreferIpv6: boolean = false;
@@ -111,6 +116,16 @@ struct SettingsPage {
             this.SettingToggle(this.t('settings.proxySharing'), this.settingProxySharing, 'proxySharing')
             this.RowDivider()
             this.SettingToggle(this.t('settings.appendHttpProxy'), this.settingAppendHttpProxy, 'appendHttpProxy')
+            this.RowDivider()
+            this.SettingToggle(this.t('settings.localSocks'), this.settingLocalSocks, 'localSocks')
+            this.RowDivider()
+            this.SettingInput(this.t('settings.localSocksPort'), this.settingLocalSocksPort, 'localSocksPort')
+            this.RowDivider()
+            this.SettingToggle(this.t('settings.localSocksUdp'), this.settingLocalSocksUdp, 'localSocksUdp')
+            this.RowDivider()
+            this.SettingInput(this.t('settings.localSocksUsername'), this.settingLocalSocksUsername, 'localSocksUsername')
+            this.RowDivider()
+            this.SettingInput(this.t('settings.localSocksPassword'), this.settingLocalSocksPassword, 'localSocksPassword')
             this.RowDivider()
             this.SettingToggle(this.t('settings.preferIpv6'), this.settingPreferIpv6, 'preferIpv6')
             this.RowDivider()
@@ -318,6 +333,12 @@ struct SettingsPage {
       case 'appendHttpProxy':
         this.settingAppendHttpProxy = !this.settingAppendHttpProxy;
         break;
+      case 'localSocks':
+        this.settingLocalSocks = !this.settingLocalSocks;
+        break;
+      case 'localSocksUdp':
+        this.settingLocalSocksUdp = !this.settingLocalSocksUdp;
+        break;
       case 'allowInsecure':
         this.settingAllowInsecure = !this.settingAllowInsecure;
         break;
@@ -347,6 +368,15 @@ struct SettingsPage {
         break;
       case 'localDnsPort':
         this.settingLocalDnsPort = value;
+        break;
+      case 'localSocksPort':
+        this.settingLocalSocksPort = value;
+        break;
+      case 'localSocksUsername':
+        this.settingLocalSocksUsername = value;
+        break;
+      case 'localSocksPassword':
+        this.settingLocalSocksPassword = value;
         break;
       case 'remoteDns':
         this.settingRemoteDns = value;
@@ -401,6 +431,11 @@ struct SettingsPage {
       localDnsEnabled: this.settingLocalDns,
       fakeDnsEnabled: this.settingFakeDns,
       appendHttpProxy: this.settingAppendHttpProxy,
+      localSocksEnabled: this.settingLocalSocks,
+      localSocksPort: this.settingLocalSocksPort,
+      localSocksUdpEnabled: this.settingLocalSocksUdp,
+      localSocksUsername: this.settingLocalSocksUsername,
+      localSocksPassword: this.settingLocalSocksPassword,
       muxEnabled: this.settingMux,
       fragmentEnabled: this.settingFragment,
       preferIpv6: this.settingPreferIpv6,
@@ -434,6 +469,11 @@ struct SettingsPage {
     this.settingLocalDns = draft.localDnsEnabled;
     this.settingFakeDns = draft.fakeDnsEnabled;
     this.settingAppendHttpProxy = draft.appendHttpProxy;
+    this.settingLocalSocks = draft.localSocksEnabled;
+    this.settingLocalSocksPort = draft.localSocksPort;
+    this.settingLocalSocksUdp = draft.localSocksUdpEnabled;
+    this.settingLocalSocksUsername = draft.localSocksUsername;
+    this.settingLocalSocksPassword = draft.localSocksPassword;
     this.settingMux = draft.muxEnabled;
     this.settingFragment = draft.fragmentEnabled;
     this.settingPreferIpv6 = draft.preferIpv6;

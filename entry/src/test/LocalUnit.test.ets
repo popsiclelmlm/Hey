@@ -3,7 +3,7 @@ import { formatTranslation, missingTranslationKeys, normalizeLanguage, translate
 import { buildManualHysteria2Outbound, buildManualWireguardOutbound } from '../main/ets/core/ManualOutboundBuilder';
 import { AppSettings, ProxyNode, RoutingRule, SubscriptionGroup } from '../main/ets/core/Profile';
 import { formatGeoCountSummary, formatGeoCountUnavailable, geoDataSpecForFile, parseGeoCountData } from '../main/ets/core/GeoAssets';
-import { DELAY_TEST_SOCKS_PORT, LOCAL_HTTP_PROXY_LAN_HOST, LOCAL_HTTP_PROXY_PORT, buildDelayTestConfig, buildRuntimeXrayConfig, buildXrayConfig, buildXrayConfigWithSettings, normalizeOutboundInput, validateFullConfigJson, validateOutboundJson } from '../main/ets/core/XrayConfig';
+import { DELAY_TEST_SOCKS_PORT, LOCAL_HTTP_PROXY_LAN_HOST, LOCAL_HTTP_PROXY_PORT, LOCAL_SOCKS_PROXY_PORT, buildDelayTestConfig, buildRuntimeXrayConfig, buildXrayConfig, buildXrayConfigWithSettings, normalizeOutboundInput, validateFullConfigJson, validateOutboundJson } from '../main/ets/core/XrayConfig';
 import { extractOutboundsFromXrayConfig } from '../main/ets/core/XrayOutbounds';
 import { parseShareLinkToOutboundJson } from '../main/ets/core/ShareLinkParser';
 import { exportRoutingRulesJson, importRoutingRulesJson, resetRoutingRulesFromPreset } from '../main/ets/core/RoutingRules';
@@ -184,6 +184,11 @@ export default function localUnitTest() {
         localDnsEnabled: false,
         fakeDnsEnabled: false,
         appendHttpProxy: false,
+        localSocksEnabled: false,
+        localSocksPort: LOCAL_SOCKS_PROXY_PORT,
+        localSocksUdpEnabled: true,
+        localSocksUsername: '',
+        localSocksPassword: '',
         muxEnabled: true,
         muxConcurrency: 4,
         muxXudpConcurrency: 4,
@@ -327,12 +332,38 @@ export default function localUnitTest() {
       expect(result.httpProxyHost).assertEqual(LOCAL_HTTP_PROXY_LAN_HOST);
     });
 
+    it('appends local socks proxy inbound with auth settings', 0, () => {
+      const settings = buildSettingsFixture();
+      let result = buildXrayConfigWithSettings(VLESS_REALITY_OUTBOUND, settings);
+      expect(result.configJson.indexOf('"tag": "socks-in"')).assertEqual(-1);
+
+      settings.localSocksEnabled = true;
+      settings.localSocksPort = 10818;
+      settings.localSocksUdpEnabled = false;
+      settings.localSocksUsername = 'user';
+      settings.localSocksPassword = 'pass';
+      result = buildXrayConfigWithSettings(VLESS_REALITY_OUTBOUND, settings);
+      expect(result.socksPort).assertEqual(10818);
+      expect(result.configJson).assertContain('"tag": "socks-in"');
+      expect(result.configJson).assertContain('"protocol": "socks"');
+      expect(result.configJson).assertContain('"auth": "password"');
+      expect(result.configJson).assertContain('"udp": false');
+      expect(result.configJson).assertContain('"user": "user"');
+      expect(result.configJson).assertContain('"pass": "pass"');
+      expect(result.configJson).assertContain('"outboundTag": "proxy"');
+
+      settings.proxySharingEnabled = true;
+      result = buildXrayConfigWithSettings(VLESS_REALITY_OUTBOUND, settings);
+      expect(result.socksHost).assertEqual(LOCAL_HTTP_PROXY_LAN_HOST);
+      expect(result.configJson).assertContain(`"listen": "${LOCAL_HTTP_PROXY_LAN_HOST}"`);
+    });
+
     it('uses requested socks port for delay test config', 0, () => {
       const customPort = 19081;
       const result = buildDelayTestConfig(VLESS_REALITY_OUTBOUND, customPort);
-      expect(result.configJson).assertContain('"tag": "delay_socks_in"');
-      expect(result.configJson).assertContain(`"port": ${customPort}`);
-      expect(result.configJson.indexOf(`"port": ${DELAY_TEST_SOCKS_PORT}`)).assertEqual(-1);
+      expect(result.configJson).assertContain('"tag":"socks-in"');
+      expect(result.configJson).assertContain(`"port":${customPort}`);
+      expect(result.configJson.indexOf(`"port":${DELAY_TEST_SOCKS_PORT}`)).assertEqual(-1);
     });
 
     it('applies prefer ipv6 to outbound happy eyeballs', 0, () => {
@@ -420,18 +451,33 @@ export default function localUnitTest() {
       const settings = buildSettingsFixture();
       settings.preferIpv6 = true;
       settings.localDnsPort = 1053;
+      settings.localSocksEnabled = true;
+      settings.localSocksPort = 10818;
+      settings.localSocksUdpEnabled = false;
+      settings.localSocksUsername = 'socks-user';
+      settings.localSocksPassword = 'socks-pass';
       settings.vpnInterfaceAddressIndex = 5;
       settings.vpnBypassLan = '2';
       settings.vpnMtu = 1420;
       const draft = SETTINGS_CONTROLLER.toDraft(settings);
       expect(draft.preferIpv6).assertTrue();
       expect(draft.localDnsPort).assertEqual('1053');
+      expect(draft.localSocksEnabled).assertTrue();
+      expect(draft.localSocksPort).assertEqual('10818');
+      expect(draft.localSocksUdpEnabled).assertFalse();
+      expect(draft.localSocksUsername).assertEqual('socks-user');
+      expect(draft.localSocksPassword).assertEqual('socks-pass');
       expect(draft.vpnInterfaceAddressIndex).assertEqual(5);
       expect(draft.vpnBypassLan).assertEqual('2');
       expect(draft.vpnMtu).assertEqual('1420');
       const rebuilt = SETTINGS_CONTROLLER.buildSettings(draft);
       expect(rebuilt.preferIpv6).assertTrue();
       expect(rebuilt.localDnsPort).assertEqual(1053);
+      expect(rebuilt.localSocksEnabled).assertTrue();
+      expect(rebuilt.localSocksPort).assertEqual(10818);
+      expect(rebuilt.localSocksUdpEnabled).assertFalse();
+      expect(rebuilt.localSocksUsername).assertEqual('socks-user');
+      expect(rebuilt.localSocksPassword).assertEqual('socks-pass');
       expect(rebuilt.vpnInterfaceAddressIndex).assertEqual(5);
       expect(rebuilt.vpnBypassLan).assertEqual('2');
       expect(rebuilt.vpnMtu).assertEqual(1420);
@@ -442,6 +488,8 @@ export default function localUnitTest() {
       expect(SETTINGS_CONTROLLER.buildSettings(draft).vpnBypassLan).assertEqual('1');
       draft.localDnsPort = '70000';
       expect(SETTINGS_CONTROLLER.buildSettings(draft).localDnsPort).assertEqual(10853);
+      draft.localSocksPort = '70000';
+      expect(SETTINGS_CONTROLLER.buildSettings(draft).localSocksPort).assertEqual(LOCAL_SOCKS_PROXY_PORT);
       draft.vpnMtu = '1279';
       expect(SETTINGS_CONTROLLER.buildSettings(draft).vpnMtu).assertEqual(1280);
       draft.vpnMtu = 'bad';
@@ -708,6 +756,11 @@ function buildSettingsFixture(): AppSettings {
     localDnsEnabled: false,
     fakeDnsEnabled: false,
     appendHttpProxy: false,
+    localSocksEnabled: false,
+    localSocksPort: LOCAL_SOCKS_PROXY_PORT,
+    localSocksUdpEnabled: true,
+    localSocksUsername: '',
+    localSocksPassword: '',
     muxEnabled: false,
     muxConcurrency: 8,
     muxXudpConcurrency: 8,

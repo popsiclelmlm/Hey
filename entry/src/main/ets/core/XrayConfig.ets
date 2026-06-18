@@ -50,6 +50,11 @@ interface XrayInboundConfig {
   sniffing?: XraySniffingConfig;
 }
 
+interface XraySocksAccount {
+  user: string;
+  pass: string;
+}
+
 interface XrayDnsConfig {
   servers: Array<string | XrayDnsServerConfig>;
   hosts?: Object;
@@ -100,9 +105,23 @@ interface XrayFullConfig {
 }
 
 class SocksInboundSettings {
-  auth: string = 'noauth';
-  udp: boolean = true;
+  auth: string;
+  udp: boolean;
   userLevel: number = 0;
+  accounts?: Array<XraySocksAccount>;
+
+  constructor(udp: boolean = true, username: string = '', password: string = '') {
+    this.udp = udp;
+    if (username.trim().length > 0 && password.trim().length > 0) {
+      this.auth = 'password';
+      this.accounts = [{
+        user: username.trim(),
+        pass: password.trim()
+      }];
+    } else {
+      this.auth = 'noauth';
+    }
+  }
 }
 
 class HttpInboundSettings {
@@ -133,6 +152,7 @@ export const DEFAULT_SOCKS_HOST: string = '127.0.0.1';
 export const LOCAL_HTTP_PROXY_HOST: string = '127.0.0.1';
 export const LOCAL_HTTP_PROXY_LAN_HOST: string = '0.0.0.0';
 export const LOCAL_HTTP_PROXY_PORT: number = 10808;
+export const LOCAL_SOCKS_PROXY_PORT: number = 10809;
 export const DELAY_TEST_SOCKS_PORT: number = 10825;
 // Local Xray metrics (expvar) endpoint. The generated VPN config exposes a
 // dokodemo inbound on this port routed to the metrics handler so that
@@ -484,7 +504,7 @@ function buildXrayConfigInternal(outboundJson: string, settings: AppSettings | u
 
   if (settings !== undefined && settings.appendHttpProxy) {
     const httpInboundTag = 'http-in';
-    const httpProxyHost = resolveLocalHttpProxyHost(settings);
+    const httpProxyHost = resolveLocalProxyHost(settings);
     const httpInbound: XrayInboundConfig = {
       tag: httpInboundTag,
       listen: httpProxyHost,
@@ -499,6 +519,27 @@ function buildXrayConfigInternal(outboundJson: string, settings: AppSettings | u
     };
     inbounds.push(httpInbound);
     routingRules.unshift(httpProxyRule);
+  }
+  if (settings !== undefined && settings.localSocksEnabled) {
+    const socksInboundTag = 'socks-in';
+    const socksInbound: XrayInboundConfig = {
+      tag: socksInboundTag,
+      listen: resolveLocalProxyHost(settings),
+      port: settings.localSocksPort,
+      protocol: 'socks',
+      settings: new SocksInboundSettings(
+        settings.localSocksUdpEnabled,
+        settings.localSocksUsername,
+        settings.localSocksPassword
+      )
+    };
+    const socksProxyRule: XrayRoutingRule = {
+      type: 'field',
+      inboundTag: [socksInboundTag],
+      outboundTag: 'proxy'
+    };
+    inbounds.push(socksInbound);
+    routingRules.unshift(socksProxyRule);
   }
   if (settings !== undefined && settings.localDnsEnabled) {
     const dnsOutbound: XrayOutbound = {
@@ -546,11 +587,15 @@ function buildXrayConfigInternal(outboundJson: string, settings: AppSettings | u
     config.fakedns = [new EmptySettings()];
   }
 
-  const runtimeHttpProxyHost = settings !== undefined && settings.appendHttpProxy ? resolveLocalHttpProxyHost(settings) : undefined;
+  const runtimeHttpProxyHost = settings !== undefined && settings.appendHttpProxy ? resolveLocalProxyHost(settings) : undefined;
   const runtimeHttpProxyPort = settings !== undefined && settings.appendHttpProxy ? LOCAL_HTTP_PROXY_PORT : undefined;
+  const runtimeSocksHost = settings !== undefined && settings.localSocksEnabled ? resolveLocalProxyHost(settings) : undefined;
+  const runtimeSocksPort = settings !== undefined && settings.localSocksEnabled ? settings.localSocksPort : undefined;
 
   return {
     configJson: JSON.stringify(config, null, 2),
+    socksHost: runtimeSocksHost,
+    socksPort: runtimeSocksPort,
     httpProxyHost: runtimeHttpProxyHost,
     httpProxyPort: runtimeHttpProxyPort,
     metricsServer: METRICS_SERVER_URL
@@ -680,7 +725,7 @@ function ensureOutboundSockopt(outbound: XrayOutbound): Record<string, Object | 
   return sockopt;
 }
 
-function resolveLocalHttpProxyHost(settings: AppSettings): string {
+function resolveLocalProxyHost(settings: AppSettings): string {
   return settings.proxySharingEnabled ? LOCAL_HTTP_PROXY_LAN_HOST : LOCAL_HTTP_PROXY_HOST;
 }
 

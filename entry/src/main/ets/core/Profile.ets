@@ -155,6 +155,11 @@ export interface AppSettings {
   localDnsEnabled: boolean;
   fakeDnsEnabled: boolean;
   appendHttpProxy: boolean;
+  localSocksEnabled: boolean;
+  localSocksPort: number;
+  localSocksUdpEnabled: boolean;
+  localSocksUsername: string;
+  localSocksPassword: string;
   muxEnabled: boolean;
   muxConcurrency: number;
   muxXudpConcurrency: number;

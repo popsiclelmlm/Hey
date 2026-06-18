@@ -12,6 +12,11 @@ export interface SettingsDraft {
   localDnsEnabled: boolean;
   fakeDnsEnabled: boolean;
   appendHttpProxy: boolean;
+  localSocksEnabled: boolean;
+  localSocksPort: string;
+  localSocksUdpEnabled: boolean;
+  localSocksUsername: string;
+  localSocksPassword: string;
   muxEnabled: boolean;
   fragmentEnabled: boolean;
   preferIpv6: boolean;
@@ -54,6 +59,11 @@ export class SettingsController {
       localDnsEnabled: settings.localDnsEnabled,
       fakeDnsEnabled: settings.fakeDnsEnabled,
       appendHttpProxy: settings.appendHttpProxy,
+      localSocksEnabled: settings.localSocksEnabled,
+      localSocksPort: settings.localSocksPort.toString(),
+      localSocksUdpEnabled: settings.localSocksUdpEnabled,
+      localSocksUsername: settings.localSocksUsername,
+      localSocksPassword: settings.localSocksPassword,
       muxEnabled: settings.muxEnabled,
       fragmentEnabled: settings.fragmentEnabled,
       preferIpv6: settings.preferIpv6,
@@ -88,6 +98,11 @@ export class SettingsController {
       localDnsEnabled: draft.localDnsEnabled,
       fakeDnsEnabled: draft.fakeDnsEnabled,
       appendHttpProxy: draft.appendHttpProxy,
+      localSocksEnabled: draft.localSocksEnabled,
+      localSocksPort: this.portValue(draft.localSocksPort, DEFAULT_APP_SETTINGS.localSocksPort),
+      localSocksUdpEnabled: draft.localSocksUdpEnabled,
+      localSocksUsername: draft.localSocksUsername.trim(),
+      localSocksPassword: draft.localSocksPassword.trim(),
       muxEnabled: draft.muxEnabled,
       muxConcurrency: DEFAULT_APP_SETTINGS.muxConcurrency,
       muxXudpConcurrency: DEFAULT_APP_SETTINGS.muxXudpConcurrency,
