@@ -8,6 +8,7 @@ import {
   AppLanguage,
   DEFAULT_DELAY_TEST_URL,
   DEFAULT_IP_API_URL,
+  DEFAULT_VPN_MTU,
   normalizeAppRuntimeMode,
   OUTBOUND_DOMAIN_RESOLVE_DNS_HOSTS,
   OUTBOUND_DOMAIN_RESOLVE_NONE,
@@ -78,7 +79,7 @@ struct SettingsPage {
   @State private settingLocalDnsPort: string = '10853';
   @State private settingVpnInterfaceAddressIndex: number = 0;
   @State private settingVpnBypassLan: string = VPN_BYPASS_LAN_BYPASS;
-  @State private settingVpnMtu: string = '1400';
+  @State private settingVpnMtu: string = DEFAULT_VPN_MTU.toString();
   @State private settingLogLevel: string = 'warning';
   @State private settingDelayTestUrl: string = DEFAULT_DELAY_TEST_URL;
   @State private settingIpApiUrl: string = DEFAULT_IP_API_URL;

@@ -7,7 +7,7 @@ import { defaultJsonConfigNodeName, resolveJsonConfigNodeName } from '../main/et
 import { selectRuntimeLocalSocksPort, shouldUseDynamicLocalSocksPort, withRuntimeLocalSocksPort } from '../main/ets/core/LocalProxy';
 import { buildManualHysteria2Outbound, buildManualWireguardOutbound } from '../main/ets/core/ManualOutboundBuilder';
 import { clearVisiblePerAppPackages, exportPerAppProxyList, importPerAppProxyList, invertVisiblePerAppPackages, normalizePerAppPackageList, selectAllPerAppPackages, selectAutoProxyPackages } from '../main/ets/core/PerAppProxy';
-import { APP_MODE_PROXY_ONLY, APP_MODE_VPN, AppSettings, ConnectionStatus, DEFAULT_DELAY_TEST_URL, DEFAULT_IP_API_URL, OUTBOUND_DOMAIN_RESOLVE_DNS_HOSTS, OUTBOUND_DOMAIN_RESOLVE_NONE, OUTBOUND_DOMAIN_RESOLVE_REPLACE, OutboundDomainResolveMethod, normalizeAppRuntimeMode, normalizeRealPingConcurrency, normalizeUiModeNight, ProxyNode, resolveDelayTestUrl, RoutingRule, RuntimeStats, SubscriptionGroup } from '../main/ets/core/Profile';
+import { APP_MODE_PROXY_ONLY, APP_MODE_VPN, AppSettings, ConnectionStatus, DEFAULT_DELAY_TEST_URL, DEFAULT_IP_API_URL, DEFAULT_VPN_MTU, OUTBOUND_DOMAIN_RESOLVE_DNS_HOSTS, OUTBOUND_DOMAIN_RESOLVE_NONE, OUTBOUND_DOMAIN_RESOLVE_REPLACE, OutboundDomainResolveMethod, normalizeAppRuntimeMode, normalizeRealPingConcurrency, normalizeUiModeNight, ProxyNode, resolveDelayTestUrl, RoutingRule, RuntimeStats, SubscriptionGroup } from '../main/ets/core/Profile';
 import { formatGeoCountSummary, formatGeoCountUnavailable, geoDataSpecForFile, parseGeoCountData } from '../main/ets/core/GeoAssets';
 import { DELAY_TEST_SOCKS_PORT, LOCAL_HTTP_PROXY_LAN_HOST, LOCAL_HTTP_PROXY_PORT, LOCAL_SOCKS_PROXY_PORT, buildDelayTestConfig, buildRuntimeXrayConfig, buildXrayConfig, buildXrayConfigWithSettings, collectOutboundDomainPreResolveHosts, normalizeOutboundInput, validateFullConfigJson, validateOutboundJson, validatePolicyGroupConfigJson, validateProxyChainConfigJson, withOutboundDomainResolvedHosts } from '../main/ets/core/XrayConfig';
 import { parseDeepLink } from '../main/ets/core/DeepLink';
@@ -407,7 +407,7 @@ export default function localUnitTest() {
         localDnsPort: 10853,
         vpnInterfaceAddressIndex: 0,
         vpnBypassLan: '1',
-        vpnMtu: 1400,
+        vpnMtu: DEFAULT_VPN_MTU,
         vpnDns: '1.1.1.1',
         remoteDns: '9.9.9.9',
         domesticDns: '223.5.5.5',
@@ -640,6 +640,9 @@ export default function localUnitTest() {
     });
 
     it('applies vpn mtu to generated tun inbound', 0, () => {
+      expect(DEFAULT_VPN_MTU).assertEqual(1500);
+      const defaultResult = buildXrayConfig(VLESS_REALITY_OUTBOUND);
+      expect(defaultResult.configJson).assertContain('"mtu": 1500');
       const settings = buildSettingsFixture();
       settings.vpnMtu = 1420;
       const result = buildXrayConfigWithSettings(VLESS_REALITY_OUTBOUND, settings);
@@ -1181,9 +1184,9 @@ export default function localUnitTest() {
       draft.vpnMtu = '1279';
       expect(SETTINGS_CONTROLLER.buildSettings(draft).vpnMtu).assertEqual(1280);
       draft.vpnMtu = 'bad';
-      expect(SETTINGS_CONTROLLER.buildSettings(draft).vpnMtu).assertEqual(1400);
+      expect(SETTINGS_CONTROLLER.buildSettings(draft).vpnMtu).assertEqual(DEFAULT_VPN_MTU);
       draft.vpnMtu = '';
-      expect(SETTINGS_CONTROLLER.buildSettings(draft).vpnMtu).assertEqual(1400);
+      expect(SETTINGS_CONTROLLER.buildSettings(draft).vpnMtu).assertEqual(DEFAULT_VPN_MTU);
       draft.muxConcurrency = '0';
       expect(SETTINGS_CONTROLLER.buildSettings(draft).muxConcurrency).assertEqual(8);
       draft.muxXudpConcurrency = 'bad';
@@ -2092,7 +2095,7 @@ function buildSettingsFixture(): AppSettings {
     localDnsPort: 10853,
     vpnInterfaceAddressIndex: 0,
     vpnBypassLan: '1',
-    vpnMtu: 1400,
+    vpnMtu: DEFAULT_VPN_MTU,
     vpnDns: '1.1.1.1',
     remoteDns: '1.1.1.1',
     domesticDns: '223.5.5.5',

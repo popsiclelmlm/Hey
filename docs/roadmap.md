@@ -9,7 +9,7 @@
 | 模块 | 状态 | 说明 |
 | --- | --- | --- |
 | 应用骨架 / 导航 / i18n | ✅ 99% | 双语、分层清晰、路由完整，语言设置已支持 v2rayNG 风格 `auto` 跟随系统/中文/英文三态，UI 模式可按设置跟随系统/浅色/深色，About 页已接 GitHub release 更新检查，并支持 v2rayNG 风格 pre-release 检查开关 |
-| 原生 TUN 数据通路 | ✅ 93% | 代码就位且**真机闭环验证通过（2026-06-15）**——TUN→Xray→出站→可上网；`ipv6Enabled` 控制 IPv6 地址/路由，`preferIpv6` 控制 outbound Happy Eyeballs，待真机回归 |
+| 原生 TUN 数据通路 | ✅ 94% | 代码就位且**真机闭环验证通过（2026-06-15）**——TUN→Xray→出站→可上网；`ipv6Enabled` 控制 IPv6 地址/路由，`preferIpv6` 控制 outbound Happy Eyeballs，VPN MTU 默认值已对齐 v2rayNG 为 1500，待真机回归 |
 | 分享链接解析 | ✅ 96% | vless/vmess/trojan/ss/socks/http/wireguard/hy2 已覆盖，VLESS `flow` 含 `xtls-rprx-vision-udp443`、uTLS `fp` 含 `ios/android/randomized`、VMess QR `insecure`、URL-style TLS `insecure`/`allowInsecure` 兼容键导出、URL-style userInfo 编码、空 fragment 默认 `none` 节点名、finalMask `fm`、TCP `headerType=http`、KCP `headerType/seed/mtu/tti`、gRPC `mode=multi`、SOCKS `base64(user:pass)` 认证与 `socks4://` / `socks5://` 导入别名、Shadowsocks legacy base64 兼容尾斜杠与密码冒号、Hysteria2 `mportHopInt`/`pinSHA256`、HTTPUpgrade host/path、XHTTP `mode/extra` 均可导入导出并在手动编辑器选择/填写；Hysteria2 bandwidth/obfs/port-hop 会在运行配置中生成 v2rayNG 风格 `finalmask.quicParams`、`udpHop` 和 `salamander` mask；Reality `spx`/`pqv` 已按 v2rayNG 映射为 `spiderX`/`mldsa65Verify` 并可导入导出，WireGuard `.conf` 整段导入已支持；导入失败后可走 native 转换兜底支持 v2rayN 多行/base64 与 Clash.Meta YAML（待重建 `.so` 真机验证）；TUIC 在 v2rayNG 当前枚举中未启用且 Xray-core 官方配置不支持，暂不列为运行目标 |
 | 订阅管理 | 🟡 96% | 多分组 + 旧版迁移 + 编辑/重排/批量更新全部 + 订阅级不安全 URL 开关 + 当前分组删除全部 + 自动更新设置/前台到期刷新 + 本地 HTTP 代理经由更新 + WorkScheduler 后台调度接线 + 订阅链接二维码/系统分享；待真机触发回归 |
 | Xray 配置生成 | 🟡 91% | 普通节点生成 TUN/DNS/routing/HTTP 代理和本地 SOCKS 配置，本地 SOCKS 按 v2rayNG `pref_enable_local_proxy` 默认开启且关闭时不生成 `socks-in`；速度显示开启时才生成 metrics/stats/policy；DNS hosts 支持 v2rayNG `domain:address,...` 格式写入 `dns.hosts`，并内置 v2rayNG `googleapis.cn` 与 Android Private DNS 默认 hosts，用户 hosts 可覆盖默认值；remote/domestic DNS 会按自定义 proxy/direct/block 规则生成 `domains`、`expectIPs`、DNS 专用路由和 block hosts，出站域名预解析方式 `0/1/2` 已持久化，并会在启动前用 Harmony 系统 DNS 补齐 live 解析结果，再按模式写入 DNS hosts/UseIP 或替换 outbound 域名；`routeOnly` 会按 v2rayNG 语义写入 TUN sniffing 并控制 process 规则输出；HTTP/SOCKS 代理支持局域网共享监听，SOCKS 支持启动前动态端口；完整自定义 Xray config 可校验后原样运行；代理链和策略组 JSON 可生成多跳/负载均衡 outbounds，添加节点页可从已有普通节点创建代理链/策略组，策略组支持按订阅分组与节点名正则动态成员，路由规则可选择当前高级出站目标 |
@@ -125,6 +125,7 @@
 | 2026-06-18 | 阶段 0 | ✅ TUN IPv6 设置接线完成；`ipv6Enabled` 持久化后生成 IPv6 TUN 地址与 `::/0` 默认路由 |
 | 2026-06-18 | 阶段 0 | ✅ Xray IPv6 优先解析接线完成；`preferIpv6` 开启时生成 outbound `sockopt.happyEyeballs` |
 | 2026-06-18 | 阶段 0 | ✅ VPN MTU 设置接线完成；`vpnMtu` 保存后同时应用到 Harmony `VpnConfig` 与 Xray TUN inbound |
+| 2026-06-19 | 阶段 0 | ✅ VPN MTU 默认值对齐 v2rayNG；`DEFAULT_VPN_MTU` 与 Settings 初始值改为 1500，缺省 TUN inbound 生成 `mtu=1500` |
 | 2026-06-18 | 阶段 0 | ✅ VPN 接口地址方案完成；按 v2rayNG 7 组预设选择 TUN IPv4/IPv6 client 地址 |
 | 2026-06-18 | 阶段 0 | ✅ VPN 绕过 LAN 完成；三态设置控制 Harmony VPN 默认路由或公网覆盖路由 |
 | 2026-06-18 | 阶段 0 | ✅ 本地 DNS / FakeDNS 完成；开启后生成 TUN 53 → `dns-out` 路由、DNS outbound 与 FakeDNS 配置 |
