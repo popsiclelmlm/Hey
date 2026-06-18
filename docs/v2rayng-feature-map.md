@@ -16,7 +16,7 @@ v2rayNG's features and design, see
 | Android reference area | Harmony page | Current status |
 | --- | --- | --- |
 | MainActivity / MainRecyclerAdapter | Nodes | Present. Lists subscription nodes, search, select current node, start/stop/restart VPN. |
-| Add config menu | Add | Present. Imports share links, outbound JSON, proxy-chain JSON, policy-group JSON, or subscription URL; protocol tabs are scaffolded. |
+| Add config menu | Add | Present. Imports share links, outbound JSON, proxy-chain JSON, policy-group JSON, or subscription URL; proxy-chain/policy-group configs can also be built from existing ordinary outbound nodes at the core layer. Protocol tabs are scaffolded. |
 | ScannerActivity / ScScannerActivity | Scan | Present. Paste/import path and camera QR capture via ScanKit are wired. |
 | SubSettingActivity / SubEditActivity | Subs | Multi-group model present. Save/update/update-all/select/enable-disable/delete/reorder are wired; dedicated edit form supports name, URL, User-Agent, node-name filter, subscription-level insecure URL opt-in, auto-update opt-in, and update interval. Foreground due refresh is wired; true background scheduling remains pending. |
 | ServerActivity protocol editors | Add | Partial. Field-level editor is present for VLESS/VMess/Trojan/Shadowsocks/SOCKS/HTTP/WireGuard/Hysteria2 and saves validated outbound JSON. TUIC editor remains pending. |
@@ -36,7 +36,7 @@ v2rayNG's features and design, see
 | --- | --- |
 | Subscription URL fetch and parse | Present for `vless://`, `vmess://`, `trojan://`, `ss://`, `socks://`, `http://`, `https://`, `wireguard://`, `hysteria2://`, `hy2://`. |
 | Node select and save current profile | Present. |
-| Xray config generation | Present for outbound + native TUN inbound + metrics inbound + optional local HTTP/SOCKS proxy inbounds/listen sharing + dynamic local SOCKS runtime port + proxy-chain multi-hop outbounds via `sockopt.dialerProxy` + policy-group `routing.balancers`/observatory generation + basic direct/block outbounds. Full custom Xray configs are validated and passed through unchanged at runtime. |
+| Xray config generation | Present for outbound + native TUN inbound + metrics inbound + optional local HTTP/SOCKS proxy inbounds/listen sharing + dynamic local SOCKS runtime port + proxy-chain multi-hop outbounds via `sockopt.dialerProxy` + policy-group `routing.balancers`/observatory generation + basic direct/block outbounds. Existing ordinary outbound nodes can be converted into proxy-chain/policy-group JSON; full custom Xray configs are validated and passed through unchanged at runtime. |
 | Persistent app settings | Present for core VPN, DNS, IPv6, mux, sniffing, log and routing strategy; selected values are applied at connection start, including VPN interface DNS, IPv6 routing, and outbound Happy Eyeballs. |
 | VPN Extension start/stop | Present, with emulator timeout diagnostics. Real-device verified for IPv4 data path (2026-06-15); IPv6 interface address/route generation is wired and awaits real-device regression. |
 | Xray native TUN runtime | Present in HAP via `CGoSetTunFd` + Xray TUN inbound. Real-device closed loop verified (2026-06-15): TUN → Xray → outbound → reachable. |

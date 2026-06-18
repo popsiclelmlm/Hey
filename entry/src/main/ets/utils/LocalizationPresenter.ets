@@ -93,6 +93,9 @@ export function localizeCoreMessage(language: AppLanguage, message: string): str
   if (message === '代理链至少需要两个 outbound。') {
     return translate(language, 'core.insufficientProxyChainOutbounds');
   }
+  if (message === '代理链至少需要两个普通 outbound 节点。') {
+    return translate(language, 'core.insufficientProxyChainBuildableNodes');
+  }
   if (message === '代理链配置校验通过。') {
     return translate(language, 'core.validProxyChainConfig');
   }
@@ -104,6 +107,9 @@ export function localizeCoreMessage(language: AppLanguage, message: string): str
   }
   if (message === '策略组至少需要一个 outbound。') {
     return translate(language, 'core.emptyPolicyGroupOutbounds');
+  }
+  if (message === '策略组至少需要一个普通 outbound 节点。') {
+    return translate(language, 'core.emptyPolicyGroupBuildableNodes');
   }
   if (message === '策略组配置校验通过。') {
     return translate(language, 'core.validPolicyGroupConfig');
@@ -168,6 +174,13 @@ export function localizeCoreMessage(language: AppLanguage, message: string): str
   if (message.endsWith(validSuffix)) {
     const protocol = message.substring(0, message.length - validSuffix.length);
     return formatOne(language, 'core.validOutbound', 'protocol', protocol);
+  }
+
+  const advancedOutboundNodePrefix = '第 ';
+  const advancedOutboundNodeSuffix = ' 个节点不是可用的普通 outbound，不能加入高级节点。';
+  if (message.startsWith(advancedOutboundNodePrefix) && message.endsWith(advancedOutboundNodeSuffix)) {
+    const index = message.substring(advancedOutboundNodePrefix.length, message.length - advancedOutboundNodeSuffix.length);
+    return formatOne(language, 'core.invalidAdvancedOutboundNode', 'index', index);
   }
 
   const proxyChainHopPrefix = '代理链第 ';

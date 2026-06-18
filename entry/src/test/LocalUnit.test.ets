@@ -1,4 +1,5 @@
 import { describe, it, expect } from '@ohos/hypium';
+import { buildPolicyGroupConfigFromNodes, buildProxyChainConfigFromNodes, isAdvancedOutboundBuildableNode, normalizePolicyGroupBuilderStrategy } from '../main/ets/core/AdvancedOutboundBuilder';
 import { formatTranslation, missingTranslationKeys, normalizeLanguage, translate } from '../main/ets/core/I18n';
 import { selectRuntimeLocalSocksPort, shouldUseDynamicLocalSocksPort, withRuntimeLocalSocksPort } from '../main/ets/core/LocalProxy';
 import { buildManualHysteria2Outbound, buildManualWireguardOutbound } from '../main/ets/core/ManualOutboundBuilder';
@@ -130,6 +131,59 @@ export default function localUnitTest() {
       const leastLoad = buildRuntimeXrayConfig(`{"type":"policy-group","policyGroupType":"1","outbounds":[${VLESS_REALITY_OUTBOUND}]}`, settings, 'policy-group');
       expect(leastLoad.configJson).assertContain('"type": "leastLoad"');
       expect(leastLoad.configJson).assertContain('"burstObservatory"');
+    });
+
+    it('builds proxy chain and policy group configs from existing outbound nodes', 0, () => {
+      const nodes = buildAdvancedNodeFixture();
+      const chain = buildProxyChainConfigFromNodes('Chain A', nodes);
+      expect(chain.success).assertTrue();
+      expect(chain.configType).assertEqual('proxy-chain');
+      expect(chain.protocol).assertEqual('proxy-chain');
+      expect(chain.count).assertEqual(2);
+      expect(chain.configJson).assertContain('"remarks": "Chain A"');
+      expect(chain.configJson).assertContain('"protocol": "vless"');
+      expect(chain.configJson).assertContain('"protocol": "trojan"');
+      expect(validateProxyChainConfigJson(chain.configJson).valid).assertTrue();
+      expect(buildRuntimeXrayConfig(chain.configJson, buildSettingsFixture(), 'proxy-chain').configJson).assertContain('"dialerProxy": "proxy-chain-1"');
+
+      const group = buildPolicyGroupConfigFromNodes('Group A', '1', nodes);
+      expect(group.success).assertTrue();
+      expect(group.configType).assertEqual('policy-group');
+      expect(group.protocol).assertEqual('policy-group');
+      expect(group.configJson).assertContain('"remarks": "Group A"');
+      expect(group.configJson).assertContain('"strategy": "leastLoad"');
+      expect(validatePolicyGroupConfigJson(group.configJson).valid).assertTrue();
+      expect(buildRuntimeXrayConfig(group.configJson, buildSettingsFixture(), 'policy-group').configJson).assertContain('"burstObservatory"');
+
+      expect(normalizePolicyGroupBuilderStrategy('0')).assertEqual('leastPing');
+      expect(normalizePolicyGroupBuilderStrategy('random')).assertEqual('random');
+      expect(normalizePolicyGroupBuilderStrategy('bad')).assertEqual('roundRobin');
+      expect(localizeCoreMessage('en', '代理链至少需要两个普通 outbound 节点。')).assertEqual('Proxy chain needs at least two regular outbound nodes.');
+    });
+
+    it('rejects advanced outbound builders with nested or invalid nodes', 0, () => {
+      const nodes = buildAdvancedNodeFixture();
+      const fullConfigNode = copyNode(nodes[0], 'full-config');
+      fullConfigNode.protocol = 'custom';
+      fullConfigNode.configType = 'full';
+      fullConfigNode.outboundJson = FULL_XRAY_CONFIG;
+      expect(isAdvancedOutboundBuildableNode(fullConfigNode)).assertFalse();
+
+      const invalidNode = copyNode(nodes[0], 'invalid-json');
+      invalidNode.outboundJson = '{';
+      expect(isAdvancedOutboundBuildableNode(invalidNode)).assertFalse();
+      expect(buildProxyChainConfigFromNodes('bad', [nodes[0], invalidNode]).success).assertFalse();
+      expect(buildPolicyGroupConfigFromNodes('bad', 'roundRobin', [fullConfigNode]).message).assertContain('普通 outbound');
+      expect(localizeCoreMessage('en', '第 2 个节点不是可用的普通 outbound，不能加入高级节点。')).assertEqual('Node 2 is not a valid regular outbound and cannot be used in an advanced node.');
+
+      const nestedChain = buildProxyChainConfigFromNodes('nested-source', nodes);
+      const nestedNode = copyNode(nodes[0], 'nested-chain');
+      nestedNode.protocol = 'proxy-chain';
+      nestedNode.configType = 'proxy-chain';
+      nestedNode.outboundJson = nestedChain.configJson;
+      expect(isAdvancedOutboundBuildableNode(nestedNode)).assertFalse();
+      expect(buildProxyChainConfigFromNodes('bad-nested', [nodes[0], nestedNode]).success).assertFalse();
+      expect(buildProxyChainConfigFromNodes('', [nodes[0]]).count).assertEqual(1);
     });
 
     it('extracts importable outbounds from native-converted xray config', 0, () => {
@@ -950,6 +1004,36 @@ function buildNodeFixture(): Array<ProxyNode> {
     delayStatus: ''
   };
   return [second, manual, first];
+}
+
+function buildAdvancedNodeFixture(): Array<ProxyNode> {
+  const vless: ProxyNode = {
+    id: 'advanced-vless',
+    name: 'Advanced VLESS',
+    protocol: 'vless',
+    outboundJson: VLESS_REALITY_OUTBOUND,
+    configType: 'outbound',
+    sourceUrl: '',
+    rawLink: '',
+    updatedAt: 1,
+    delayMs: -1,
+    delayTestAt: 0,
+    delayStatus: ''
+  };
+  const trojan: ProxyNode = {
+    id: 'advanced-trojan',
+    name: 'Advanced Trojan',
+    protocol: 'trojan',
+    outboundJson: TROJAN_OUTBOUND,
+    configType: 'outbound',
+    sourceUrl: '',
+    rawLink: '',
+    updatedAt: 1,
+    delayMs: -1,
+    delayTestAt: 0,
+    delayStatus: ''
+  };
+  return [vless, trojan];
 }
 
 function copyNode(node: ProxyNode, id: string): ProxyNode {
