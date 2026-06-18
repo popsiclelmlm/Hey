@@ -1,7 +1,7 @@
 import { encodeUtf8ToBase64 } from './Encoding';
 
 export const DEFAULT_WEBDAV_BACKUP_DIR: string = 'backups';
-export const DEFAULT_WEBDAV_BACKUP_FILE_NAME: string = 'hey_backup.json';
+export const DEFAULT_WEBDAV_BACKUP_FILE_NAME: string = 'backup_ng.zip';
 export const DEFAULT_WEBDAV_TIMEOUT_SECONDS: number = 30;
 
 export interface WebDavConfig {

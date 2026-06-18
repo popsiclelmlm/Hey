@@ -6,7 +6,7 @@ import { http } from '@kit.NetworkKit';
 import fs from '@ohos.file.fs';
 import { AppLanguage } from '../../core/Profile';
 import { translate } from '../../core/I18n';
-import { buildAppBackupPayload, parseAppBackupPayload } from '../../core/AppBackup';
+import { buildAppBackupPayload, buildAppBackupZipFromPayload, parseAppBackupData } from '../../core/AppBackup';
 import { formatGeoCountSummary, formatGeoCountUnavailable, geoDataSpecForFile, parseGeoCountData } from '../../core/GeoAssets';
 import { validateWebDavConfig, WebDavConfigInput } from '../../core/WebDav';
 import { countNativeGeoData } from '../../native/HeyNative';
@@ -392,7 +392,7 @@ export class AssetsController {
     try {
       promptAction.showToast({ message: this.t(language, 'assets.webdav.backup.start') });
       const backupStr = await this.buildBackupText(context);
-      const result = await WEBDAV_MANAGER.uploadText(validation.config, backupStr);
+      const result = await WEBDAV_MANAGER.uploadData(validation.config, buildAppBackupZipFromPayload(backupStr), 'application/zip');
       if (!result.ok) {
         promptAction.showToast({ message: this.t(language, 'assets.webdav.backup.failed').replace('{error}', result.message) });
         SHARED_RUNTIME_CONTROLLER.appendLog(`WebDAV 备份失败：${result.message}`);
@@ -424,14 +424,19 @@ export class AssetsController {
 
     try {
       promptAction.showToast({ message: this.t(language, 'assets.webdav.restore.start') });
-      const result = await WEBDAV_MANAGER.downloadText(validation.config);
+      const result = await WEBDAV_MANAGER.downloadData(validation.config);
       if (!result.ok) {
         promptAction.showToast({ message: this.t(language, 'assets.webdav.restore.failed').replace('{error}', result.message) });
         SHARED_RUNTIME_CONTROLLER.appendLog(`WebDAV 还原下载失败：${result.message}`);
         onFailure();
         return;
       }
-      const restored = await this.applyBackupText(context, result.content);
+      if (result.data === null) {
+        promptAction.showToast({ message: this.t(language, 'assets.invalidBackupData') });
+        onFailure();
+        return;
+      }
+      const restored = await this.applyBackupData(context, result.data);
       if (!restored) {
         promptAction.showToast({ message: this.t(language, 'assets.invalidBackupData') });
         onFailure();
@@ -467,7 +472,11 @@ export class AssetsController {
   }
 
   private async applyBackupText(context: common.Context, backupText: string): Promise<boolean> {
-    const parsed = parseAppBackupPayload(backupText);
+    return this.applyBackupData(context, backupText);
+  }
+
+  private async applyBackupData(context: common.Context, backupData: string | ArrayBuffer): Promise<boolean> {
+    const parsed = parseAppBackupData(backupData);
     if (!parsed.valid || parsed.payload === null) {
       return false;
     }

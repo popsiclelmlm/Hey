@@ -1,6 +1,6 @@
 import { describe, it, expect } from '@ohos/hypium';
 import { buildPolicyGroupConfigFromNodes, buildProxyChainConfigFromNodes, isAdvancedOutboundBuildableNode, normalizePolicyGroupBuilderStrategy } from '../main/ets/core/AdvancedOutboundBuilder';
-import { buildAppBackupPayload, parseAppBackupPayload } from '../main/ets/core/AppBackup';
+import { buildAppBackupPayload, buildAppBackupZipFromPayload, parseAppBackupData, parseAppBackupPayload } from '../main/ets/core/AppBackup';
 import { formatTranslation, missingTranslationKeys, normalizeLanguage, translate } from '../main/ets/core/I18n';
 import { selectRuntimeLocalSocksPort, shouldUseDynamicLocalSocksPort, withRuntimeLocalSocksPort } from '../main/ets/core/LocalProxy';
 import { buildManualHysteria2Outbound, buildManualWireguardOutbound } from '../main/ets/core/ManualOutboundBuilder';
@@ -17,7 +17,7 @@ import {
   moveSubscriptionGroup,
   normalizeSubscriptionUpdateInterval
 } from '../main/ets/core/SubscriptionGroups';
-import { buildWebDavAuthorizationHeader, buildWebDavMkcolUrls, buildWebDavRemoteUrl, isWebDavMkcolAcceptedStatus, normalizeWebDavConfig, validateWebDavConfig } from '../main/ets/core/WebDav';
+import { DEFAULT_WEBDAV_BACKUP_FILE_NAME, buildWebDavAuthorizationHeader, buildWebDavMkcolUrls, buildWebDavRemoteUrl, isWebDavMkcolAcceptedStatus, normalizeWebDavConfig, validateWebDavConfig } from '../main/ets/core/WebDav';
 import { dedupeNodes, exportNodesText, filterNodes, findInvalidNodes, sortNodes } from '../main/ets/features/nodes/NodeOperations';
 import { SETTINGS_CONTROLLER } from '../main/ets/features/settings/SettingsController';
 import { SubscriptionManager } from '../main/ets/services/SubscriptionManager';
@@ -718,6 +718,22 @@ export default function localUnitTest() {
       expect(parseAppBackupPayload('{').valid).assertFalse();
     });
 
+    it('wraps app backup payloads in restorable zip packages', 0, () => {
+      const backup = buildAppBackupPayload('profile-json', 'settings-json', 'subscription-json', 'assets-json', 1234);
+      const zip = buildAppBackupZipFromPayload(backup);
+      const view = new Uint8Array(zip);
+      expect(view[0]).assertEqual(0x50);
+      expect(view[1]).assertEqual(0x4B);
+      expect(view[2]).assertEqual(0x03);
+      expect(view[3]).assertEqual(0x04);
+
+      const parsed = parseAppBackupData(zip);
+      expect(parsed.valid).assertTrue();
+      expect(parsed.payload?.profile).assertEqual('profile-json');
+      expect(parsed.payload?.settings).assertEqual('settings-json');
+      expect(parseAppBackupData(backup).valid).assertTrue();
+    });
+
     it('normalizes webdav backup urls and auth headers', 0, () => {
       const config = normalizeWebDavConfig({
         baseUrl: 'https://example.com/remote.php/dav/files/user/',
@@ -741,6 +757,8 @@ export default function localUnitTest() {
       expect(isWebDavMkcolAcceptedStatus(201)).assertTrue();
       expect(isWebDavMkcolAcceptedStatus(405)).assertTrue();
       expect(isWebDavMkcolAcceptedStatus(500)).assertFalse();
+      expect(DEFAULT_WEBDAV_BACKUP_FILE_NAME).assertEqual('backup_ng.zip');
+      expect(normalizeWebDavConfig({}).remoteFileName).assertEqual('backup_ng.zip');
     });
 
     it('filters nodes by name protocol and source', 0, () => {

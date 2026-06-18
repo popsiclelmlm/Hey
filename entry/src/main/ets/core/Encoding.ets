@@ -111,6 +111,14 @@ export function decodeBase64ToUtf8(value: string): string {
   return decodeUtf8(decodeBase64ToBytes(value));
 }
 
+export function decodeUtf8Bytes(bytes: Array<number>): string {
+  return decodeUtf8(bytes);
+}
+
+export function encodeUtf8ToBytes(value: string): Array<number> {
+  return encodeUtf8(value);
+}
+
 export function encodeUtf8ToBase64(value: string): string {
   const bytes = encodeUtf8(value);
   let result = '';
