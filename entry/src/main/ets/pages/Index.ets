@@ -28,6 +28,7 @@ const EMPTY_STATS: RuntimeStats = {
   lastMessage: translate(DEFAULT_LANGUAGE, 'runtime.nativeBridgeNotQueried')
 };
 const AUTO_SUBSCRIPTION_CHECK_THROTTLE_MS: number = 60 * 1000;
+const ALL_GROUP_ID: string = '__hey_all_groups__';
 
 interface NodeDelayBatchResult {
   node: ProxyNode;
@@ -67,6 +68,8 @@ struct Index {
   @State private elapsedText: string = '00:00';
   @State private stats: RuntimeStats = EMPTY_STATS;
   @State private speedEnabled: boolean = false;
+  @State private groupAllDisplay: boolean = false;
+  @State private allGroupsSelected: boolean = false;
 
   aboutToAppear(): void {
     this.loadInitialState();
@@ -533,7 +536,7 @@ struct Index {
     Row() {
       Scroll() {
         Row({ space: Space.sm }) {
-          ForEach(this.subscriptionGroups, (group: SubscriptionGroup) => {
+          ForEach(this.displaySubscriptionGroups(), (group: SubscriptionGroup) => {
             this.GroupTab(group)
           }, (group: SubscriptionGroup, index: number) => `${index}-${group.id}`)
         }
@@ -553,15 +556,15 @@ struct Index {
     Row() {
       Text(group.name.length > 0 ? group.name : 'Subscription')
         .fontSize(FontSz.body)
-        .fontWeight(group.id === this.selectedGroupId ? FontWeight.Medium : FontWeight.Regular)
-        .fontColor(group.id === this.selectedGroupId ? AppColor.onBrand : AppColor.textSecondary)
+        .fontWeight(this.isGroupTabSelected(group) ? FontWeight.Medium : FontWeight.Regular)
+        .fontColor(this.isGroupTabSelected(group) ? AppColor.onBrand : AppColor.textSecondary)
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
     }
     .height(32)
     .padding({ left: Space.lg, right: Space.lg })
     .borderRadius(Radius.pill)
-    .backgroundColor(group.id === this.selectedGroupId ? AppColor.brand : AppColor.surfaceAlt)
+    .backgroundColor(this.isGroupTabSelected(group) ? AppColor.brand : AppColor.surfaceAlt)
     .onClick(() => {
       this.selectSubscriptionGroup(group);
     })
@@ -857,6 +860,10 @@ struct Index {
       this.currentSettings = await SETTINGS_CONTROLLER.load(context);
       this.language = this.currentSettings.language;
       this.speedEnabled = this.currentSettings.speedEnabled;
+      this.groupAllDisplay = this.currentSettings.groupAllDisplay;
+      if (!this.groupAllDisplay) {
+        this.allGroupsSelected = false;
+      }
     } catch (error) {
       this.lastError = this.f1('error.loadSettings', 'error', JSON.stringify(error));
       SHARED_RUNTIME_CONTROLLER.appendLog(this.lastError);
@@ -1056,6 +1063,12 @@ struct Index {
   }
 
   private async selectSubscriptionGroup(group: SubscriptionGroup): Promise<void> {
+    if (group.id === ALL_GROUP_ID) {
+      this.allGroupsSelected = true;
+      SHARED_RUNTIME_CONTROLLER.appendLog(this.f1('log.openedSubscriptionGroup', 'name', group.name));
+      return;
+    }
+    this.allGroupsSelected = false;
     const context = getContext(this) as common.Context;
     const state = await SUBSCRIPTIONS_CONTROLLER.selectGroup(context, group, this.language);
     this.applySubscriptionsState(state);
@@ -1274,6 +1287,7 @@ struct Index {
     this.subscriptionUpdatedAt = state.subscriptionUpdatedAt;
     this.subscriptionGroups = state.subscriptionGroups;
     this.selectedGroupId = state.selectedGroupId;
+    this.reconcileAllGroupsSelection();
     this.lastError = state.lastError;
   }
 
@@ -1296,6 +1310,7 @@ struct Index {
     this.subscriptionUpdatedAt = state.subscriptionUpdatedAt;
     this.subscriptionGroups = state.subscriptionGroups;
     this.selectedGroupId = state.selectedGroupId;
+    this.reconcileAllGroupsSelection();
   }
 
   private applyRuntimeState(state: RuntimeViewState): void {
@@ -1306,7 +1321,54 @@ struct Index {
   }
 
   private visibleNodes(): Array<ProxyNode> {
-    return filterNodes(this.nodes, this.searchQuery);
+    return filterNodes(this.displayedNodes(), this.searchQuery);
+  }
+
+  private displayedNodes(): Array<ProxyNode> {
+    if (!this.allGroupsSelected) {
+      return this.nodes;
+    }
+    const result = new Array<ProxyNode>();
+    for (let groupIndex = 0; groupIndex < this.subscriptionGroups.length; groupIndex++) {
+      const group = this.subscriptionGroups[groupIndex];
+      for (let nodeIndex = 0; nodeIndex < group.nodes.length; nodeIndex++) {
+        result.push(group.nodes[nodeIndex]);
+      }
+    }
+    return result;
+  }
+
+  private displaySubscriptionGroups(): Array<SubscriptionGroup> {
+    if (!this.groupAllDisplay || this.subscriptionGroups.length === 0) {
+      return this.subscriptionGroups;
+    }
+    const groups = new Array<SubscriptionGroup>();
+    groups.push({
+      id: ALL_GROUP_ID,
+      name: this.t('nodes.groupAll'),
+      url: '',
+      enabled: true,
+      selectedNodeId: '',
+      nodes: [],
+      updatedAt: 0
+    });
+    for (let index = 0; index < this.subscriptionGroups.length; index++) {
+      groups.push(this.subscriptionGroups[index]);
+    }
+    return groups;
+  }
+
+  private isGroupTabSelected(group: SubscriptionGroup): boolean {
+    if (group.id === ALL_GROUP_ID) {
+      return this.allGroupsSelected;
+    }
+    return !this.allGroupsSelected && group.id === this.selectedGroupId;
+  }
+
+  private reconcileAllGroupsSelection(): void {
+    if (!this.groupAllDisplay || this.subscriptionGroups.length === 0) {
+      this.allGroupsSelected = false;
+    }
   }
 
   private nodeEndpointText(node: ProxyNode): string {
@@ -1501,12 +1563,7 @@ struct Index {
       return;
     }
     let foundNode: ProxyNode | null = null;
-    for (let i = 0; i < this.nodes.length; i++) {
-      if (this.nodes[i].id === this.selectedNodeId) {
-        foundNode = this.nodes[i];
-        break;
-      }
-    }
+    foundNode = this.findDisplayedNode(this.selectedNodeId);
     if (foundNode !== null) {
       const msg = this.f1('prompt.locatedNode', 'name', foundNode.name);
       promptAction.showToast({ message: msg });
@@ -1515,12 +1572,21 @@ struct Index {
   }
 
   private findSelectedNodeName(): string {
-    for (let i = 0; i < this.nodes.length; i++) {
-      if (this.nodes[i].id === this.selectedNodeId) {
-        return this.nodes[i].name;
-      }
+    const node = this.findDisplayedNode(this.selectedNodeId);
+    if (node !== null) {
+      return node.name;
     }
     return this.t('home.noNodeSelected');
+  }
+
+  private findDisplayedNode(nodeId: string): ProxyNode | null {
+    const nodes = this.displayedNodes();
+    for (let i = 0; i < nodes.length; i++) {
+      if (nodes[i].id === nodeId) {
+        return nodes[i];
+      }
+    }
+    return null;
   }
 }
 

@@ -191,6 +191,7 @@ export interface AppSettings {
   speedEnabled: boolean;
   confirmRemove: boolean;
   startScanImmediate: boolean;
+  groupAllDisplay: boolean;
   sniffingEnabled: boolean;
   routeOnlyEnabled: boolean;
   perAppProxyEnabled: boolean;

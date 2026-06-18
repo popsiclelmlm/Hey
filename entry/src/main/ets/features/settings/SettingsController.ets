@@ -8,6 +8,7 @@ export interface SettingsDraft {
   speedEnabled: boolean;
   confirmRemove: boolean;
   startScanImmediate: boolean;
+  groupAllDisplay: boolean;
   sniffingEnabled: boolean;
   routeOnlyEnabled: boolean;
   perAppProxyEnabled: boolean;
@@ -68,6 +69,7 @@ export class SettingsController {
       speedEnabled: settings.speedEnabled,
       confirmRemove: settings.confirmRemove,
       startScanImmediate: settings.startScanImmediate,
+      groupAllDisplay: settings.groupAllDisplay,
       sniffingEnabled: settings.sniffingEnabled,
       routeOnlyEnabled: settings.routeOnlyEnabled,
       perAppProxyEnabled: settings.perAppProxyEnabled,
@@ -120,6 +122,7 @@ export class SettingsController {
       speedEnabled: draft.speedEnabled,
       confirmRemove: draft.confirmRemove,
       startScanImmediate: draft.startScanImmediate,
+      groupAllDisplay: draft.groupAllDisplay,
       sniffingEnabled: draft.sniffingEnabled,
       routeOnlyEnabled: draft.routeOnlyEnabled,
       perAppProxyEnabled: draft.perAppProxyEnabled,

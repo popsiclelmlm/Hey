@@ -34,6 +34,7 @@ struct SettingsPage {
   @State private settingSpeedEnabled: boolean = false;
   @State private settingConfirmRemove: boolean = false;
   @State private settingStartScanImmediate: boolean = false;
+  @State private settingGroupAllDisplay: boolean = false;
   @State private settingSniffing: boolean = true;
   @State private settingRouteOnly: boolean = false;
   @State private settingLocalDns: boolean = false;
@@ -105,6 +106,8 @@ struct SettingsPage {
             this.SettingToggle(this.t('settings.confirmRemove'), this.settingConfirmRemove, 'confirmRemove')
             this.RowDivider()
             this.SettingToggle(this.t('settings.startScanImmediate'), this.settingStartScanImmediate, 'startScanImmediate')
+            this.RowDivider()
+            this.SettingToggle(this.t('settings.groupAllDisplay'), this.settingGroupAllDisplay, 'groupAllDisplay')
           }
           .width('100%')
           .backgroundColor(AppColor.surface)
@@ -365,6 +368,9 @@ struct SettingsPage {
       case 'startScanImmediate':
         this.settingStartScanImmediate = !this.settingStartScanImmediate;
         break;
+      case 'groupAllDisplay':
+        this.settingGroupAllDisplay = !this.settingGroupAllDisplay;
+        break;
       case 'routeOnly':
         this.settingRouteOnly = !this.settingRouteOnly;
         break;
@@ -505,6 +511,7 @@ struct SettingsPage {
       speedEnabled: this.settingSpeedEnabled,
       confirmRemove: this.settingConfirmRemove,
       startScanImmediate: this.settingStartScanImmediate,
+      groupAllDisplay: this.settingGroupAllDisplay,
       sniffingEnabled: this.settingSniffing,
       routeOnlyEnabled: this.settingRouteOnly,
       perAppProxyEnabled: this.settingPerAppProxy,
@@ -556,6 +563,7 @@ struct SettingsPage {
     this.settingSpeedEnabled = draft.speedEnabled;
     this.settingConfirmRemove = draft.confirmRemove;
     this.settingStartScanImmediate = draft.startScanImmediate;
+    this.settingGroupAllDisplay = draft.groupAllDisplay;
     this.settingSniffing = draft.sniffingEnabled;
     this.settingRouteOnly = draft.routeOnlyEnabled;
     this.settingPerAppProxy = draft.perAppProxyEnabled;

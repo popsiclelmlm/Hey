@@ -348,9 +348,11 @@ export default function localUnitTest() {
     it('applies app settings when generating xray config', 0, () => {
       const settings: AppSettings = {
         language: 'zh',
+        uiModeNight: '0',
         speedEnabled: false,
         confirmRemove: false,
         startScanImmediate: false,
+        groupAllDisplay: false,
         sniffingEnabled: true,
         routeOnlyEnabled: true,
         perAppProxyEnabled: false,
@@ -743,11 +745,13 @@ export default function localUnitTest() {
       settings.speedEnabled = true;
       settings.confirmRemove = true;
       settings.startScanImmediate = true;
+      settings.groupAllDisplay = true;
       const draft = SETTINGS_CONTROLLER.toDraft(settings);
       expect(draft.uiModeNight).assertEqual('2');
       expect(draft.speedEnabled).assertTrue();
       expect(draft.confirmRemove).assertTrue();
       expect(draft.startScanImmediate).assertTrue();
+      expect(draft.groupAllDisplay).assertTrue();
       expect(draft.preferIpv6).assertTrue();
       expect(draft.localDnsPort).assertEqual('1053');
       expect(draft.localSocksEnabled).assertTrue();
@@ -775,6 +779,7 @@ export default function localUnitTest() {
       expect(rebuilt.speedEnabled).assertTrue();
       expect(rebuilt.confirmRemove).assertTrue();
       expect(rebuilt.startScanImmediate).assertTrue();
+      expect(rebuilt.groupAllDisplay).assertTrue();
       expect(rebuilt.preferIpv6).assertTrue();
       expect(rebuilt.localDnsPort).assertEqual(1053);
       expect(rebuilt.localSocksEnabled).assertTrue();
@@ -1162,6 +1167,7 @@ function buildSettingsFixture(): AppSettings {
     speedEnabled: false,
     confirmRemove: false,
     startScanImmediate: false,
+    groupAllDisplay: false,
     sniffingEnabled: true,
     routeOnlyEnabled: false,
     perAppProxyEnabled: false,
