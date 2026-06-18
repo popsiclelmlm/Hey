@@ -48,6 +48,8 @@ const FULL_XRAY_CONFIG: string =
   '{"remarks":"Custom full config","log":{"loglevel":"info"},"inbounds":[{"tag":"tun-in","protocol":"tun","settings":{"name":"vpn-tun","mtu":1400}}],"outbounds":[{"tag":"direct","protocol":"freedom","settings":{}}],"routing":{"domainStrategy":"AsIs","rules":[]}}';
 const WIREGUARD_CONF: string =
   '[Interface]\nPrivateKey = private-key\nAddress = 172.16.0.2/32, fd00::2/128\nMTU = 1420\n\n[Peer]\nPublicKey = peer-key\nPresharedKey = shared-key\nEndpoint = wg.example.com:51820\nReserved = 1,2,3\nAllowedIPs = 0.0.0.0/0, ::/0\n';
+const WIREGUARD_CONF_WITHOUT_RESERVED: string =
+  '[Interface]\nPrivateKey = private-key\nAddress = 172.16.0.2/32\nMTU = 1420\n\n[Peer]\nPublicKey = peer-key\nEndpoint = wg.example.com:51820\nAllowedIPs = 0.0.0.0/0\n';
 
 export default function localUnitTest() {
   describe('xrayConfig', () => {
@@ -276,6 +278,19 @@ export default function localUnitTest() {
       expect(wireguard.outboundJson).assertContain('"endpoint": "[2001:db8::1]:51820"');
       expect(wireguard.outboundJson).assertContain('"reserved"');
       expect(validateOutboundJson(wireguard.outboundJson).valid).assertTrue();
+      const defaultReservedWireguard = buildManualWireguardOutbound({
+        tag: 'WG',
+        host: 'wg.example.com',
+        port: '51820',
+        secretKey: 'private-key',
+        publicKey: 'public-key',
+        preSharedKey: '',
+        localAddress: '',
+        reserved: '',
+        mtu: ''
+      });
+      expect(defaultReservedWireguard.success).assertTrue();
+      expect(defaultReservedWireguard.outboundJson).assertContain('"reserved": [\n      0,\n      0,\n      0\n    ]');
       expect(buildManualWireguardOutbound({
         tag: 'WG',
         host: 'example.com',
@@ -361,6 +376,10 @@ export default function localUnitTest() {
       expect(validation.normalizedJson).assertContain('"endpoint": "wg.example.com:51820"');
       expect(validation.normalizedJson).assertContain('"preSharedKey": "shared-key"');
       expect(validation.normalizedJson).assertContain('"reserved": [');
+
+      const defaultReserved = normalizeOutboundInput(WIREGUARD_CONF_WITHOUT_RESERVED);
+      expect(defaultReserved.valid).assertTrue();
+      expect(defaultReserved.normalizedJson).assertContain('"reserved": [\n      0,\n      0,\n      0\n    ]');
 
       const missingEndpoint = normalizeOutboundInput('[Interface]\nPrivateKey = private-key\n[Peer]\nPublicKey = peer-key\n');
       expect(missingEndpoint.valid).assertFalse();
@@ -1772,6 +1791,11 @@ export default function localUnitTest() {
       const roundTripWireguard = parseShareLinkToOutboundJson(exportedWireguard);
       expect(roundTripWireguard.success).assertTrue();
       expect(roundTripWireguard.outboundJson).assertContain('"secretKey": "private+key/with="');
+      const defaultReservedWireguard = parseShareLinkToOutboundJson('wireguard://private-key@example.com:51820?publickey=peer-key#wg-default');
+      expect(defaultReservedWireguard.success).assertTrue();
+      expect(defaultReservedWireguard.outboundJson).assertContain('"reserved": [\n      0,\n      0,\n      0\n    ]');
+      const exportedDefaultWireguard = formatOutboundJsonToShareLink(defaultReservedWireguard.outboundJson, 'wg-default');
+      expect(exportedDefaultWireguard).assertContain('reserved=0%2C0%2C0');
 
       const hysteria2 = parseShareLinkToOutboundJson('hysteria2://auth%40word%2Fwith%3F@example.com:443?sni=hy.example&insecure=1&obfs-password=obfs&mport=20000-50000&mportHopInt=10-60&pinSHA256=hy2-pinned-sha256#hy2-demo');
       expect(hysteria2.success).assertTrue();

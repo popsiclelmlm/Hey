@@ -72,6 +72,8 @@ interface ManualOutbound {
   settings: ManualWireguardSettings | ManualHysteria2Settings;
 }
 
+const DEFAULT_WIREGUARD_RESERVED: Array<number> = [0, 0, 0];
+
 export function buildManualWireguardOutbound(input: ManualWireguardInput): ManualOutboundBuildResult {
   const host = input.host.trim();
   const port = parsePort(input.port);
@@ -104,10 +106,7 @@ export function buildManualWireguardOutbound(input: ManualWireguardInput): Manua
     peers: [peer],
     mtu: parsePositiveInt(input.mtu, 1420)
   };
-  const reserved = parseNumberCsv(input.reserved);
-  if (reserved.length > 0) {
-    settings.reserved = reserved;
-  }
+  settings.reserved = parseNumberCsvWithDefault(input.reserved, DEFAULT_WIREGUARD_RESERVED);
 
   return makeSuccess('wireguard', {
     protocol: 'wireguard',
@@ -204,6 +203,14 @@ function parseNumberCsv(value: string): Array<number> {
     }
   }
   return result;
+}
+
+function parseNumberCsvWithDefault(value: string, fallback: Array<number>): Array<number> {
+  const result = parseNumberCsv(value);
+  if (result.length > 0) {
+    return result;
+  }
+  return fallback.slice();
 }
 
 function formatEndpoint(host: string, port: number): string {

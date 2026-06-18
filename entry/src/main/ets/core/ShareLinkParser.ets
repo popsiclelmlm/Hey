@@ -238,6 +238,8 @@ interface VmessQrCode {
   insecure?: string;
 }
 
+const DEFAULT_WIREGUARD_RESERVED: Array<number> = [0, 0, 0];
+
 function makeFailure(message: string, protocol: string = ''): ShareLinkParseResult {
   return {
     success: false,
@@ -376,10 +378,7 @@ export function parseWireguardConfigToOutboundJson(input: string): ShareLinkPars
     if (mtu > 0) {
       settings.mtu = mtu;
     }
-    const reserved = parseNumberCsv(mapValue(document.peerParams, 'reserved'));
-    if (reserved.length > 0) {
-      settings.reserved = reserved;
-    }
+    settings.reserved = parseWireguardReserved(mapValue(document.peerParams, 'reserved'));
 
     const outbound: XrayOutbound = {
       protocol: 'wireguard',
@@ -706,10 +705,7 @@ function parseWireguardLink(input: string): ShareLinkParseResult {
   if (mtu > 0) {
     settings.mtu = mtu;
   }
-  const reserved = parseNumberCsv(queryValue(parsed.query, 'reserved', ''));
-  if (reserved.length > 0) {
-    settings.reserved = reserved;
-  }
+  settings.reserved = parseWireguardReserved(queryValue(parsed.query, 'reserved', '0,0,0'));
 
   const outbound: XrayOutbound = {
     protocol: 'wireguard',
@@ -1269,6 +1265,14 @@ function parseNumberCsv(value: string): Array<number> {
     }
   }
   return result;
+}
+
+function parseWireguardReserved(value: string): Array<number> {
+  const reserved = parseNumberCsv(value);
+  if (reserved.length > 0) {
+    return reserved;
+  }
+  return DEFAULT_WIREGUARD_RESERVED.slice();
 }
 
 function empty(value: string | undefined): boolean {
