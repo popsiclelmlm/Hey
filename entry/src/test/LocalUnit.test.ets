@@ -304,6 +304,8 @@ export default function localUnitTest() {
       expect(hysteria2.outboundJson).assertContain('"portHoppingInterval": "10-60"');
       expect(hysteria2.outboundJson).assertContain('"pinSHA256": "hy2-pinned-sha256"');
       expect(hysteria2.outboundJson).assertContain('"obfsPassword": "obfs-secret"');
+      expect(hysteria2.outboundJson).assertContain('"bandwidthDown": "100 mbps"');
+      expect(hysteria2.outboundJson).assertContain('"bandwidthUp": "20 mbps"');
       expect(validateOutboundJson(hysteria2.outboundJson).valid).assertTrue();
       expect(buildManualHysteria2Outbound({
         tag: 'HY2',
@@ -793,6 +795,36 @@ export default function localUnitTest() {
       expect(result.configJson).assertContain('"tag":"socks-in"');
       expect(result.configJson).assertContain(`"port":${customPort}`);
       expect(result.configJson.indexOf(`"port":${DELAY_TEST_SOCKS_PORT}`)).assertEqual(-1);
+    });
+
+    it('applies hysteria2 bandwidth and masks to runtime finalmask', 0, () => {
+      const hysteria2 = buildManualHysteria2Outbound({
+        tag: 'HY2',
+        host: 'hy2.example.com',
+        port: '443',
+        password: 'secret',
+        sni: 'cdn.example.com',
+        alpn: 'h3',
+        allowInsecure: true,
+        obfsPassword: 'obfs-secret',
+        portHopping: '20000-50000',
+        portHoppingInterval: '10-60',
+        pinSHA256: 'hy2-pinned-sha256',
+        bandwidthDown: '100 mbps',
+        bandwidthUp: '20 mbps'
+      });
+      expect(hysteria2.success).assertTrue();
+
+      const result = buildXrayConfigWithSettings(hysteria2.outboundJson, buildSettingsFixture());
+      expect(result.configJson).assertContain('"finalmask"');
+      expect(result.configJson).assertContain('"congestion": "brutal"');
+      expect(result.configJson).assertContain('"brutalUp": "20 mbps"');
+      expect(result.configJson).assertContain('"brutalDown": "100 mbps"');
+      expect(result.configJson).assertContain('"udpHop"');
+      expect(result.configJson).assertContain('"ports": "20000-50000"');
+      expect(result.configJson).assertContain('"interval": "10-60"');
+      expect(result.configJson).assertContain('"type": "salamander"');
+      expect(result.configJson).assertContain('"password": "obfs-secret"');
     });
 
     it('applies prefer ipv6 to outbound happy eyeballs', 0, () => {

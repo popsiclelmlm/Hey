@@ -13,6 +13,18 @@ interface XrayWireguardSettings {
   address?: Array<string>;
 }
 
+interface XrayHysteria2Server {
+  obfsPassword?: string;
+  portHopping?: string;
+  portHoppingInterval?: string;
+  bandwidthDown?: string;
+  bandwidthUp?: string;
+}
+
+interface XrayHysteria2Settings {
+  servers?: Array<XrayHysteria2Server>;
+}
+
 interface XrayLogConfig {
   loglevel: string;
 }
@@ -33,6 +45,32 @@ interface XrayFragmentConfig {
   packets: string;
   length: string;
   interval: string;
+}
+
+interface XrayMaskSettingsConfig {
+  password?: string;
+}
+
+interface XrayMaskConfig {
+  type: string;
+  settings?: XrayMaskSettingsConfig;
+}
+
+interface XrayUdpHopConfig {
+  ports?: string;
+  interval?: string;
+}
+
+interface XrayQuicParamsConfig {
+  congestion?: string;
+  brutalUp?: string;
+  brutalDown?: string;
+  udpHop?: XrayUdpHopConfig;
+}
+
+interface XrayFinalMaskConfig {
+  udp?: Array<XrayMaskConfig>;
+  quicParams?: XrayQuicParamsConfig;
 }
 
 interface XrayHappyEyeballsConfig {
@@ -977,6 +1015,7 @@ function cloneOutbound(outbound: XrayOutbound): XrayOutbound {
 
 function applyOutboundRuntimeSettings(outbound: XrayOutbound, settings: AppSettings | undefined): void {
   applyWireguardIpv6Setting(outbound, settings);
+  applyHysteria2FinalMaskSettings(outbound);
   if (settings !== undefined && settings.muxEnabled) {
     const mux: XrayMuxConfig = {
       enabled: true,
@@ -1004,6 +1043,117 @@ function applyOutboundRuntimeSettings(outbound: XrayOutbound, settings: AppSetti
     sockopt['domainStrategy'] = 'UseIP';
     sockopt['happyEyeballs'] = happyEyeballs;
   }
+}
+
+function applyHysteria2FinalMaskSettings(outbound: XrayOutbound): void {
+  const protocol = outbound.protocol?.toLowerCase();
+  if ((protocol !== 'hysteria2' && protocol !== 'hysteria') || outbound.settings === undefined) {
+    return;
+  }
+
+  const hysteriaSettings = outbound.settings as XrayHysteria2Settings;
+  const server = hysteriaSettings.servers?.[0];
+  if (server === undefined) {
+    return;
+  }
+
+  const brutalUp = optionalTrim(server.bandwidthUp);
+  const brutalDown = optionalTrim(server.bandwidthDown);
+  const portHopping = optionalTrim(server.portHopping);
+  const obfsPassword = optionalTrim(server.obfsPassword);
+  if (brutalUp === undefined && brutalDown === undefined && portHopping === undefined && obfsPassword === undefined) {
+    return;
+  }
+
+  let streamSettings: Record<string, Object | string | number | boolean | undefined>;
+  if (outbound.streamSettings === undefined) {
+    streamSettings = {};
+  } else {
+    streamSettings = outbound.streamSettings as Record<string, Object | string | number | boolean | undefined>;
+  }
+  const existingFinalMask = streamSettings['finalmask'];
+  let finalMask: XrayFinalMaskConfig;
+  if (isRecord(existingFinalMask)) {
+    finalMask = existingFinalMask as XrayFinalMaskConfig;
+  } else {
+    finalMask = {};
+  }
+
+  if (brutalUp !== undefined || brutalDown !== undefined || portHopping !== undefined) {
+    let quicParams: XrayQuicParamsConfig;
+    if (finalMask.quicParams === undefined) {
+      quicParams = {};
+    } else {
+      quicParams = finalMask.quicParams;
+    }
+    if (brutalUp !== undefined) {
+      quicParams.brutalUp = brutalUp;
+    }
+    if (brutalDown !== undefined) {
+      quicParams.brutalDown = brutalDown;
+    }
+    if (brutalUp !== undefined || brutalDown !== undefined) {
+      quicParams.congestion = 'brutal';
+    }
+    if (portHopping !== undefined) {
+      const udpHop: XrayUdpHopConfig = {
+        ports: portHopping,
+        interval: normalizeHysteria2RuntimeHopInterval(server.portHoppingInterval)
+      };
+      quicParams.udpHop = udpHop;
+    }
+    finalMask.quicParams = quicParams;
+  }
+
+  if (obfsPassword !== undefined) {
+    const maskSettings: XrayMaskSettingsConfig = {
+      password: obfsPassword
+    };
+    const mask: XrayMaskConfig = {
+      type: 'salamander',
+      settings: maskSettings
+    };
+    finalMask.udp = [mask];
+  }
+
+  streamSettings['finalmask'] = finalMask as Object;
+  outbound.streamSettings = streamSettings as Object;
+}
+
+function normalizeHysteria2RuntimeHopInterval(value: string | undefined): string {
+  const rawInterval = optionalTrim(value);
+  if (rawInterval === undefined) {
+    return '30';
+  }
+  const singleValue = Number(rawInterval);
+  if (!Number.isNaN(singleValue) && Math.floor(singleValue) === singleValue) {
+    return singleValue < 5 ? '30' : rawInterval;
+  }
+
+  const parts = rawInterval.split('-');
+  if (parts.length !== 2) {
+    return '30';
+  }
+  const start = Number(parts[0].trim());
+  const end = Number(parts[1].trim());
+  if (Number.isNaN(start) || Number.isNaN(end) || Math.floor(start) !== start || Math.floor(end) !== end) {
+    return '30';
+  }
+  const minStart = Math.max(5, start);
+  const minEnd = Math.max(minStart, end);
+  return `${minStart}-${minEnd}`;
+}
+
+function optionalTrim(value: string | undefined): string | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function isRecord(value: Object | string | number | boolean | undefined): boolean {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function applyWireguardIpv6Setting(outbound: XrayOutbound, settings: AppSettings | undefined): void {
