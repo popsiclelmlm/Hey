@@ -1,5 +1,5 @@
 import { common } from '@kit.AbilityKit';
-import { AppLanguage, AppSettings, RoutingRule } from '../../core/Profile';
+import { AppLanguage, AppSettings, normalizeVpnMtuValue, RoutingRule } from '../../core/Profile';
 import { DEFAULT_APP_SETTINGS, SettingsStore } from '../../storage/SettingsStore';
 
 export interface SettingsDraft {
@@ -19,6 +19,7 @@ export interface SettingsDraft {
   allowInsecure: boolean;
   remoteDns: string;
   domesticDns: string;
+  vpnMtu: string;
   vpnDns: string;
   logLevel: string;
   delayTestUrl: string;
@@ -57,6 +58,7 @@ export class SettingsController {
       allowInsecure: settings.allowInsecure,
       remoteDns: settings.remoteDns,
       domesticDns: settings.domesticDns,
+      vpnMtu: settings.vpnMtu.toString(),
       vpnDns: settings.vpnDns,
       logLevel: settings.logLevel,
       delayTestUrl: settings.delayTestUrl,
@@ -92,6 +94,7 @@ export class SettingsController {
       proxySharingEnabled: draft.proxySharingEnabled,
       allowInsecure: draft.allowInsecure,
       localDnsPort: DEFAULT_APP_SETTINGS.localDnsPort,
+      vpnMtu: this.vpnMtuValue(draft.vpnMtu, DEFAULT_APP_SETTINGS.vpnMtu),
       vpnDns: draft.vpnDns.trim(),
       remoteDns: draft.remoteDns.trim(),
       domesticDns: draft.domesticDns.trim(),
@@ -127,6 +130,18 @@ export class SettingsController {
       });
     }
     return result;
+  }
+
+  private vpnMtuValue(value: string, fallback: number): number {
+    const normalized = value.trim();
+    if (normalized.length === 0) {
+      return fallback;
+    }
+    const parsed = Number(normalized);
+    if (Number.isNaN(parsed)) {
+      return fallback;
+    }
+    return normalizeVpnMtuValue(parsed, fallback);
   }
 
 }

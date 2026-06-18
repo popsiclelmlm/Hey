@@ -81,6 +81,24 @@ export interface RoutingRule {
   locked: boolean;
 }
 
+export const DEFAULT_VPN_MTU: number = 1400;
+export const MIN_VPN_MTU: number = 1280;
+export const MAX_VPN_MTU: number = 9000;
+
+export function normalizeVpnMtuValue(value: number | undefined, fallback: number = DEFAULT_VPN_MTU): number {
+  if (value === undefined || Number.isNaN(value)) {
+    return fallback;
+  }
+  const mtu = Math.floor(value);
+  if (mtu < MIN_VPN_MTU) {
+    return MIN_VPN_MTU;
+  }
+  if (mtu > MAX_VPN_MTU) {
+    return MAX_VPN_MTU;
+  }
+  return mtu;
+}
+
 export interface AppSettings {
   language: AppLanguage;
   sniffingEnabled: boolean;
@@ -103,6 +121,7 @@ export interface AppSettings {
   proxySharingEnabled: boolean;
   allowInsecure: boolean;
   localDnsPort: number;
+  vpnMtu: number;
   vpnDns: string;
   remoteDns: string;
   domesticDns: string;

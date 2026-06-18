@@ -7,9 +7,11 @@ import {
   createStopVpnWant,
   createVpnWant,
   normalizeVpnDnsAddresses,
+  normalizeVpnMtu,
   VPN_ABILITY_NAME,
   VPN_COMMAND_KEY,
-  VPN_COMMAND_STOP
+  VPN_COMMAND_STOP,
+  VPN_MTU
 } from '../../../main/ets/vpn/VpnConstants';
 
 const OUTBOUND_JSON: string =
@@ -48,6 +50,15 @@ export default function abilityTest() {
       const dnsAddresses = config.dnsAddresses === undefined ? [] : config.dnsAddresses;
       expect(dnsAddresses.join('|')).assertEqual('9.9.9.9|1.0.0.1');
       expect(config.blockedApplications?.join('|')).assertEqual(BUNDLE_NAME);
+    });
+
+    it('normalizes vpn mtu settings for the vpn interface', 0, () => {
+      expect(normalizeVpnMtu()).assertEqual(VPN_MTU);
+      expect(normalizeVpnMtu(1279)).assertEqual(1280);
+      expect(normalizeVpnMtu(9001)).assertEqual(9000);
+
+      const config = createDefaultVpnConfig(false, true, [], '1.1.1.1', false, 1420);
+      expect(config.mtu).assertEqual(1420);
     });
 
     it('adds ipv6 interface address and route when enabled', 0, () => {

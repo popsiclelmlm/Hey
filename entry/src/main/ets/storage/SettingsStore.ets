@@ -1,7 +1,7 @@
 import { common } from '@kit.AbilityKit';
 import { preferences } from '@kit.ArkData';
 import { DEFAULT_LANGUAGE, normalizeLanguage } from '../core/I18n';
-import { AppLanguage, AppSettings, RoutingRule } from '../core/Profile';
+import { AppLanguage, AppSettings, DEFAULT_VPN_MTU, normalizeVpnMtuValue, RoutingRule } from '../core/Profile';
 
 const PREFERENCES_NAME: string = 'hey_vpn_settings';
 const SETTINGS_KEY: string = 'app_settings';
@@ -28,6 +28,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   proxySharingEnabled: false,
   allowInsecure: false,
   localDnsPort: 10853,
+  vpnMtu: DEFAULT_VPN_MTU,
   vpnDns: '1.1.1.1',
   remoteDns: '1.1.1.1',
   domesticDns: '223.5.5.5',
@@ -97,6 +98,7 @@ export class SettingsStore {
       proxySharingEnabled: SettingsStore.boolValue(raw.proxySharingEnabled, base.proxySharingEnabled),
       allowInsecure: SettingsStore.boolValue(raw.allowInsecure, base.allowInsecure),
       localDnsPort: SettingsStore.portValue(raw.localDnsPort, base.localDnsPort),
+      vpnMtu: normalizeVpnMtuValue(raw.vpnMtu, base.vpnMtu),
       vpnDns: SettingsStore.stringValue(raw.vpnDns, base.vpnDns),
       remoteDns: SettingsStore.stringValue(raw.remoteDns, base.remoteDns),
       domesticDns: SettingsStore.stringValue(raw.domesticDns, base.domesticDns),

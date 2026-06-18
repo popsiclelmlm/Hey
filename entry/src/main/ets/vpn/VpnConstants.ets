@@ -1,11 +1,12 @@
 import { vpnExtension } from '@kit.NetworkKit';
 import Want from '@ohos.app.ability.Want';
+import { DEFAULT_VPN_MTU, normalizeVpnMtuValue } from '../core/Profile';
 
 export const BUNDLE_NAME: string = 'com.lmlm.hey';
 export const VPN_ABILITY_NAME: string = 'HeyVpnAbility';
 export const VPN_COMMAND_KEY: string = 'command';
 export const VPN_COMMAND_STOP: string = 'stop';
-export const VPN_MTU: number = 1400;
+export const VPN_MTU: number = DEFAULT_VPN_MTU;
 export const TUN_IPV4: string = '172.19.0.2';
 export const TUN_IPV6: string = 'fd00:172:19::2';
 export const VPN_INTERFACE_NAME: string = 'vpn-tun';
@@ -48,7 +49,8 @@ export function createDefaultVpnConfig(
   bypassMode: boolean,
   appList: string[],
   vpnDns?: string,
-  preferIpv6?: boolean
+  preferIpv6?: boolean,
+  vpnMtu?: number
 ): vpnExtension.VpnConfig {
   const selfBundle = BUNDLE_NAME;
   const ipv6Enabled = preferIpv6 === true;
@@ -128,7 +130,7 @@ export function createDefaultVpnConfig(
     addresses,
     routes,
     dnsAddresses: normalizeVpnDnsAddresses(vpnDns),
-    mtu: VPN_MTU,
+    mtu: normalizeVpnMtu(vpnMtu),
     isIPv4Accepted: true,
     isIPv6Accepted: ipv6Enabled
   };
@@ -141,6 +143,10 @@ export function createDefaultVpnConfig(
   }
 
   return config;
+}
+
+export function normalizeVpnMtu(vpnMtu?: number): number {
+  return normalizeVpnMtuValue(vpnMtu, VPN_MTU);
 }
 
 export function normalizeVpnDnsAddresses(vpnDns?: string): string[] {

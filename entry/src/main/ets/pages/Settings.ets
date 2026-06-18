@@ -31,6 +31,7 @@ struct SettingsPage {
   @State private settingRemoteDns: string = '1.1.1.1';
   @State private settingDomesticDns: string = '223.5.5.5';
   @State private settingVpnDns: string = '1.1.1.1';
+  @State private settingVpnMtu: string = '1400';
   @State private settingLogLevel: string = 'warning';
   @State private settingDelayTestUrl: string = 'https://www.gstatic.com/generate_204';
   @State private settingAutoSortAfterTest: boolean = false;
@@ -100,6 +101,8 @@ struct SettingsPage {
             this.SettingToggle(this.t('settings.preferIpv6'), this.settingPreferIpv6, 'preferIpv6')
             this.RowDivider()
             this.SettingInput(this.t('settings.vpnDns'), this.settingVpnDns, 'vpnDns')
+            this.RowDivider()
+            this.SettingInput(this.t('settings.vpnMtu'), this.settingVpnMtu, 'vpnMtu')
           }
           .width('100%')
           .backgroundColor(AppColor.surface)
@@ -295,6 +298,9 @@ struct SettingsPage {
       case 'vpnDns':
         this.settingVpnDns = value;
         break;
+      case 'vpnMtu':
+        this.settingVpnMtu = value;
+        break;
       case 'remoteDns':
         this.settingRemoteDns = value;
         break;
@@ -355,6 +361,7 @@ struct SettingsPage {
       allowInsecure: this.settingAllowInsecure,
       remoteDns: this.settingRemoteDns,
       domesticDns: this.settingDomesticDns,
+      vpnMtu: this.settingVpnMtu,
       vpnDns: this.settingVpnDns,
       logLevel: this.settingLogLevel,
       delayTestUrl: this.settingDelayTestUrl,
@@ -384,6 +391,7 @@ struct SettingsPage {
     this.settingAllowInsecure = draft.allowInsecure;
     this.settingRemoteDns = draft.remoteDns;
     this.settingDomesticDns = draft.domesticDns;
+    this.settingVpnMtu = draft.vpnMtu;
     this.settingVpnDns = draft.vpnDns;
     this.settingLogLevel = draft.logLevel;
     this.settingDelayTestUrl = draft.delayTestUrl;

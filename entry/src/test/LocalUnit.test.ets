@@ -120,6 +120,7 @@ export default function localUnitTest() {
         proxySharingEnabled: false,
         allowInsecure: false,
         localDnsPort: 10853,
+        vpnMtu: 1400,
         vpnDns: '1.1.1.1',
         remoteDns: '9.9.9.9',
         domesticDns: '223.5.5.5',
@@ -141,6 +142,14 @@ export default function localUnitTest() {
       expect(result.configJson).assertContain('"sniffing"');
       expect(result.configJson).assertContain('"mux"');
       expect(result.configJson).assertContain('"9.9.9.9"');
+    });
+
+    it('applies vpn mtu to generated tun inbound', 0, () => {
+      const settings = buildSettingsFixture();
+      settings.vpnMtu = 1420;
+      const result = buildXrayConfigWithSettings(VLESS_REALITY_OUTBOUND, settings);
+      expect(result.configJson).assertContain('"settings"');
+      expect(result.configJson).assertContain('"mtu": 1420');
     });
 
     it('applies enabled custom routing rules to generated xray config', 0, () => {
@@ -271,13 +280,23 @@ export default function localUnitTest() {
       expect(normalizeLanguage('fr')).assertEqual('zh');
     });
 
-    it('round-trips prefer ipv6 through settings draft', 0, () => {
+    it('round-trips vpn settings through settings draft', 0, () => {
       const settings = buildSettingsFixture();
       settings.preferIpv6 = true;
+      settings.vpnMtu = 1420;
       const draft = SETTINGS_CONTROLLER.toDraft(settings);
       expect(draft.preferIpv6).assertTrue();
+      expect(draft.vpnMtu).assertEqual('1420');
       const rebuilt = SETTINGS_CONTROLLER.buildSettings(draft);
       expect(rebuilt.preferIpv6).assertTrue();
+      expect(rebuilt.vpnMtu).assertEqual(1420);
+
+      draft.vpnMtu = '1279';
+      expect(SETTINGS_CONTROLLER.buildSettings(draft).vpnMtu).assertEqual(1280);
+      draft.vpnMtu = 'bad';
+      expect(SETTINGS_CONTROLLER.buildSettings(draft).vpnMtu).assertEqual(1400);
+      draft.vpnMtu = '';
+      expect(SETTINGS_CONTROLLER.buildSettings(draft).vpnMtu).assertEqual(1400);
     });
 
     it('formats runtime values through shared helpers', 0, () => {
@@ -550,6 +569,7 @@ function buildSettingsFixture(): AppSettings {
     proxySharingEnabled: false,
     allowInsecure: false,
     localDnsPort: 10853,
+    vpnMtu: 1400,
     vpnDns: '1.1.1.1',
     remoteDns: '1.1.1.1',
     domesticDns: '223.5.5.5',

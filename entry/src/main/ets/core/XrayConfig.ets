@@ -1,4 +1,4 @@
-import { AppSettings, GeneratedXrayConfig, RoutingRule, ValidationResult, XrayConfigType } from './Profile';
+import { AppSettings, DEFAULT_VPN_MTU, GeneratedXrayConfig, normalizeVpnMtuValue, RoutingRule, ValidationResult, XrayConfigType } from './Profile';
 import { isSupportedShareLink, isWireguardConfigFile, parseShareLinkToOutboundJson, parseWireguardConfigToOutboundJson } from './ShareLinkParser';
 
 interface XrayOutbound {
@@ -106,8 +106,12 @@ class HttpInboundSettings {
 
 class TunInboundSettings {
   name: string = 'vpn-tun';
-  mtu: number = 1400;
+  mtu: number;
   userLevel: number = 0;
+
+  constructor(mtu: number = DEFAULT_VPN_MTU) {
+    this.mtu = normalizeVpnMtuValue(mtu, DEFAULT_VPN_MTU);
+  }
 }
 
 class DokodemoInboundSettings {
@@ -434,7 +438,7 @@ function buildXrayConfigInternal(outboundJson: string, settings: AppSettings | u
   const tunInbound: XrayInboundConfig = {
     tag: 'tun-in',
     protocol: 'tun',
-    settings: new TunInboundSettings()
+    settings: new TunInboundSettings(settings === undefined ? DEFAULT_VPN_MTU : settings.vpnMtu)
   };
   if (settings === undefined || settings.sniffingEnabled) {
     const sniffing: XraySniffingConfig = {
