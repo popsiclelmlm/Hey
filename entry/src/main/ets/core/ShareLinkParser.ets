@@ -1579,7 +1579,7 @@ function formatSocks(outbound: XrayOutbound, name: string): string {
 
   let userInfo = '';
   if (server.users && server.users.length > 0) {
-    userInfo = `${server.users[0].user}:${server.users[0].pass}@`;
+    userInfo = `${encodeURIComponent(encodeUtf8ToBase64(`${server.users[0].user}:${server.users[0].pass}`))}@`;
   }
   const hashStr = name.length > 0 ? `#${encodeURIComponent(name)}` : '';
   return `socks://${userInfo}${formatHostPort(server.address, server.port)}${hashStr}`;

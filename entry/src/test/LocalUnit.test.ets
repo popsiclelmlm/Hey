@@ -1599,6 +1599,11 @@ export default function localUnitTest() {
       expect(socks.success).assertTrue();
       expect(socks.outboundJson).assertContain('"protocol": "socks"');
       expect(socks.outboundJson).assertContain('"user": "user"');
+      const exportedSocks = formatOutboundJsonToShareLink(socks.outboundJson, 'socks-demo');
+      expect(exportedSocks).assertContain('socks://dXNlcjpwYXNz@example.com:1080');
+      const roundTripSocks = parseShareLinkToOutboundJson(exportedSocks);
+      expect(roundTripSocks.success).assertTrue();
+      expect(roundTripSocks.outboundJson).assertContain('"pass": "pass"');
 
       const http = parseShareLinkToOutboundJson('http://user:pass@example.com:8080#http-demo');
       expect(http.success).assertTrue();
