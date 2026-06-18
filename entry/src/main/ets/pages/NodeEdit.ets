@@ -946,13 +946,13 @@ struct NodeEditPage {
         return;
       }
 
-      const saved = await NODES_CONTROLLER.saveProfile(context, validation.normalizedJson, this.language);
+      const saved = await NODES_CONTROLLER.saveProfile(context, validation.normalizedJson, this.language, validation.configType);
       if (saved.profile === null) {
         this.lastError = saved.lastError;
         return;
       }
 
-      await SubscriptionStore.addManualNode(context, this.nodeName, validation.normalizedJson);
+      await SubscriptionStore.addManualNode(context, this.nodeName, validation.normalizedJson, validation.configType);
       promptAction.showToast({ message: '节点保存成功' });
       router.back();
     } catch (error) {

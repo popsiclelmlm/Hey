@@ -1,7 +1,7 @@
 import { describe, it, expect } from '@ohos/hypium';
 import { formatTranslation, missingTranslationKeys, normalizeLanguage, translate } from '../main/ets/core/I18n';
 import { AppSettings, ProxyNode, RoutingRule, SubscriptionGroup } from '../main/ets/core/Profile';
-import { LOCAL_HTTP_PROXY_PORT, buildXrayConfig, buildXrayConfigWithSettings, normalizeOutboundInput, validateOutboundJson } from '../main/ets/core/XrayConfig';
+import { LOCAL_HTTP_PROXY_PORT, buildRuntimeXrayConfig, buildXrayConfig, buildXrayConfigWithSettings, normalizeOutboundInput, validateFullConfigJson, validateOutboundJson } from '../main/ets/core/XrayConfig';
 import { parseShareLinkToOutboundJson } from '../main/ets/core/ShareLinkParser';
 import { exportRoutingRulesJson, importRoutingRulesJson, resetRoutingRulesFromPreset } from '../main/ets/core/RoutingRules';
 import {
@@ -18,6 +18,8 @@ import { formatOne, localizedProfileSavedText, localizeCoreMessage } from '../ma
 
 const VLESS_REALITY_OUTBOUND: string =
   '{"protocol":"vless","tag":"proxy","settings":{"vnext":[{"address":"example.com","port":443,"users":[{"id":"00000000-0000-0000-0000-000000000000","encryption":"none","flow":"xtls-rprx-vision"}]}]},"streamSettings":{"network":"tcp","security":"reality","realitySettings":{"serverName":"www.example.com","publicKey":"test-public-key","shortId":"abcd","fingerprint":"chrome"}}}';
+const FULL_XRAY_CONFIG: string =
+  '{"remarks":"Custom full config","log":{"loglevel":"info"},"inbounds":[{"tag":"tun-in","protocol":"tun","settings":{"name":"vpn-tun","mtu":1400}}],"outbounds":[{"tag":"direct","protocol":"freedom","settings":{}}],"routing":{"domainStrategy":"AsIs","rules":[]}}';
 
 export default function localUnitTest() {
   describe('xrayConfig', () => {
@@ -46,6 +48,31 @@ export default function localUnitTest() {
       expect(result.configJson).assertContain('"protocol": "tun"');
       expect(result.configJson).assertContain('"tag": "tun-in"');
       expect(result.configJson).assertContain('"security": "reality"');
+    });
+
+    it('validates full custom xray config json', 0, () => {
+      const directValidation = validateFullConfigJson(FULL_XRAY_CONFIG);
+      expect(directValidation.valid).assertTrue();
+      expect(directValidation.protocol).assertEqual('custom');
+      expect(directValidation.configType).assertEqual('full');
+      expect(directValidation.normalizedJson).assertContain('"inbounds"');
+
+      const autoValidation = normalizeOutboundInput(FULL_XRAY_CONFIG);
+      expect(autoValidation.valid).assertTrue();
+      expect(autoValidation.configType).assertEqual('full');
+      expect(autoValidation.message).assertEqual('完整 Xray 配置校验通过。');
+    });
+
+    it('builds runtime config from full custom config without wrapping', 0, () => {
+      const settings = buildSettingsFixture();
+      settings.logLevel = 'debug';
+      settings.appendHttpProxy = true;
+      const result = buildRuntimeXrayConfig(FULL_XRAY_CONFIG, settings, 'full');
+      expect(result.configJson).assertContain('"loglevel": "info"');
+      expect(result.configJson).assertContain('"protocol": "tun"');
+      expect(result.configJson.indexOf('"metrics"')).assertEqual(-1);
+      expect(result.configJson.indexOf('"http-in"')).assertEqual(-1);
+      expect(result.httpProxyPort === undefined).assertTrue();
     });
 
     it('applies app settings when generating xray config', 0, () => {
@@ -236,11 +263,18 @@ export default function localUnitTest() {
       const invalid = copyNode(nodes[0], 'invalid');
       invalid.rawLink = '';
       invalid.outboundJson = '{';
-      expect(findInvalidNodes(nodes.concat([invalid])).length).assertEqual(1);
+      const fullConfigNode = copyNode(nodes[2], 'full-config');
+      fullConfigNode.name = 'Full config';
+      fullConfigNode.protocol = 'custom';
+      fullConfigNode.rawLink = '';
+      fullConfigNode.outboundJson = FULL_XRAY_CONFIG;
+      fullConfigNode.configType = 'full';
+      expect(findInvalidNodes(nodes.concat([invalid, fullConfigNode])).length).assertEqual(1);
 
-      const exported = exportNodesText(nodes);
+      const exported = exportNodesText(nodes.concat([fullConfigNode]));
       expect(exported).assertContain('vless://');
       expect(exported).assertContain('"protocol": "vless"');
+      expect(exported).assertContain('"remarks": "Custom full config"');
     });
 
     it('imports vless reality share link as outbound json', 0, () => {
@@ -547,6 +581,7 @@ function copyNode(node: ProxyNode, id: string): ProxyNode {
     name: node.name,
     protocol: node.protocol,
     outboundJson: node.outboundJson,
+    configType: node.configType,
     sourceUrl: node.sourceUrl,
     rawLink: node.rawLink,
     updatedAt: node.updatedAt,

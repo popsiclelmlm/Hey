@@ -3,7 +3,7 @@ import { vpnExtension } from '@kit.NetworkKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { AppSettings, ConnectionStatus, GeneratedXrayConfig, ProxyProfile, RuntimeStats } from '../core/Profile';
-import { buildXrayConfig, buildXrayConfigWithSettings, validateOutboundJson } from '../core/XrayConfig';
+import { buildRuntimeXrayConfig, normalizeConfigInput } from '../core/XrayConfig';
 import { createStopCommandVpnWant, createStopVpnWant, createVpnWant } from '../vpn/VpnConstants';
 import { getNativeStats } from '../native/HeyNative';
 import { DiagnosticEvent, DiagnosticLog } from './DiagnosticLog';
@@ -59,7 +59,7 @@ export class ConnectionController {
       return this.getSnapshot();
     }
 
-    const validation = validateOutboundJson(profile.outboundJson);
+    const validation = normalizeConfigInput(profile.outboundJson, profile.configType);
     if (!validation.valid) {
       this.status = ConnectionStatus.ERROR;
       this.lastError = validation.message;
@@ -68,7 +68,7 @@ export class ConnectionController {
 
     this.status = ConnectionStatus.STARTING;
     this.lastError = '';
-    this.generatedConfig = settings === undefined ? buildXrayConfig(profile.outboundJson) : buildXrayConfigWithSettings(profile.outboundJson, settings);
+    this.generatedConfig = buildRuntimeXrayConfig(profile.outboundJson, settings, profile.configType);
     const requestedAt = Date.now();
 
     try {

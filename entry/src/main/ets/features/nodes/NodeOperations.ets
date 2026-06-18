@@ -1,5 +1,5 @@
 import { ProxyNode } from '../../core/Profile';
-import { normalizeOutboundInput } from '../../core/XrayConfig';
+import { normalizeConfigInput } from '../../core/XrayConfig';
 import { formatOutboundJsonToShareLink } from '../../core/ShareLinkParser';
 
 export type NodeSortKey = 'delay' | 'name' | 'protocol';
@@ -73,7 +73,7 @@ export function findInvalidNodes(nodes: Array<ProxyNode>): Array<ProxyNode> {
   const result = new Array<ProxyNode>();
   for (let index = 0; index < nodes.length; index++) {
     const node = nodes[index];
-    if (!normalizeOutboundInput(node.outboundJson).valid) {
+    if (!normalizeConfigInput(node.outboundJson, node.configType).valid) {
       result.push(node);
     }
   }
@@ -84,7 +84,7 @@ export function removeInvalidNodesFromList(nodes: Array<ProxyNode>): Array<Proxy
   const result = new Array<ProxyNode>();
   for (let index = 0; index < nodes.length; index++) {
     const node = nodes[index];
-    if (normalizeOutboundInput(node.outboundJson).valid) {
+    if (normalizeConfigInput(node.outboundJson, node.configType).valid) {
       result.push(node);
     }
   }
@@ -141,7 +141,7 @@ function exportNodeText(node: ProxyNode): string {
   if (link.length > 0) {
     return link;
   }
-  const validation = normalizeOutboundInput(node.outboundJson);
+  const validation = normalizeConfigInput(node.outboundJson, node.configType);
   if (validation.valid) {
     return validation.normalizedJson;
   }
@@ -153,7 +153,7 @@ function dedupeKey(node: ProxyNode): string {
   if (rawLink.length > 0) {
     return `raw:${rawLink}`;
   }
-  const validation = normalizeOutboundInput(node.outboundJson);
+  const validation = normalizeConfigInput(node.outboundJson, node.configType);
   if (validation.valid) {
     return `json:${validation.normalizedJson}`;
   }

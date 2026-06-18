@@ -1,12 +1,12 @@
 import { common } from '@kit.AbilityKit';
 import { preferences } from '@kit.ArkData';
-import { ProxyNode, SubscriptionGroup, SubscriptionProfile } from '../core/Profile';
+import { ProxyNode, SubscriptionGroup, SubscriptionProfile, XrayConfigType } from '../core/Profile';
 import {
   DEFAULT_SUBSCRIPTION_UPDATE_INTERVAL_MINUTES,
   moveSubscriptionGroup,
   normalizeSubscriptionUpdateInterval
 } from '../core/SubscriptionGroups';
-import { normalizeOutboundInput } from '../core/XrayConfig';
+import { normalizeConfigInput } from '../core/XrayConfig';
 
 const PREFERENCES_NAME: string = 'hey_vpn_subscription';
 const SUBSCRIPTION_KEY: string = 'subscription_profile';
@@ -133,7 +133,7 @@ export class SubscriptionStore {
       const nodes = new Array<ProxyNode>();
       for (let index = 0; index < group.nodes.length; index++) {
         const node = group.nodes[index];
-        if (normalizeOutboundInput(node.outboundJson).valid) {
+        if (normalizeConfigInput(node.outboundJson, node.configType).valid) {
           nodes.push(node);
         }
       }
@@ -272,7 +272,7 @@ export class SubscriptionStore {
     return SubscriptionStore.load(context);
   }
 
-  static async addManualNode(context: common.Context, name: string, outboundJson: string): Promise<SubscriptionProfile> {
+  static async addManualNode(context: common.Context, name: string, outboundJson: string, configType?: XrayConfigType): Promise<SubscriptionProfile> {
     const profile = await SubscriptionStore.load(context);
     
     let localGroup = SubscriptionStore.findGroup(profile.groups, 'sub-local');
@@ -294,8 +294,9 @@ export class SubscriptionStore {
       profile.groups.push(localGroup);
     }
     
-    const validation = normalizeOutboundInput(outboundJson);
-    const protocol = validation.valid ? validation.protocol : 'unknown';
+    const validation = normalizeConfigInput(outboundJson, configType);
+    const resolvedConfigType = SubscriptionStore.resolveConfigType(validation.configType, configType);
+    const protocol = validation.valid ? (resolvedConfigType === 'full' ? 'custom' : validation.protocol) : 'unknown';
     
     const nodeId = `manual-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
     const finalName = name.trim().length > 0 ? name.trim() : `手动-${protocol.toUpperCase()}`;
@@ -305,6 +306,7 @@ export class SubscriptionStore {
       name: finalName,
       protocol: protocol,
       outboundJson: validation.valid ? validation.normalizedJson : outboundJson,
+      configType: resolvedConfigType,
       sourceUrl: '',
       rawLink: '',
       updatedAt: Date.now(),
@@ -406,11 +408,14 @@ export class SubscriptionStore {
     for (let index = 0; index < nodes.length; index++) {
       const node = nodes[index];
       const id = SubscriptionStore.uniqueNodeId(node.id ?? '', index, idCounts);
+      const configType = SubscriptionStore.normalizeNodeConfigType(node);
+      const protocol = node.protocol ?? '';
       normalized.push({
         id,
         name: node.name ?? '',
-        protocol: node.protocol ?? '',
+        protocol: protocol.length > 0 ? protocol : (configType === 'full' ? 'custom' : ''),
         outboundJson: node.outboundJson ?? '',
+        configType,
         sourceUrl: node.sourceUrl ?? '',
         rawLink: node.rawLink ?? '',
         updatedAt: node.updatedAt ?? 0,
@@ -507,7 +512,7 @@ export class SubscriptionStore {
     if (rawLink.length > 0) {
       return `raw:${rawLink}`;
     }
-    const validation = normalizeOutboundInput(node.outboundJson);
+    const validation = normalizeConfigInput(node.outboundJson, node.configType);
     if (validation.valid) {
       return `json:${validation.normalizedJson}`;
     }
@@ -567,5 +572,23 @@ export class SubscriptionStore {
       hash = hash >>> 0;
     }
     return `sub-${hash.toString(16)}`;
+  }
+
+  private static normalizeNodeConfigType(node: ProxyNode): XrayConfigType {
+    if (node.configType === 'full') {
+      return 'full';
+    }
+    const validation = normalizeConfigInput(node.outboundJson ?? '');
+    return validation.configType === 'full' ? 'full' : 'outbound';
+  }
+
+  private static resolveConfigType(detected?: XrayConfigType, fallback?: XrayConfigType): XrayConfigType {
+    if (detected === 'full') {
+      return 'full';
+    }
+    if (detected === 'outbound') {
+      return 'outbound';
+    }
+    return fallback === 'full' ? 'full' : 'outbound';
   }
 }

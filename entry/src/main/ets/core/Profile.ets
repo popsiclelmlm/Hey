@@ -1,9 +1,12 @@
 export const DEFAULT_PROFILE_ID: string = 'default-profile';
 
+export type XrayConfigType = 'outbound' | 'full';
+
 export interface ProxyProfile {
   id: string;
   name: string;
   outboundJson: string;
+  configType?: XrayConfigType;
   updatedAt: number;
 }
 
@@ -12,6 +15,7 @@ export interface ProxyNode {
   name: string;
   protocol: string;
   outboundJson: string;
+  configType?: XrayConfigType;
   sourceUrl: string;
   rawLink: string;
   updatedAt: number;
@@ -49,6 +53,7 @@ export interface ValidationResult {
   message: string;
   protocol: string;
   normalizedJson: string;
+  configType?: XrayConfigType;
 }
 
 export interface GeneratedXrayConfig {

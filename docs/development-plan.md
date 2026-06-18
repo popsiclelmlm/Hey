@@ -171,7 +171,15 @@ VPN 接口 `dnsAddresses` 改为读 `vpnDns` 设置（当前写死 `1.1.1.1/8.8.
 
 **目标**：补齐导入/分享/平台入口，对齐 v2rayNG 的便捷体验。
 
+**进展（2026-06-18 续）**：完整自定义 Xray 配置导入已落地：
+- 校验：JSON 导入入口自动区分单个 outbound 与完整 Xray config（`inbounds` + `outbounds`）
+- 存储：手动节点和当前 profile 记录 `configType`，旧 outbound 节点保持兼容
+- 运行：完整 config 启动时直接传给 VPN 扩展，不再套用 Hey 生成的 TUN/routing/DNS/HTTP 代理配置
+- 导出/清理：完整 config 节点可作为 JSON 文本导出，删除无效节点和去重不会误判为无效 outbound
+
 **任务**
+- ✅ **完整自定义配置导入**：对应 v2rayNG `ServerCustomConfigActivity` 的粘贴导入与运行路径
+  （2026-06-18 已完成；文件选择导入和高级编辑待补）
 - **URL Scheme / Want 深链导入**：对应 v2rayNG `v2rayng://install-config` 与
   `install-sub`，在 `EntryAbility.onCreate/onNewWant` 解析 Want 并导入
 - **二维码生成**：节点分享生成 QR（鸿蒙 `@ohos.graphics` 或二维码库），

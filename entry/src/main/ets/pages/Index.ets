@@ -123,7 +123,7 @@ struct Index {
           return;
         }
         const nodeName = this.nodeNameFromOutbound(saved.profile.outboundJson);
-        await SubscriptionStore.addManualNode(context, nodeName, saved.profile.outboundJson);
+        await SubscriptionStore.addManualNode(context, nodeName, saved.profile.outboundJson, saved.profile.configType);
         this.applyNodesState(await NODES_CONTROLLER.load(context, this.language));
         SHARED_RUNTIME_CONTROLLER.appendLog(this.f1('log.deepLinkConfig', 'name', nodeName));
       }
@@ -139,6 +139,14 @@ struct Index {
       const tag = obj.tag;
       if (typeof tag === 'string' && tag.trim().length > 0) {
         return tag.trim();
+      }
+      const remarks = obj.remarks;
+      if (typeof remarks === 'string' && remarks.trim().length > 0) {
+        return remarks.trim();
+      }
+      const name = obj.name;
+      if (typeof name === 'string' && name.trim().length > 0) {
+        return name.trim();
       }
     } catch (error) {
       // ignore and fall back
@@ -1154,6 +1162,7 @@ struct Index {
           name: node.name,
           protocol: node.protocol,
           outboundJson: node.outboundJson,
+          configType: node.configType,
           sourceUrl: node.sourceUrl,
           rawLink: node.rawLink,
           updatedAt: node.updatedAt,

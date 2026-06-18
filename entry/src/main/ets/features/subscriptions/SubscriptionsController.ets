@@ -106,7 +106,7 @@ export class SubscriptionsController {
       const subscription = await SubscriptionStore.saveNodes(context, targetGroupId, url, nodes, nextSelectedId);
       const selected = this.findNode(subscription.nodes, nextSelectedId);
       if (selected !== null) {
-        await ProfileStore.save(context, selected.outboundJson);
+        await ProfileStore.save(context, selected.outboundJson, selected.configType);
       }
       return this.buildState(subscription, language, localizeCoreMessage(language, result.message));
     } catch (error) {
@@ -245,7 +245,7 @@ export class SubscriptionsController {
       const subscription = await SubscriptionStore.selectGroup(context, group.id);
       const selected = this.findNode(subscription.nodes, subscription.selectedNodeId);
       if (selected !== null) {
-        await ProfileStore.save(context, selected.outboundJson);
+        await ProfileStore.save(context, selected.outboundJson, selected.configType);
       }
       return this.buildState(subscription, language, formatOne(language, 'log.openedSubscriptionGroup', 'name', group.name));
     } catch (error) {

@@ -1,4 +1,4 @@
-import { AppSettings, GeneratedXrayConfig, RoutingRule, ValidationResult } from './Profile';
+import { AppSettings, GeneratedXrayConfig, RoutingRule, ValidationResult, XrayConfigType } from './Profile';
 import { isSupportedShareLink, parseShareLinkToOutboundJson } from './ShareLinkParser';
 
 interface XrayOutbound {
@@ -137,6 +137,10 @@ function parseOutbound(outboundJson: string): XrayOutbound {
   return JSON.parse(outboundJson) as XrayOutbound;
 }
 
+function parseFullConfig(configJson: string): XrayFullConfig {
+  return JSON.parse(configJson) as XrayFullConfig;
+}
+
 export function validateOutboundJson(outboundJson: string): ValidationResult {
   const trimmed = outboundJson.trim();
   if (trimmed.length === 0) {
@@ -144,59 +148,59 @@ export function validateOutboundJson(outboundJson: string): ValidationResult {
       valid: false,
       message: '请先粘贴 Xray outbound JSON。',
       protocol: '',
-      normalizedJson: ''
+      normalizedJson: '',
+      configType: 'outbound'
     };
   }
 
   try {
     const outbound = parseOutbound(trimmed);
-    if (outbound.protocol === undefined || outbound.protocol.trim().length === 0) {
-      return {
-        valid: false,
-        message: 'outbound 缺少 protocol 字段。',
-        protocol: '',
-        normalizedJson: ''
-      };
-    }
-
-    if (!isSupportedProtocol(outbound.protocol)) {
-      return {
-        valid: false,
-        message: `暂不支持 ${outbound.protocol}，当前支持 VLESS、VMess、Trojan、Shadowsocks、SOCKS、HTTP、WireGuard 和 Hysteria2。`,
-        protocol: outbound.protocol,
-        normalizedJson: ''
-      };
-    }
-
-    if (outbound.settings === undefined) {
-      return {
-        valid: false,
-        message: 'outbound 缺少 settings 字段。',
-        protocol: outbound.protocol,
-        normalizedJson: ''
-      };
-    }
-
-    return {
-      valid: true,
-      message: `${outbound.protocol.toUpperCase()} outbound 校验通过。`,
-      protocol: outbound.protocol,
-      normalizedJson: JSON.stringify(outbound, null, 2)
-    };
+    return validateOutboundObject(outbound);
   } catch (error) {
     return {
       valid: false,
       message: `JSON 解析失败：${JSON.stringify(error)}`,
       protocol: '',
-      normalizedJson: ''
+      normalizedJson: '',
+      configType: 'outbound'
     };
   }
 }
 
-export function normalizeOutboundInput(input: string): ValidationResult {
+export function validateFullConfigJson(configJson: string): ValidationResult {
+  const trimmed = configJson.trim();
+  if (trimmed.length === 0) {
+    return {
+      valid: false,
+      message: '请先粘贴 Xray 完整配置 JSON。',
+      protocol: 'custom',
+      normalizedJson: '',
+      configType: 'full'
+    };
+  }
+
+  try {
+    const config = parseFullConfig(trimmed);
+    return validateFullConfigObject(config);
+  } catch (error) {
+    return {
+      valid: false,
+      message: `JSON 解析失败：${JSON.stringify(error)}`,
+      protocol: 'custom',
+      normalizedJson: '',
+      configType: 'full'
+    };
+  }
+}
+
+export function normalizeConfigInput(input: string, preferredType?: XrayConfigType): ValidationResult {
   const trimmed = input.trim();
+  if (preferredType === 'full') {
+    return validateFullConfigJson(trimmed);
+  }
+
   if (!isSupportedShareLink(trimmed)) {
-    return validateOutboundJson(trimmed);
+    return validateJsonConfigInput(trimmed, preferredType);
   }
 
   const imported = parseShareLinkToOutboundJson(trimmed);
@@ -205,7 +209,8 @@ export function normalizeOutboundInput(input: string): ValidationResult {
       valid: false,
       message: imported.message,
       protocol: imported.protocol,
-      normalizedJson: ''
+      normalizedJson: '',
+      configType: 'outbound'
     };
   }
 
@@ -218,8 +223,121 @@ export function normalizeOutboundInput(input: string): ValidationResult {
     valid: true,
     message: imported.message,
     protocol: validation.protocol,
-    normalizedJson: validation.normalizedJson
+    normalizedJson: validation.normalizedJson,
+    configType: 'outbound'
   };
+}
+
+export function normalizeOutboundInput(input: string): ValidationResult {
+  return normalizeConfigInput(input);
+}
+
+function validateJsonConfigInput(input: string, preferredType?: XrayConfigType): ValidationResult {
+  if (input.trim().length === 0) {
+    return validateOutboundJson(input);
+  }
+
+  if (preferredType === 'outbound') {
+    return validateOutboundJson(input);
+  }
+
+  try {
+    const parsed = JSON.parse(input) as Object;
+    if (isFullConfigCandidate(parsed)) {
+      return validateFullConfigObject(parsed as XrayFullConfig);
+    }
+    return validateOutboundObject(parsed as XrayOutbound);
+  } catch (error) {
+    return {
+      valid: false,
+      message: `JSON 解析失败：${JSON.stringify(error)}`,
+      protocol: '',
+      normalizedJson: '',
+      configType: preferredType ?? 'outbound'
+    };
+  }
+}
+
+function validateOutboundObject(outbound: XrayOutbound): ValidationResult {
+  if (outbound.protocol === undefined || outbound.protocol.trim().length === 0) {
+    return {
+      valid: false,
+      message: 'outbound 缺少 protocol 字段。',
+      protocol: '',
+      normalizedJson: '',
+      configType: 'outbound'
+    };
+  }
+
+  if (!isSupportedProtocol(outbound.protocol)) {
+    return {
+      valid: false,
+      message: `暂不支持 ${outbound.protocol}，当前支持 VLESS、VMess、Trojan、Shadowsocks、SOCKS、HTTP、WireGuard 和 Hysteria2。`,
+      protocol: outbound.protocol,
+      normalizedJson: '',
+      configType: 'outbound'
+    };
+  }
+
+  if (outbound.settings === undefined) {
+    return {
+      valid: false,
+      message: 'outbound 缺少 settings 字段。',
+      protocol: outbound.protocol,
+      normalizedJson: '',
+      configType: 'outbound'
+    };
+  }
+
+  return {
+    valid: true,
+    message: `${outbound.protocol.toUpperCase()} outbound 校验通过。`,
+    protocol: outbound.protocol,
+    normalizedJson: JSON.stringify(outbound, null, 2),
+    configType: 'outbound'
+  };
+}
+
+function validateFullConfigObject(config: XrayFullConfig): ValidationResult {
+  if (!Array.isArray(config.inbounds)) {
+    return {
+      valid: false,
+      message: '完整配置缺少 inbounds 数组。',
+      protocol: 'custom',
+      normalizedJson: '',
+      configType: 'full'
+    };
+  }
+
+  if (!Array.isArray(config.outbounds) || config.outbounds.length === 0) {
+    return {
+      valid: false,
+      message: '完整配置缺少 outbounds 数组。',
+      protocol: 'custom',
+      normalizedJson: '',
+      configType: 'full'
+    };
+  }
+
+  return {
+    valid: true,
+    message: '完整 Xray 配置校验通过。',
+    protocol: 'custom',
+    normalizedJson: JSON.stringify(config, null, 2),
+    configType: 'full'
+  };
+}
+
+function isFullConfigCandidate(value: Object): boolean {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return false;
+  }
+  const record = value as Record<string, Object>;
+  return record['inbounds'] !== undefined ||
+    record['outbounds'] !== undefined ||
+    record['routing'] !== undefined ||
+    record['dns'] !== undefined ||
+    record['log'] !== undefined;
 }
 
 export function buildXrayConfig(outboundJson: string): GeneratedXrayConfig {
@@ -228,6 +346,21 @@ export function buildXrayConfig(outboundJson: string): GeneratedXrayConfig {
 
 export function buildXrayConfigWithSettings(outboundJson: string, settings: AppSettings): GeneratedXrayConfig {
   return buildXrayConfigInternal(outboundJson, settings);
+}
+
+export function buildRuntimeXrayConfig(configJson: string, settings?: AppSettings, configType?: XrayConfigType): GeneratedXrayConfig {
+  const validation = normalizeConfigInput(configJson, configType);
+  if (!validation.valid) {
+    throw new Error(validation.message);
+  }
+
+  if (validation.configType === 'full') {
+    return {
+      configJson: validation.normalizedJson
+    };
+  }
+
+  return buildXrayConfigInternal(validation.normalizedJson, settings);
 }
 
 function buildXrayConfigInternal(outboundJson: string, settings: AppSettings | undefined): GeneratedXrayConfig {

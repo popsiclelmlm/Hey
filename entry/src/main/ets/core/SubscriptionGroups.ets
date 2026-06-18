@@ -80,6 +80,7 @@ function copyProxyNodes(nodes: Array<ProxyNode>): Array<ProxyNode> {
       name: node.name,
       protocol: node.protocol,
       outboundJson: node.outboundJson,
+      configType: node.configType,
       sourceUrl: node.sourceUrl,
       rawLink: node.rawLink,
       updatedAt: node.updatedAt,

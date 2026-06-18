@@ -246,7 +246,7 @@ struct ImportPage {
             .fontSize(FontSz.callout)
             .fontWeight(FontWeight.Medium)
             .fontColor(AppColor.textPrimary)
-          Text('直接粘贴标准的 Xray outbound JSON 配置大文本。')
+          Text('粘贴 Xray outbound JSON 或完整 Xray 配置。')
             .fontSize(FontSz.footnote)
             .fontColor(AppColor.textTertiary)
             .maxLines(1)
@@ -308,12 +308,16 @@ struct ImportPage {
         const obj = JSON.parse(saved.profile.outboundJson) as Record<string, Object>;
         if (obj.tag && typeof obj.tag === 'string' && obj.tag.trim().length > 0) {
           nodeName = obj.tag.trim();
+        } else if (obj.remarks && typeof obj.remarks === 'string' && obj.remarks.trim().length > 0) {
+          nodeName = obj.remarks.trim();
+        } else if (obj.name && typeof obj.name === 'string' && obj.name.trim().length > 0) {
+          nodeName = obj.name.trim();
         }
       } catch (err) {
         // ignore
       }
 
-      await SubscriptionStore.addManualNode(context, nodeName, saved.profile.outboundJson);
+      await SubscriptionStore.addManualNode(context, nodeName, saved.profile.outboundJson, saved.profile.configType);
       promptAction.showToast({ message: '节点解析成功' });
       router.back();
     } catch (error) {

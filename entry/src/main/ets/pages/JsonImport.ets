@@ -36,7 +36,7 @@ struct JsonImportPage {
         Scroll() {
           Column({ space: Space.lg }) {
             // 输入卡片
-            SectionHeader({ title: 'Outbound JSON 配置' })
+            SectionHeader({ title: 'Xray JSON 配置' })
             Column() {
               // 粘贴 / 清空 操作行
               Row({ space: Space.sm }) {
@@ -70,7 +70,7 @@ struct JsonImportPage {
               .padding({ left: Space.lg, right: Space.lg, top: Space.md })
 
               TextArea({
-                placeholder: '请粘贴完整的 Xray outbound JSON 配置，例如：\n{\n  "protocol": "vless",\n  "settings": { ... }\n}',
+                placeholder: '请粘贴 Xray outbound JSON 或完整 Xray config，例如：\n{\n  "inbounds": [ ... ],\n  "outbounds": [ ... ]\n}',
                 text: this.outboundJson
               })
                 .height(260)
@@ -92,7 +92,7 @@ struct JsonImportPage {
             .clip(true)
             .margin({ left: Space.lg, right: Space.lg })
 
-            Text('注意：填入的配置必须符合标准的 Xray 出站协议格式，需包含 protocol 和 settings 核心字段。')
+            Text('注意：可导入单个 outbound（包含 protocol/settings），也可导入完整配置（包含 inbounds/outbounds）。')
               .fontSize(FontSz.footnote)
               .fontColor(AppColor.textTertiary)
               .width('100%')
@@ -159,7 +159,7 @@ struct JsonImportPage {
                   .color(AppColor.onBrand)
                   .margin({ right: Space.sm })
               }
-              Text('导入此 JSON 节点')
+              Text('导入此 JSON 配置')
                 .fontSize(FontSz.headline)
                 .fontWeight(FontWeight.Medium)
                 .fontColor(this.isSaveEnabled() ? AppColor.onBrand : AppColor.textTertiary)
@@ -225,23 +225,27 @@ struct JsonImportPage {
 
       const normalizedJson = validation.normalizedJson;
       // 提取 JSON 中 tag 字段作为节点名，若无则使用默认名称
-      let nodeName = 'JSON导入';
+      let nodeName = validation.configType === 'full' ? '完整配置导入' : 'JSON导入';
       try {
         const obj = JSON.parse(normalizedJson) as Record<string, Object>;
         if (obj.tag && typeof obj.tag === 'string' && obj.tag.trim().length > 0) {
           nodeName = obj.tag.trim();
+        } else if (validation.configType === 'full' && obj.remarks && typeof obj.remarks === 'string' && obj.remarks.trim().length > 0) {
+          nodeName = obj.remarks.trim();
+        } else if (validation.configType === 'full' && obj.name && typeof obj.name === 'string' && obj.name.trim().length > 0) {
+          nodeName = obj.name.trim();
         }
       } catch (err) {
         // ignore
       }
 
-      const savedProfile = await NODES_CONTROLLER.saveProfile(context, normalizedJson, this.language);
+      const savedProfile = await NODES_CONTROLLER.saveProfile(context, normalizedJson, this.language, validation.configType);
       if (savedProfile.profile === null) {
         this.lastError = savedProfile.lastError;
         return;
       }
 
-      await SubscriptionStore.addManualNode(context, nodeName, normalizedJson);
+      await SubscriptionStore.addManualNode(context, nodeName, normalizedJson, validation.configType);
       SHARED_RUNTIME_CONTROLLER.appendLog('自定义 JSON 节点导入成功');
       promptAction.showToast({ message: '节点导入成功' });
       router.back();

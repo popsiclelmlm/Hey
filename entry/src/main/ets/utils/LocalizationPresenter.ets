@@ -72,6 +72,18 @@ export function localizeCoreMessage(language: AppLanguage, message: string): str
   if (message === 'outbound 缺少 settings 字段。') {
     return translate(language, 'core.missingSettings');
   }
+  if (message === '请先粘贴 Xray 完整配置 JSON。') {
+    return translate(language, 'core.emptyFullConfig');
+  }
+  if (message === '完整配置缺少 inbounds 数组。') {
+    return translate(language, 'core.missingFullConfigInbounds');
+  }
+  if (message === '完整配置缺少 outbounds 数组。') {
+    return translate(language, 'core.missingFullConfigOutbounds');
+  }
+  if (message === '完整 Xray 配置校验通过。') {
+    return translate(language, 'core.validFullConfig');
+  }
   if (message === '暂只支持 vless://、vmess://、trojan://、ss://、socks://、http://、wireguard:// 和 hysteria2:// 分享链接。') {
     return translate(language, 'core.unsupportedShareLink');
   }
