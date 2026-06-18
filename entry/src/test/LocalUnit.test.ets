@@ -1648,6 +1648,19 @@ export default function localUnitTest() {
       expect(roundTripSocks.success).assertTrue();
       expect(roundTripSocks.outboundJson).assertContain('"pass": "pass"');
 
+      const socks4 = parseShareLinkToOutboundJson('socks4://example.com:1080#socks4-demo');
+      expect(socks4.success).assertTrue();
+      expect(socks4.name).assertEqual('socks4-demo');
+      expect(socks4.outboundJson).assertContain('"protocol": "socks"');
+      const socks5 = parseShareLinkToOutboundJson('socks5://dXNlcjpwYXNz@example.com:1080#socks5-demo');
+      expect(socks5.success).assertTrue();
+      expect(socks5.name).assertEqual('socks5-demo');
+      expect(socks5.outboundJson).assertContain('"protocol": "socks"');
+      expect(socks5.outboundJson).assertContain('"user": "user"');
+      expect(socks5.outboundJson).assertContain('"pass": "pass"');
+      const exportedSocks5 = formatOutboundJsonToShareLink(socks5.outboundJson, 'socks5-demo');
+      expect(exportedSocks5).assertContain('socks://dXNlcjpwYXNz@example.com:1080#socks5-demo');
+
       const http = parseShareLinkToOutboundJson('http://user:pass@example.com:8080#http-demo');
       expect(http.success).assertTrue();
       expect(http.outboundJson).assertContain('"protocol": "http"');
@@ -1696,6 +1709,19 @@ export default function localUnitTest() {
       expect(nodes.length).assertEqual(2);
       expect(nodes[0].outboundJson).assertContain('"protocol": "vless"');
       expect(nodes[1].outboundJson).assertContain('"protocol": "trojan"');
+    });
+
+    it('parses socks4 and socks5 subscription aliases into socks nodes', 0, () => {
+      const content = 'socks4://example.com:1080#socks4-sub\n' +
+        'socks5://dXNlcjpwYXNz@example.com:1080#socks5-sub';
+      const nodes = SubscriptionManager.parseSubscriptionContent(content, 'https://sub.example/socks-aliases');
+      expect(nodes.length).assertEqual(2);
+      expect(nodes[0].name).assertEqual('socks4-sub');
+      expect(nodes[0].outboundJson).assertContain('"protocol": "socks"');
+      expect(nodes[1].name).assertEqual('socks5-sub');
+      expect(nodes[1].outboundJson).assertContain('"protocol": "socks"');
+      expect(nodes[1].outboundJson).assertContain('"user": "user"');
+      expect(nodes[1].outboundJson).assertContain('"pass": "pass"');
     });
 
     it('parses data url wrapped subscription content into selectable nodes', 0, () => {

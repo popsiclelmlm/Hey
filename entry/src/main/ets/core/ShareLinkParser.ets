@@ -269,6 +269,8 @@ export function isSupportedShareLink(input: string): boolean {
     lower.startsWith('trojan://') ||
     lower.startsWith('ss://') ||
     lower.startsWith('socks://') ||
+    lower.startsWith('socks4://') ||
+    lower.startsWith('socks5://') ||
     lower.startsWith('http://') ||
     lower.startsWith('https://') ||
     lower.startsWith('wireguard://') ||
@@ -299,7 +301,13 @@ export function parseShareLinkToOutboundJson(input: string): ShareLinkParseResul
       return parseShadowsocksLink(trimmed);
     }
     if (lower.startsWith('socks://')) {
-      return parseSocksLink(trimmed);
+      return parseSocksLink(trimmed, 'socks');
+    }
+    if (lower.startsWith('socks4://')) {
+      return parseSocksLink(trimmed, 'socks4');
+    }
+    if (lower.startsWith('socks5://')) {
+      return parseSocksLink(trimmed, 'socks5');
     }
     if (lower.startsWith('http://')) {
       return parseHttpProxyLink(trimmed, 'http');
@@ -313,7 +321,7 @@ export function parseShareLinkToOutboundJson(input: string): ShareLinkParseResul
     if (lower.startsWith('hysteria2://') || lower.startsWith('hy2://')) {
       return parseHysteria2Link(trimmed);
     }
-    return makeFailure('暂只支持 vless://、vmess://、trojan://、ss://、socks://、http://、wireguard:// 和 hysteria2:// 分享链接。');
+    return makeFailure('暂只支持 vless://、vmess://、trojan://、ss://、socks://、socks4://、socks5://、http://、wireguard:// 和 hysteria2:// 分享链接。');
   } catch (error) {
     return makeFailure(`分享链接解析失败：${stringifyError(error)}`);
   }
@@ -612,8 +620,8 @@ function makeShadowsocksResult(method: string, password: string, host: string, p
   return makeSuccess('shadowsocks', name.length > 0 ? name : deriveNameFromRaw(input), outbound);
 }
 
-function parseSocksLink(input: string): ShareLinkParseResult {
-  const parsed = parseOptionalUserShareLink(input, 'socks');
+function parseSocksLink(input: string, scheme: string): ShareLinkParseResult {
+  const parsed = parseOptionalUserShareLink(input, scheme);
   const server: XrayGenericServer = {
     address: parsed.host,
     port: parsed.port
