@@ -84,7 +84,7 @@ export class SettingsController {
       routeOnlyEnabled: settings.routeOnlyEnabled,
       perAppProxyEnabled: settings.perAppProxyEnabled,
       perAppProxyList: settings.perAppProxyList ?? [],
-      perAppProxyBypass: settings.perAppProxyBypass ?? true,
+      perAppProxyBypass: settings.perAppProxyBypass ?? false,
       localDnsEnabled: settings.localDnsEnabled,
       fakeDnsEnabled: settings.fakeDnsEnabled,
       appendHttpProxy: settings.appendHttpProxy,

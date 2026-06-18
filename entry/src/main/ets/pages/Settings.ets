@@ -94,7 +94,7 @@ struct SettingsPage {
   @State private routingRules: Array<RoutingRule> = [];
   @State private lastError: string = '';
   @State private perAppProxyList: string[] = [];
-  @State private perAppProxyBypass: boolean = true;
+  @State private perAppProxyBypass: boolean = false;
 
   aboutToAppear(): void {
     this.loadState();
@@ -628,7 +628,7 @@ struct SettingsPage {
     this.settingRouteOnly = draft.routeOnlyEnabled;
     this.settingPerAppProxy = draft.perAppProxyEnabled;
     this.perAppProxyList = draft.perAppProxyList ?? [];
-    this.perAppProxyBypass = draft.perAppProxyBypass ?? true;
+    this.perAppProxyBypass = draft.perAppProxyBypass ?? false;
     this.settingLocalDns = draft.localDnsEnabled;
     this.settingFakeDns = draft.fakeDnsEnabled;
     this.settingAppendHttpProxy = draft.appendHttpProxy;

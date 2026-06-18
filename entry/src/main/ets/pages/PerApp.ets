@@ -1,5 +1,14 @@
 import { common } from '@kit.AbilityKit';
+import { promptAction } from '@kit.ArkUI';
+import { pasteboard } from '@kit.BasicServicesKit';
 import { DEFAULT_LANGUAGE, translate } from '../core/I18n';
+import {
+  clearVisiblePerAppPackages,
+  exportPerAppProxyList,
+  importPerAppProxyList,
+  invertVisiblePerAppPackages,
+  selectAllPerAppPackages
+} from '../core/PerAppProxy';
 import { AppLanguage } from '../core/Profile';
 import { SettingToggleRow } from '../features/settings/SettingsControls';
 import { SETTINGS_CONTROLLER, SettingsDraft } from '../features/settings/SettingsController';
@@ -36,7 +45,7 @@ const PRESET_APPS: AppItem[] = [
 struct PerAppPage {
   @State private language: AppLanguage = DEFAULT_LANGUAGE;
   @State private perAppProxyEnabled: boolean = false;
-  @State private perAppProxyBypass: boolean = true; // true = 黑名单(绕过), false = 白名单(代理)
+  @State private perAppProxyBypass: boolean = false; // true = 黑名单(绕过), false = 白名单(代理)
   @State private perAppProxyList: string[] = []; // 被选中的包名列表
 
   @State private allApps: AppItem[] = []; // 设备读取到的 + 预设应用列表
@@ -261,28 +270,7 @@ struct PerAppPage {
       })
 
     Column() {
-      // 全选 / 清除 操作行
-      Row({ space: Space.lg }) {
-        Text('全选')
-          .fontSize(FontSz.body)
-          .fontColor(AppColor.brand)
-          .onClick(() => {
-            const filtered = this.getFilteredApps().map(app => app.bundleName);
-            this.perAppProxyList = Array.from(new Set([...this.perAppProxyList, ...filtered]));
-            this.saveSettings();
-          })
-        Text('清除')
-          .fontSize(FontSz.body)
-          .fontColor(AppColor.danger)
-          .onClick(() => {
-            const filtered = this.getFilteredApps().map(app => app.bundleName);
-            this.perAppProxyList = this.perAppProxyList.filter(pkg => !filtered.includes(pkg));
-            this.saveSettings();
-          })
-        Blank()
-      }
-      .width('100%')
-      .padding(Space.lg)
+      this.SelectionActionRow()
 
       ForEach(this.getFilteredApps(), (app: AppItem) => {
         this.RowDivider()
@@ -294,6 +282,46 @@ struct PerAppPage {
     .borderRadius(Radius.lg)
     .clip(true)
     .margin({ left: Space.lg, right: Space.lg })
+  }
+
+  @Builder
+  private SelectionActionRow() {
+    Column({ space: Space.sm }) {
+      Row({ space: Space.lg }) {
+        this.SelectionActionText(this.t('perApp.action.selectAll'), AppColor.brand, () => {
+          this.selectAllVisibleApps();
+        })
+        this.SelectionActionText(this.t('perApp.action.invert'), AppColor.brand, () => {
+          this.invertVisibleApps();
+        })
+        this.SelectionActionText(this.t('perApp.action.clear'), AppColor.danger, () => {
+          this.clearVisibleApps();
+        })
+        Blank()
+      }
+      .width('100%')
+
+      Row({ space: Space.lg }) {
+        this.SelectionActionText(this.t('perApp.action.import'), AppColor.brand, () => {
+          this.importProxyAppsFromClipboard();
+        })
+        this.SelectionActionText(this.t('perApp.action.export'), AppColor.brand, () => {
+          this.exportProxyAppsToClipboard();
+        })
+        Blank()
+      }
+      .width('100%')
+    }
+    .width('100%')
+    .padding(Space.lg)
+  }
+
+  @Builder
+  private SelectionActionText(label: string, color: ResourceColor, action: () => void) {
+    Text(label)
+      .fontSize(FontSz.body)
+      .fontColor(color)
+      .onClick(action)
   }
 
   @Builder
@@ -455,13 +483,84 @@ struct PerAppPage {
     SHARED_RUNTIME_CONTROLLER.appendLog(`已成功追加自定义代理应用: ${label}`);
   }
 
+  private visiblePackageNames(): Array<string> {
+    return this.getFilteredApps().map((app: AppItem) => app.bundleName);
+  }
+
+  private enablePerAppProxy(): void {
+    if (!this.perAppProxyEnabled) {
+      this.perAppProxyEnabled = true;
+    }
+  }
+
+  private async selectAllVisibleApps(): Promise<void> {
+    this.enablePerAppProxy();
+    this.perAppProxyList = selectAllPerAppPackages(this.perAppProxyList, this.visiblePackageNames(), SELF_BUNDLE_NAME);
+    await this.saveSettings();
+  }
+
+  private async clearVisibleApps(): Promise<void> {
+    this.perAppProxyList = clearVisiblePerAppPackages(this.perAppProxyList, this.visiblePackageNames(), SELF_BUNDLE_NAME);
+    await this.saveSettings();
+  }
+
+  private async invertVisibleApps(): Promise<void> {
+    this.enablePerAppProxy();
+    this.perAppProxyList = invertVisiblePerAppPackages(this.perAppProxyList, this.visiblePackageNames(), SELF_BUNDLE_NAME);
+    await this.saveSettings();
+  }
+
+  private async importProxyAppsFromClipboard(): Promise<void> {
+    try {
+      const systemPasteboard = pasteboard.getSystemPasteboard();
+      if (!systemPasteboard.hasDataSync()) {
+        promptAction.showToast({ message: this.t('prompt.clipboardEmpty') });
+        return;
+      }
+      const pasteData = await systemPasteboard.getData();
+      const text = pasteData.getPrimaryText();
+      if (!text || text.trim().length === 0) {
+        promptAction.showToast({ message: this.t('prompt.clipboardEmpty') });
+        return;
+      }
+
+      const result = importPerAppProxyList(text, this.perAppProxyBypass, SELF_BUNDLE_NAME);
+      if (!result.success) {
+        promptAction.showToast({ message: this.t('perApp.importFailed') });
+        return;
+      }
+      this.perAppProxyBypass = result.bypass;
+      this.perAppProxyList = result.packages;
+      this.enablePerAppProxy();
+      await this.saveSettings();
+      const message = this.f1('perApp.imported', 'count', result.count.toString());
+      promptAction.showToast({ message });
+      SHARED_RUNTIME_CONTROLLER.appendLog(message);
+    } catch (error) {
+      promptAction.showToast({ message: this.t('perApp.importFailed') });
+      SHARED_RUNTIME_CONTROLLER.appendLog(JSON.stringify(error));
+    }
+  }
+
+  private async exportProxyAppsToClipboard(): Promise<void> {
+    const systemPasteboard = pasteboard.getSystemPasteboard();
+    const pasteData = pasteboard.createData(
+      pasteboard.MIMETYPE_TEXT_PLAIN,
+      exportPerAppProxyList(this.perAppProxyBypass, this.perAppProxyList, SELF_BUNDLE_NAME)
+    );
+    await systemPasteboard.setData(pasteData);
+    const message = this.f1('perApp.exported', 'count', this.perAppProxyList.length.toString());
+    promptAction.showToast({ message });
+    SHARED_RUNTIME_CONTROLLER.appendLog(message);
+  }
+
   private async loadState(): Promise<void> {
     const context = getContext(this) as common.Context;
     this.draft = SETTINGS_CONTROLLER.toDraft(await SETTINGS_CONTROLLER.load(context));
     this.language = this.draft.language;
     this.perAppProxyEnabled = this.draft.perAppProxyEnabled;
     this.perAppProxyList = this.draft.perAppProxyList ?? [];
-    this.perAppProxyBypass = this.draft.perAppProxyBypass ?? true;
+    this.perAppProxyBypass = this.draft.perAppProxyBypass ?? false;
   }
 
   private async saveSettings(): Promise<void> {

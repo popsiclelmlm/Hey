@@ -37,7 +37,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   routeOnlyEnabled: false,
   perAppProxyEnabled: false,
   perAppProxyList: [],
-  perAppProxyBypass: true,
+  perAppProxyBypass: false,
   localDnsEnabled: false,
   fakeDnsEnabled: false,
   appendHttpProxy: false,

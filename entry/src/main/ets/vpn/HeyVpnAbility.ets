@@ -81,7 +81,7 @@ export default class HeyVpnAbility extends VpnExtensionAbility {
       this.emitInfo('Creating VPN connection.');
       const settings = await SETTINGS_CONTROLLER.load(this.context);
       const perAppEnabled = settings.perAppProxyEnabled;
-      const bypassMode = settings.perAppProxyBypass ?? true;
+      const bypassMode = settings.perAppProxyBypass ?? false;
       const appList = settings.perAppProxyList ?? [];
       const dnsAddresses = normalizeVpnDnsAddresses(settings.vpnDns);
       const vpnMtu = normalizeVpnMtu(settings.vpnMtu);

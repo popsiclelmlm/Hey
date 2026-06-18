@@ -104,17 +104,18 @@ export function createDefaultVpnConfig(
   const bypassLan = resolveVpnBypassLan(vpnBypassLan, routingRules, routeOnlyBypassesPrivate);
   let blockedApps: string[] = [];
   let trustedApps: string[] = [];
+  const selectedApps = appList.filter(app => app !== selfBundle);
 
-  if (!perAppEnabled) {
+  if (!perAppEnabled || selectedApps.length === 0) {
     // 默认防回路拦截自己
     blockedApps = [selfBundle];
   } else {
     if (bypassMode) {
       // 绕过所选应用
-      blockedApps = [selfBundle, ...appList];
+      blockedApps = [selfBundle, ...selectedApps];
     } else {
       // 仅代理所选应用，需要把自身包名移除以防环路
-      trustedApps = appList.filter(app => app !== selfBundle);
+      trustedApps = selectedApps;
     }
   }
 

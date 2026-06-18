@@ -6,6 +6,7 @@ import { formatTranslation, missingTranslationKeys, normalizeLanguage, resolveLa
 import { defaultJsonConfigNodeName, resolveJsonConfigNodeName } from '../main/ets/core/JsonConfigNames';
 import { selectRuntimeLocalSocksPort, shouldUseDynamicLocalSocksPort, withRuntimeLocalSocksPort } from '../main/ets/core/LocalProxy';
 import { buildManualHysteria2Outbound, buildManualWireguardOutbound } from '../main/ets/core/ManualOutboundBuilder';
+import { clearVisiblePerAppPackages, exportPerAppProxyList, importPerAppProxyList, invertVisiblePerAppPackages, normalizePerAppPackageList, selectAllPerAppPackages } from '../main/ets/core/PerAppProxy';
 import { APP_MODE_PROXY_ONLY, APP_MODE_VPN, AppSettings, ConnectionStatus, DEFAULT_IP_API_URL, OUTBOUND_DOMAIN_RESOLVE_DNS_HOSTS, OUTBOUND_DOMAIN_RESOLVE_NONE, OUTBOUND_DOMAIN_RESOLVE_REPLACE, OutboundDomainResolveMethod, normalizeAppRuntimeMode, normalizeRealPingConcurrency, normalizeUiModeNight, ProxyNode, RoutingRule, RuntimeStats, SubscriptionGroup } from '../main/ets/core/Profile';
 import { formatGeoCountSummary, formatGeoCountUnavailable, geoDataSpecForFile, parseGeoCountData } from '../main/ets/core/GeoAssets';
 import { DELAY_TEST_SOCKS_PORT, LOCAL_HTTP_PROXY_LAN_HOST, LOCAL_HTTP_PROXY_PORT, LOCAL_SOCKS_PROXY_PORT, buildDelayTestConfig, buildRuntimeXrayConfig, buildXrayConfig, buildXrayConfigWithSettings, collectOutboundDomainPreResolveHosts, normalizeOutboundInput, validateFullConfigJson, validateOutboundJson, validatePolicyGroupConfigJson, validateProxyChainConfigJson, withOutboundDomainResolvedHosts } from '../main/ets/core/XrayConfig';
@@ -31,6 +32,7 @@ import { SubscriptionManager } from '../main/ets/services/SubscriptionManager';
 import { buildTextShareWant } from '../main/ets/services/SystemShare';
 import { formatBytes, formatDuration } from '../main/ets/utils/Formatters';
 import { formatOne, localizedProfileSavedText, localizeCoreMessage } from '../main/ets/utils/LocalizationPresenter';
+import { BUNDLE_NAME, createDefaultVpnConfig } from '../main/ets/vpn/VpnConstants';
 
 const VLESS_REALITY_OUTBOUND: string =
   '{"protocol":"vless","tag":"proxy","settings":{"vnext":[{"address":"example.com","port":443,"users":[{"id":"00000000-0000-0000-0000-000000000000","encryption":"none","flow":"xtls-rprx-vision"}]}]},"streamSettings":{"network":"tcp","security":"reality","realitySettings":{"serverName":"www.example.com","publicKey":"test-public-key","shortId":"abcd","fingerprint":"chrome"}}}';
@@ -366,7 +368,7 @@ export default function localUnitTest() {
         routeOnlyEnabled: true,
         perAppProxyEnabled: false,
         perAppProxyList: [],
-        perAppProxyBypass: true,
+        perAppProxyBypass: false,
         localDnsEnabled: false,
         fakeDnsEnabled: false,
         appendHttpProxy: false,
@@ -1100,6 +1102,84 @@ export default function localUnitTest() {
       expect(normalizeRealPingConcurrency(256)).assertEqual(128);
     });
 
+    it('handles v2rayng style per-app package list actions', 0, () => {
+      const selfPackage = 'com.lmlm.hey';
+      const normalized = normalizePerAppPackageList([
+        ' com.google.android.youtube ',
+        'com.google.android.youtube',
+        selfPackage,
+        'invalid',
+        'com.huawei.hbrowser'
+      ], selfPackage);
+      expect(normalized.length).assertEqual(2);
+      expect(normalized[0]).assertEqual('com.google.android.youtube');
+      expect(normalized[1]).assertEqual('com.huawei.hbrowser');
+
+      const selected = selectAllPerAppPackages(['com.tencent.mm'], ['com.google.android.youtube', selfPackage], selfPackage);
+      expect(selected.length).assertEqual(2);
+      expect(selected[0]).assertEqual('com.tencent.mm');
+      expect(selected[1]).assertEqual('com.google.android.youtube');
+
+      const inverted = invertVisiblePerAppPackages(
+        ['com.tencent.mm', 'com.huawei.hbrowser'],
+        ['com.tencent.mm', 'com.google.android.youtube'],
+        selfPackage
+      );
+      expect(inverted.length).assertEqual(2);
+      expect(inverted[0]).assertEqual('com.huawei.hbrowser');
+      expect(inverted[1]).assertEqual('com.google.android.youtube');
+
+      const cleared = clearVisiblePerAppPackages(
+        ['com.tencent.mm', 'com.huawei.hbrowser'],
+        ['com.tencent.mm'],
+        selfPackage
+      );
+      expect(cleared.length).assertEqual(1);
+      expect(cleared[0]).assertEqual('com.huawei.hbrowser');
+
+      const exported = exportPerAppProxyList(false, ['com.tencent.mm', 'com.tencent.mm', selfPackage], selfPackage);
+      expect(exported).assertEqual('false\ncom.tencent.mm');
+
+      const imported = importPerAppProxyList('true\ncom.google.android.youtube\ncom.tencent.mm, com.tencent.mm\ncom.lmlm.hey', false, selfPackage);
+      expect(imported.success).assertTrue();
+      expect(imported.bypass).assertTrue();
+      expect(imported.count).assertEqual(2);
+      expect(imported.packages[0]).assertEqual('com.google.android.youtube');
+      expect(imported.packages[1]).assertEqual('com.tencent.mm');
+
+      const packageOnlyImport = importPerAppProxyList('com.huawei.hbrowser', true, selfPackage);
+      expect(packageOnlyImport.success).assertTrue();
+      expect(packageOnlyImport.bypass).assertTrue();
+      expect(packageOnlyImport.packages[0]).assertEqual('com.huawei.hbrowser');
+    });
+
+    it('maps per-app vpn package lists like v2rayNG', 0, () => {
+      const disabled = createDefaultVpnConfig(false, false, []) as Record<string, Object>;
+      const disabledBlocked = disabled['blockedApplications'] as Array<string>;
+      expect(disabledBlocked[0]).assertEqual(BUNDLE_NAME);
+
+      const enabledEmpty = createDefaultVpnConfig(true, false, []) as Record<string, Object>;
+      const emptyBlocked = enabledEmpty['blockedApplications'] as Array<string>;
+      expect(emptyBlocked[0]).assertEqual(BUNDLE_NAME);
+
+      const selfOnly = createDefaultVpnConfig(true, false, [BUNDLE_NAME]) as Record<string, Object>;
+      const selfOnlyBlocked = selfOnly['blockedApplications'] as Array<string>;
+      expect(selfOnlyBlocked[0]).assertEqual(BUNDLE_NAME);
+      expect(selfOnly['trustedApplications'] === undefined).assertTrue();
+
+      const proxySelected = createDefaultVpnConfig(true, false, [BUNDLE_NAME, 'com.tencent.mm']) as Record<string, Object>;
+      const trusted = proxySelected['trustedApplications'] as Array<string>;
+      expect(trusted.length).assertEqual(1);
+      expect(trusted[0]).assertEqual('com.tencent.mm');
+      expect(proxySelected['blockedApplications'] === undefined).assertTrue();
+
+      const bypassSelected = createDefaultVpnConfig(true, true, [BUNDLE_NAME, 'com.tencent.mm']) as Record<string, Object>;
+      const blocked = bypassSelected['blockedApplications'] as Array<string>;
+      expect(blocked.length).assertEqual(2);
+      expect(blocked[0]).assertEqual(BUNDLE_NAME);
+      expect(blocked[1]).assertEqual('com.tencent.mm');
+    });
+
     it('normalizes ui mode night like v2rayNG', 0, () => {
       expect(normalizeUiModeNight(undefined)).assertEqual('0');
       expect(normalizeUiModeNight('0')).assertEqual('0');
@@ -1622,7 +1702,7 @@ function buildSettingsFixture(): AppSettings {
     routeOnlyEnabled: false,
     perAppProxyEnabled: false,
     perAppProxyList: [],
-    perAppProxyBypass: true,
+    perAppProxyBypass: false,
     localDnsEnabled: false,
     fakeDnsEnabled: false,
     appendHttpProxy: false,
