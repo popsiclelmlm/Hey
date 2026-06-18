@@ -17,7 +17,7 @@ export struct RoutingRuleDialog {
   @State private protocol: string = '';
   @State private network: string = '';
   @State private outboundTag: string = 'proxy';
-  @State private enabled: boolean = true;
+  @State private ruleEnabled: boolean = true;
   @State private locked: boolean = false;
 
   onCancel: () => void = () => {};
@@ -32,7 +32,7 @@ export struct RoutingRuleDialog {
     this.protocol = this.initialRule.protocol.join(',');
     this.network = this.initialRule.network;
     this.outboundTag = this.initialRule.outboundTag.length > 0 ? this.initialRule.outboundTag : 'proxy';
-    this.enabled = this.initialRule.enabled;
+    this.ruleEnabled = this.initialRule.enabled;
     this.locked = this.initialRule.locked;
   }
 
@@ -54,11 +54,11 @@ export struct RoutingRuleDialog {
             .fontColor(AppColor.textPrimary)
             .layoutWeight(1)
 
-          Toggle({ type: ToggleType.Switch, isOn: this.enabled })
+          Toggle({ type: ToggleType.Switch, isOn: this.ruleEnabled })
             .selectedColor(AppColor.brand)
             .switchPointColor(AppColor.onBrand)
             .onChange((isOn: boolean) => {
-              this.enabled = isOn;
+              this.ruleEnabled = isOn;
             })
         }
         .width('100%')
@@ -233,7 +233,7 @@ export struct RoutingRuleDialog {
       port: this.port.trim(),
       network: this.network,
       protocol: this.splitCsv(this.protocol),
-      enabled: this.enabled,
+      enabled: this.ruleEnabled,
       locked: this.locked
     };
 

@@ -507,21 +507,53 @@ struct SettingsPage {
     });
   }
 
-  private showVpnInterfaceAddressMenu(): void {
+  private showVpnInterfaceAddressMenu(startIndex: number = 0): void {
     const buttons = new Array<promptAction.Button>();
-    for (let index = 0; index < VPN_INTERFACE_ADDRESS_CONFIGS.length; index++) {
+    const actions = new Array<number>();
+    const hasPrevious = startIndex > 0;
+    let itemLimit = 6 - (hasPrevious ? 1 : 0);
+    if (startIndex + itemLimit < VPN_INTERFACE_ADDRESS_CONFIGS.length) {
+      itemLimit -= 1;
+    }
+    const endIndex = Math.min(VPN_INTERFACE_ADDRESS_CONFIGS.length, startIndex + itemLimit);
+    for (let index = startIndex; index < endIndex; index++) {
       buttons.push({ text: VPN_INTERFACE_ADDRESS_CONFIGS[index].displayName, color: AppColor.brand } as promptAction.Button);
+      actions.push(index);
+    }
+    if (endIndex < VPN_INTERFACE_ADDRESS_CONFIGS.length) {
+      buttons.push({ text: this.t('action.more'), color: AppColor.brand } as promptAction.Button);
+      actions.push(-2);
+    }
+    if (hasPrevious) {
+      buttons.push({ text: this.t('action.previous'), color: AppColor.textSecondary } as promptAction.Button);
+      actions.push(-1);
     }
     promptAction.showActionMenu({
       title: this.t('settings.vpnInterfaceAddress'),
-      buttons
+      buttons: this.toActionMenuButtons(buttons)
     }).then((result) => {
-      if (result.index >= 0 && result.index < VPN_INTERFACE_ADDRESS_CONFIGS.length) {
-        this.settingVpnInterfaceAddressIndex = result.index;
+      if (result.index < 0 || result.index >= actions.length) {
+        return;
+      }
+      const actionIndex = actions[result.index];
+      if (actionIndex === -2) {
+        this.showVpnInterfaceAddressMenu(endIndex);
+        return;
+      }
+      if (actionIndex === -1) {
+        this.showVpnInterfaceAddressMenu(Math.max(0, startIndex - 5));
+        return;
+      }
+      if (actionIndex >= 0 && actionIndex < VPN_INTERFACE_ADDRESS_CONFIGS.length) {
+        this.settingVpnInterfaceAddressIndex = actionIndex;
         SHARED_RUNTIME_CONTROLLER.appendLog(this.f1('log.settingsChanged', 'action', this.t('settings.vpnInterfaceAddress')));
         this.persistSettings(false);
       }
     });
+  }
+
+  private toActionMenuButtons(buttons: Array<promptAction.Button>): [promptAction.Button, promptAction.Button?, promptAction.Button?, promptAction.Button?, promptAction.Button?, promptAction.Button?] {
+    return buttons as [promptAction.Button, promptAction.Button?, promptAction.Button?, promptAction.Button?, promptAction.Button?, promptAction.Button?];
   }
 
   private vpnInterfaceAddressLabel(): string {
