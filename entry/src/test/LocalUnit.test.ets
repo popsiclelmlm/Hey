@@ -353,6 +353,7 @@ export default function localUnitTest() {
         confirmRemove: false,
         startScanImmediate: false,
         groupAllDisplay: false,
+        doubleColumnDisplay: false,
         sniffingEnabled: true,
         routeOnlyEnabled: true,
         perAppProxyEnabled: false,
@@ -746,12 +747,14 @@ export default function localUnitTest() {
       settings.confirmRemove = true;
       settings.startScanImmediate = true;
       settings.groupAllDisplay = true;
+      settings.doubleColumnDisplay = true;
       const draft = SETTINGS_CONTROLLER.toDraft(settings);
       expect(draft.uiModeNight).assertEqual('2');
       expect(draft.speedEnabled).assertTrue();
       expect(draft.confirmRemove).assertTrue();
       expect(draft.startScanImmediate).assertTrue();
       expect(draft.groupAllDisplay).assertTrue();
+      expect(draft.doubleColumnDisplay).assertTrue();
       expect(draft.preferIpv6).assertTrue();
       expect(draft.localDnsPort).assertEqual('1053');
       expect(draft.localSocksEnabled).assertTrue();
@@ -780,6 +783,7 @@ export default function localUnitTest() {
       expect(rebuilt.confirmRemove).assertTrue();
       expect(rebuilt.startScanImmediate).assertTrue();
       expect(rebuilt.groupAllDisplay).assertTrue();
+      expect(rebuilt.doubleColumnDisplay).assertTrue();
       expect(rebuilt.preferIpv6).assertTrue();
       expect(rebuilt.localDnsPort).assertEqual(1053);
       expect(rebuilt.localSocksEnabled).assertTrue();
@@ -1168,6 +1172,7 @@ function buildSettingsFixture(): AppSettings {
     confirmRemove: false,
     startScanImmediate: false,
     groupAllDisplay: false,
+    doubleColumnDisplay: false,
     sniffingEnabled: true,
     routeOnlyEnabled: false,
     perAppProxyEnabled: false,

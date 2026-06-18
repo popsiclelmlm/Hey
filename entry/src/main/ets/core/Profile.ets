@@ -192,6 +192,7 @@ export interface AppSettings {
   confirmRemove: boolean;
   startScanImmediate: boolean;
   groupAllDisplay: boolean;
+  doubleColumnDisplay: boolean;
   sniffingEnabled: boolean;
   routeOnlyEnabled: boolean;
   perAppProxyEnabled: boolean;

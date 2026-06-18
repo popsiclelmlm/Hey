@@ -35,6 +35,7 @@ struct SettingsPage {
   @State private settingConfirmRemove: boolean = false;
   @State private settingStartScanImmediate: boolean = false;
   @State private settingGroupAllDisplay: boolean = false;
+  @State private settingDoubleColumnDisplay: boolean = false;
   @State private settingSniffing: boolean = true;
   @State private settingRouteOnly: boolean = false;
   @State private settingLocalDns: boolean = false;
@@ -108,6 +109,8 @@ struct SettingsPage {
             this.SettingToggle(this.t('settings.startScanImmediate'), this.settingStartScanImmediate, 'startScanImmediate')
             this.RowDivider()
             this.SettingToggle(this.t('settings.groupAllDisplay'), this.settingGroupAllDisplay, 'groupAllDisplay')
+            this.RowDivider()
+            this.SettingToggle(this.t('settings.doubleColumnDisplay'), this.settingDoubleColumnDisplay, 'doubleColumnDisplay')
           }
           .width('100%')
           .backgroundColor(AppColor.surface)
@@ -371,6 +374,9 @@ struct SettingsPage {
       case 'groupAllDisplay':
         this.settingGroupAllDisplay = !this.settingGroupAllDisplay;
         break;
+      case 'doubleColumnDisplay':
+        this.settingDoubleColumnDisplay = !this.settingDoubleColumnDisplay;
+        break;
       case 'routeOnly':
         this.settingRouteOnly = !this.settingRouteOnly;
         break;
@@ -512,6 +518,7 @@ struct SettingsPage {
       confirmRemove: this.settingConfirmRemove,
       startScanImmediate: this.settingStartScanImmediate,
       groupAllDisplay: this.settingGroupAllDisplay,
+      doubleColumnDisplay: this.settingDoubleColumnDisplay,
       sniffingEnabled: this.settingSniffing,
       routeOnlyEnabled: this.settingRouteOnly,
       perAppProxyEnabled: this.settingPerAppProxy,
@@ -564,6 +571,7 @@ struct SettingsPage {
     this.settingConfirmRemove = draft.confirmRemove;
     this.settingStartScanImmediate = draft.startScanImmediate;
     this.settingGroupAllDisplay = draft.groupAllDisplay;
+    this.settingDoubleColumnDisplay = draft.doubleColumnDisplay;
     this.settingSniffing = draft.sniffingEnabled;
     this.settingRouteOnly = draft.routeOnlyEnabled;
     this.settingPerAppProxy = draft.perAppProxyEnabled;

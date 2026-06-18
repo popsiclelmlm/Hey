@@ -69,6 +69,7 @@ struct Index {
   @State private stats: RuntimeStats = EMPTY_STATS;
   @State private speedEnabled: boolean = false;
   @State private groupAllDisplay: boolean = false;
+  @State private doubleColumnDisplay: boolean = false;
   @State private allGroupsSelected: boolean = false;
 
   aboutToAppear(): void {
@@ -591,6 +592,7 @@ struct Index {
     }
     .layoutWeight(1)
     .width('100%')
+    .lanes(this.doubleColumnDisplay ? 2 : 1)
     .backgroundColor(AppColor.surface)
     .borderRadius(Radius.lg)
     .clip(true)
@@ -861,6 +863,7 @@ struct Index {
       this.language = this.currentSettings.language;
       this.speedEnabled = this.currentSettings.speedEnabled;
       this.groupAllDisplay = this.currentSettings.groupAllDisplay;
+      this.doubleColumnDisplay = this.currentSettings.doubleColumnDisplay;
       if (!this.groupAllDisplay) {
         this.allGroupsSelected = false;
       }
