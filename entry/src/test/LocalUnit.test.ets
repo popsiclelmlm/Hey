@@ -44,6 +44,8 @@ const VMESS_TCP_OUTBOUND: string =
   '{"protocol":"vmess","tag":"proxy","settings":{"vnext":[{"address":"vmess.example.com","port":443,"users":[{"id":"00000000-0000-0000-0000-000000000000","alterId":0,"security":"auto"}]}]},"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"serverName":"vmess.example.com"}}}';
 const VLESS_XHTTP_OUTBOUND: string =
   '{"protocol":"vless","tag":"proxy","settings":{"vnext":[{"address":"xhttp.example.com","port":443,"users":[{"id":"00000000-0000-0000-0000-000000000000","encryption":"none"}]}]},"streamSettings":{"network":"xhttp","security":"tls","xhttpSettings":{"path":"/xhttp","host":"cdn.example.com"}}}';
+const VLESS_FINALMASK_OUTBOUND: string =
+  '{"protocol":"vless","tag":"proxy","settings":{"vnext":[{"address":"fm.example.com","port":443,"users":[{"id":"00000000-0000-0000-0000-000000000000","encryption":"none"}]}]},"streamSettings":{"network":"ws","security":"tls","finalmask":{"tcp":[{"type":"custom-fragment"}]}}}';
 const PROXY_CHAIN_CONFIG: string =
   `{"remarks":"chain-demo","outbounds":[${VLESS_REALITY_OUTBOUND},${TROJAN_OUTBOUND}]}`;
 const POLICY_GROUP_CONFIG: string =
@@ -983,8 +985,38 @@ export default function localUnitTest() {
       expect(result.configJson).assertContain('"happyEyeballs"');
       expect(result.configJson).assertContain('"prioritizeIPv6": true');
       expect(result.configJson).assertContain('"interleave": 2');
-      expect(result.configJson).assertContain('"fragment"');
-      expect(result.configJson).assertContain('"tlshello"');
+      expect(result.configJson).assertContain('"finalmask"');
+      expect(result.configJson).assertContain('"type": "fragment"');
+      expect(result.configJson).assertContain('"packets": "1-3"');
+      expect(result.configJson).assertContain('"type": "noise"');
+      expect(result.configJson.indexOf('"fragment": {')).assertEqual(-1);
+    });
+
+    it('applies fragment finalmask like v2rayNG', 0, () => {
+      const settings = buildSettingsFixture();
+      settings.fragmentEnabled = true;
+      settings.fragmentPackets = '1-2';
+      settings.fragmentLength = '100-200';
+      settings.fragmentInterval = '5-8';
+
+      const tlsResult = buildXrayConfigWithSettings(VMESS_TCP_OUTBOUND, settings);
+      expect(tlsResult.configJson).assertContain('"finalmask"');
+      expect(tlsResult.configJson).assertContain('"type": "fragment"');
+      expect(tlsResult.configJson).assertContain('"packets": "tlshello"');
+      expect(tlsResult.configJson).assertContain('"length": "100-200"');
+      expect(tlsResult.configJson).assertContain('"delay": "5-8"');
+      expect(tlsResult.configJson).assertContain('"type": "noise"');
+      expect(tlsResult.configJson).assertContain('"rand": "10-20"');
+      expect(tlsResult.configJson.indexOf('"fragment": {')).assertEqual(-1);
+
+      const preserved = buildXrayConfigWithSettings(VLESS_FINALMASK_OUTBOUND, settings);
+      expect(preserved.configJson).assertContain('"type": "custom-fragment"');
+      expect(preserved.configJson.indexOf('"packets"')).assertEqual(-1);
+      expect(preserved.configJson.indexOf('"type": "noise"')).assertEqual(-1);
+
+      const chain = buildRuntimeXrayConfig(PROXY_CHAIN_CONFIG, settings, 'proxy-chain');
+      expect(chain.configJson).assertContain('"dialerProxy": "proxy-chain-1"');
+      expect(chain.configJson.indexOf('"finalmask"')).assertEqual(-1);
     });
 
     it('keeps ipv6 routing separate from prefer ipv6', 0, () => {

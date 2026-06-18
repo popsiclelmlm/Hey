@@ -42,14 +42,17 @@ interface XraySniffingConfig {
   routeOnly?: boolean;
 }
 
-interface XrayFragmentConfig {
-  packets: string;
-  length: string;
-  interval: string;
+interface XrayNoiseMaskConfig {
+  rand: string;
+  delay: string;
 }
 
 interface XrayMaskSettingsConfig {
   password?: string;
+  packets?: string;
+  length?: string;
+  delay?: string;
+  noise?: Array<XrayNoiseMaskConfig>;
 }
 
 interface XrayMaskConfig {
@@ -70,6 +73,7 @@ interface XrayQuicParamsConfig {
 }
 
 interface XrayFinalMaskConfig {
+  tcp?: Array<XrayMaskConfig>;
   udp?: Array<XrayMaskConfig>;
   quicParams?: XrayQuicParamsConfig;
 }
@@ -926,12 +930,14 @@ function buildProxyChainXrayConfigInternal(chainJson: string, settings: AppSetti
   for (let index = 0; index < config.outbounds.length; index++) {
     const outbound = cloneOutbound(config.outbounds[index]);
     outbound.tag = index === 0 ? 'proxy' : `proxy-chain-${index}`;
-    applyOutboundRuntimeSettings(outbound, settings);
     outbounds.push(outbound);
   }
   for (let index = 0; index < outbounds.length - 1; index++) {
     const sockopt = ensureOutboundSockopt(outbounds[index]);
     sockopt['dialerProxy'] = outbounds[index + 1].tag;
+  }
+  for (let index = 0; index < outbounds.length; index++) {
+    applyOutboundRuntimeSettings(outbounds[index], settings);
   }
   return buildXrayConfigFromOutbounds(outbounds, settings);
 }
@@ -1026,13 +1032,7 @@ function applyOutboundRuntimeSettings(outbound: XrayOutbound, settings: AppSetti
     outbound.mux = mux;
   }
   if (settings !== undefined && settings.fragmentEnabled) {
-    const sockopt = ensureOutboundSockopt(outbound);
-    const fragment: XrayFragmentConfig = {
-      packets: settings.fragmentPackets,
-      length: settings.fragmentLength,
-      interval: settings.fragmentInterval
-    };
-    sockopt['fragment'] = fragment;
+    applyFragmentFinalMaskSettings(outbound, settings);
   }
   if (settings !== undefined && settings.preferIpv6) {
     const sockopt = ensureOutboundSockopt(outbound);
@@ -1075,6 +1075,68 @@ function shouldUseVlessFlowMuxConcurrency(outbound: XrayOutbound): boolean {
   const user = users[0] as Record<string, Object | string | number | boolean | undefined>;
   const flow = user['flow'];
   return typeof flow === 'string' && flow.length > 0;
+}
+
+function applyFragmentFinalMaskSettings(outbound: XrayOutbound, settings: AppSettings): void {
+  if (outbound.streamSettings === undefined) {
+    return;
+  }
+  const streamSettings = outbound.streamSettings as Record<string, Object | string | number | boolean | undefined>;
+  const security = typeof streamSettings['security'] === 'string' ? (streamSettings['security'] as string) : '';
+  if (security !== 'tls' && security !== 'reality') {
+    return;
+  }
+  if (streamSettings['finalmask'] !== undefined || hasDialerProxy(streamSettings)) {
+    return;
+  }
+
+  const fragmentSettings: XrayMaskSettingsConfig = {
+    packets: normalizeFragmentPackets(security, settings.fragmentPackets),
+    length: settings.fragmentLength,
+    delay: settings.fragmentInterval
+  };
+  const fragmentMask: XrayMaskConfig = {
+    type: 'fragment',
+    settings: fragmentSettings
+  };
+  const noiseSettings: XrayMaskSettingsConfig = {
+    noise: [
+      {
+        rand: '10-20',
+        delay: '10-16'
+      }
+    ]
+  };
+  const noiseMask: XrayMaskConfig = {
+    type: 'noise',
+    settings: noiseSettings
+  };
+  const finalMask: XrayFinalMaskConfig = {
+    tcp: [fragmentMask],
+    udp: [noiseMask]
+  };
+  streamSettings['finalmask'] = finalMask as Object;
+  outbound.streamSettings = streamSettings as Object;
+}
+
+function normalizeFragmentPackets(security: string, packets: string): string {
+  if (security === 'reality' && packets === 'tlshello') {
+    return '1-3';
+  }
+  if (security === 'tls' && packets !== 'tlshello') {
+    return 'tlshello';
+  }
+  return packets;
+}
+
+function hasDialerProxy(streamSettings: Record<string, Object | string | number | boolean | undefined>): boolean {
+  const sockopt = streamSettings['sockopt'];
+  if (!isRecord(sockopt)) {
+    return false;
+  }
+  const record = sockopt as Record<string, Object | string | number | boolean | undefined>;
+  const dialerProxy = record['dialerProxy'];
+  return typeof dialerProxy === 'string' && dialerProxy.length > 0;
 }
 
 function applyHysteria2FinalMaskSettings(outbound: XrayOutbound): void {
