@@ -11,6 +11,7 @@ export interface SettingsDraft {
   perAppProxyBypass: boolean;
   localDnsEnabled: boolean;
   fakeDnsEnabled: boolean;
+  appendHttpProxy: boolean;
   muxEnabled: boolean;
   fragmentEnabled: boolean;
   proxySharingEnabled: boolean;
@@ -47,6 +48,7 @@ export class SettingsController {
       perAppProxyBypass: settings.perAppProxyBypass ?? true,
       localDnsEnabled: settings.localDnsEnabled,
       fakeDnsEnabled: settings.fakeDnsEnabled,
+      appendHttpProxy: settings.appendHttpProxy,
       muxEnabled: settings.muxEnabled,
       fragmentEnabled: settings.fragmentEnabled,
       proxySharingEnabled: settings.proxySharingEnabled,
@@ -75,7 +77,7 @@ export class SettingsController {
       perAppProxyBypass: draft.perAppProxyBypass,
       localDnsEnabled: draft.localDnsEnabled,
       fakeDnsEnabled: draft.fakeDnsEnabled,
-      appendHttpProxy: DEFAULT_APP_SETTINGS.appendHttpProxy,
+      appendHttpProxy: draft.appendHttpProxy,
       muxEnabled: draft.muxEnabled,
       muxConcurrency: DEFAULT_APP_SETTINGS.muxConcurrency,
       muxXudpConcurrency: DEFAULT_APP_SETTINGS.muxXudpConcurrency,

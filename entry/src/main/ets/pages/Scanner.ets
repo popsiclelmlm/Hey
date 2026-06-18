@@ -4,6 +4,7 @@ import { scanBarcode, scanCore } from '@kit.ScanKit';
 import { pasteboard } from '@kit.BasicServicesKit';
 import { DEFAULT_LANGUAGE, translate } from '../core/I18n';
 import { AppLanguage } from '../core/Profile';
+import { LOCAL_HTTP_PROXY_PORT } from '../core/XrayConfig';
 import { NODES_CONTROLLER } from '../features/nodes/NodesController';
 import { SETTINGS_CONTROLLER } from '../features/settings/SettingsController';
 import { SHARED_RUNTIME_CONTROLLER } from '../features/runtime/RuntimeController';
@@ -25,6 +26,7 @@ struct ScannerPage {
   @State private hasAutoScanned: boolean = false;
   @State private isPressedScanCard: boolean = false;
   @State private isPressedImportBtn: boolean = false;
+  private subscriptionProxyPort: number = 0;
 
   aboutToAppear(): void {
     this.loadState();
@@ -254,7 +256,9 @@ struct ScannerPage {
   private async loadState(): Promise<void> {
     try {
       const context = getContext(this) as common.Context;
-      this.language = (await SETTINGS_CONTROLLER.load(context)).language;
+      const settings = await SETTINGS_CONTROLLER.load(context);
+      this.language = settings.language;
+      this.subscriptionProxyPort = settings.appendHttpProxy && SHARED_RUNTIME_CONTROLLER.isRunning() ? LOCAL_HTTP_PROXY_PORT : 0;
       this.selectedNodeId = (await NODES_CONTROLLER.load(context, this.language)).selectedNodeId;
     } catch (error) {
       this.lastError = '加载配置状态失败: ' + JSON.stringify(error);
@@ -322,7 +326,7 @@ struct ScannerPage {
       const context = getContext(this) as common.Context;
       // 判定是否是订阅地址
       if (value.toLowerCase().startsWith('http://') || value.toLowerCase().startsWith('https://')) {
-        const state = await SUBSCRIPTIONS_CONTROLLER.update(context, '', value, this.selectedNodeId, this.language);
+        const state = await SUBSCRIPTIONS_CONTROLLER.update(context, '', value, this.selectedNodeId, this.language, this.subscriptionProxyPort);
         SHARED_RUNTIME_CONTROLLER.appendLog(state.subscriptionMessage);
         promptAction.showToast({ message: '订阅更新成功' });
         router.pushUrl({ url: AppRoute.SUBSCRIPTIONS });

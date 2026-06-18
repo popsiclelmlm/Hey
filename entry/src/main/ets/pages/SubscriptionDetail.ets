@@ -1,6 +1,7 @@
 import { common } from '@kit.AbilityKit';
 import { DEFAULT_LANGUAGE, translate } from '../core/I18n';
 import { AppLanguage, ProxyNode, SubscriptionGroup } from '../core/Profile';
+import { LOCAL_HTTP_PROXY_PORT } from '../core/XrayConfig';
 import { NODES_CONTROLLER, NodesControllerState } from '../features/nodes/NodesController';
 import { SubscriptionNodeRowModel } from '../features/subscriptions/SubscriptionPanel';
 import { SubscriptionNodeListRow } from '../features/subscriptions/SubscriptionRows';
@@ -32,6 +33,7 @@ struct SubscriptionDetailPage {
   @State private showCard: boolean = false;
   @State private cardType: 'success' | 'error' | 'info' = 'info';
   private timerId: number = -1;
+  private subscriptionProxyPort: number = 0;
 
   aboutToAppear(): void {
     const params = router.getParams() as Record<string, Object>;
@@ -240,7 +242,9 @@ struct SubscriptionDetailPage {
 
   private async loadState(): Promise<void> {
     const context = getContext(this) as common.Context;
-    this.language = (await SETTINGS_CONTROLLER.load(context)).language;
+    const settings = await SETTINGS_CONTROLLER.load(context);
+    this.language = settings.language;
+    this.subscriptionProxyPort = settings.appendHttpProxy && SHARED_RUNTIME_CONTROLLER.isRunning() ? LOCAL_HTTP_PROXY_PORT : 0;
     let state = await SUBSCRIPTIONS_CONTROLLER.load(context, this.language);
 
     // 寻找对应的分组，激活它以加载节点
@@ -282,7 +286,7 @@ struct SubscriptionDetailPage {
 
     try {
       const context = getContext(this) as common.Context;
-      const state = await SUBSCRIPTIONS_CONTROLLER.update(context, this.groupId, this.subscriptionUrl, this.selectedNodeId, this.language);
+      const state = await SUBSCRIPTIONS_CONTROLLER.update(context, this.groupId, this.subscriptionUrl, this.selectedNodeId, this.language, this.subscriptionProxyPort);
       this.applySubscriptionsState(state);
       SHARED_RUNTIME_CONTROLLER.appendLog(state.subscriptionMessage);
     } finally {

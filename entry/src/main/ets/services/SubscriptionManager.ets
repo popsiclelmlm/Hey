@@ -7,7 +7,7 @@ import {
   parseShareLinkToOutboundJson,
   ShareLinkParseResult
 } from '../core/ShareLinkParser';
-import { normalizeOutboundInput } from '../core/XrayConfig';
+import { LOCAL_HTTP_PROXY_HOST, normalizeOutboundInput } from '../core/XrayConfig';
 
 export interface SubscriptionUpdateResult {
   ok: boolean;
@@ -208,7 +208,7 @@ interface ClashHysteria2Settings {
 }
 
 export class SubscriptionManager {
-  static async fetchAndParse(url: string, userAgent: string = '', allowInsecureUrl: boolean = false): Promise<SubscriptionUpdateResult> {
+  static async fetchAndParse(url: string, userAgent: string = '', allowInsecureUrl: boolean = false, proxyPort: number = 0): Promise<SubscriptionUpdateResult> {
     const trimmedUrl = url.trim();
     const validationMessage = SubscriptionManager.validateSubscriptionUrl(trimmedUrl, allowInsecureUrl);
     if (validationMessage.length > 0) {
@@ -221,7 +221,7 @@ export class SubscriptionManager {
       return result;
     }
 
-    const content = await SubscriptionManager.fetchText(trimmedUrl, 0, userAgent, allowInsecureUrl);
+    const content = await SubscriptionManager.fetchTextWithFallback(trimmedUrl, userAgent, allowInsecureUrl, proxyPort);
     const nodes = SubscriptionManager.parseSubscriptionContent(content, trimmedUrl);
     const result: SubscriptionUpdateResult = {
       ok: nodes.length > 0,
@@ -230,6 +230,10 @@ export class SubscriptionManager {
       rawLength: content.length
     };
     return result;
+  }
+
+  static shouldUseSubscriptionProxy(proxyPort: number): boolean {
+    return proxyPort > 0 && Math.floor(proxyPort) === proxyPort && proxyPort <= 65535;
   }
 
   static validateSubscriptionUrl(url: string, allowInsecureUrl: boolean): string {
@@ -258,7 +262,18 @@ export class SubscriptionManager {
     }
   }
 
-  private static async fetchText(url: string, redirectCount: number, userAgent: string, allowInsecureUrl: boolean): Promise<string> {
+  private static async fetchTextWithFallback(url: string, userAgent: string, allowInsecureUrl: boolean, proxyPort: number): Promise<string> {
+    if (!SubscriptionManager.shouldUseSubscriptionProxy(proxyPort)) {
+      return SubscriptionManager.fetchText(url, 0, userAgent, allowInsecureUrl, 0);
+    }
+    try {
+      return await SubscriptionManager.fetchText(url, 0, userAgent, allowInsecureUrl, proxyPort);
+    } catch (error) {
+      return SubscriptionManager.fetchText(url, 0, userAgent, allowInsecureUrl, 0);
+    }
+  }
+
+  private static async fetchText(url: string, redirectCount: number, userAgent: string, allowInsecureUrl: boolean, proxyPort: number): Promise<string> {
     if (redirectCount > 5) {
       throw new Error('HTTP redirect limit reached');
     }
@@ -280,6 +295,14 @@ export class SubscriptionManager {
         usingCache: false,
         header
       };
+      if (SubscriptionManager.shouldUseSubscriptionProxy(proxyPort)) {
+        const proxy: http.HttpProxy = {
+          host: LOCAL_HTTP_PROXY_HOST,
+          port: proxyPort,
+          exclusionList: []
+        };
+        options.usingProxy = proxy;
+      }
       const response = await request.request(url, options);
       const responseCode = Number(response.responseCode);
       if (SubscriptionManager.isRedirectCode(responseCode)) {
@@ -289,7 +312,7 @@ export class SubscriptionManager {
           if (validationMessage.length > 0) {
             throw new Error(validationMessage);
           }
-          return SubscriptionManager.fetchText(redirectUrl, redirectCount + 1, userAgent, allowInsecureUrl);
+          return SubscriptionManager.fetchText(redirectUrl, redirectCount + 1, userAgent, allowInsecureUrl, proxyPort);
         }
       }
       if (responseCode < 200 || responseCode >= 300) {

@@ -54,7 +54,7 @@ export class SubscriptionsController {
     }
   }
 
-  async update(context: common.Context, groupId: string, urlValue: string, selectedNodeId: string, language: AppLanguage): Promise<SubscriptionsControllerState> {
+  async update(context: common.Context, groupId: string, urlValue: string, selectedNodeId: string, language: AppLanguage, proxyPort: number = 0): Promise<SubscriptionsControllerState> {
     if (groupId === 'sub-local') {
       return this.buildState(await SubscriptionStore.load(context), language, '本地节点分组无需更新');
     }
@@ -91,7 +91,7 @@ export class SubscriptionsController {
       }
 
       const userAgent = this.findGroupUserAgent(subscriptionBeforeUpdate.groups, targetGroupId);
-      const result: SubscriptionUpdateResult = await SubscriptionManager.fetchAndParse(url, userAgent, allowInsecureUrl);
+      const result: SubscriptionUpdateResult = await SubscriptionManager.fetchAndParse(url, userAgent, allowInsecureUrl, proxyPort);
       if (!result.ok) {
         return this.buildState(await SubscriptionStore.load(context), language, localizeCoreMessage(language, result.message));
       }
@@ -173,7 +173,7 @@ export class SubscriptionsController {
     }
   }
 
-  async updateAll(context: common.Context, language: AppLanguage): Promise<SubscriptionsControllerState> {
+  async updateAll(context: common.Context, language: AppLanguage, proxyPort: number = 0): Promise<SubscriptionsControllerState> {
     let subscription = await SubscriptionStore.load(context);
     let successCount = 0;
     let failedCount = 0;
@@ -183,7 +183,7 @@ export class SubscriptionsController {
       const url = group.url.trim();
       if (url.length > 0 && group.enabled) {
         try {
-          const result = await this.updateGroupNodes(context, group, false);
+          const result = await this.updateGroupNodes(context, group, false, proxyPort);
           subscription = result.subscription;
           if (result.ok) {
             successCount++;
@@ -203,7 +203,7 @@ export class SubscriptionsController {
     return this.buildState(subscription, language, msg);
   }
 
-  async updateDue(context: common.Context, language: AppLanguage, now: number = Date.now()): Promise<SubscriptionAutoUpdateResult> {
+  async updateDue(context: common.Context, language: AppLanguage, now: number = Date.now(), proxyPort: number = 0): Promise<SubscriptionAutoUpdateResult> {
     let subscription = await SubscriptionStore.load(context);
     let updatedCount = 0;
     let failedCount = 0;
@@ -214,7 +214,7 @@ export class SubscriptionsController {
         continue;
       }
       try {
-        const result = await this.updateGroupNodes(context, group, false);
+        const result = await this.updateGroupNodes(context, group, false, proxyPort);
         subscription = result.subscription;
         if (result.ok) {
           updatedCount++;
@@ -330,9 +330,9 @@ export class SubscriptionsController {
     return false;
   }
 
-  private async updateGroupNodes(context: common.Context, group: SubscriptionGroup, makeActive: boolean): Promise<SubscriptionGroupUpdateResult> {
+  private async updateGroupNodes(context: common.Context, group: SubscriptionGroup, makeActive: boolean, proxyPort: number): Promise<SubscriptionGroupUpdateResult> {
     const url = group.url.trim();
-    const result = await SubscriptionManager.fetchAndParse(url, group.userAgent ?? '', group.allowInsecureUrl ?? false);
+    const result = await SubscriptionManager.fetchAndParse(url, group.userAgent ?? '', group.allowInsecureUrl ?? false, proxyPort);
     if (!result.ok) {
       return {
         subscription: await SubscriptionStore.load(context),

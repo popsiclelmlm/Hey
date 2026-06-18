@@ -4,6 +4,7 @@ import { pasteboard } from '@kit.BasicServicesKit';
 import { IconButton } from '../components/IconButton';
 import { DEFAULT_LANGUAGE, translate } from '../core/I18n';
 import { AppLanguage, AppSettings, ConnectionStatus, ProxyNode, RuntimeStats, SubscriptionGroup } from '../core/Profile';
+import { LOCAL_HTTP_PROXY_PORT } from '../core/XrayConfig';
 import { DeepLinkIntent, parseDeepLink, subscriptionNameFromDeepLink } from '../core/DeepLink';
 import { DelayTester, DelayTestResult } from '../services/DelayTester';
 import { SubscriptionManager } from '../services/SubscriptionManager';
@@ -864,7 +865,7 @@ struct Index {
     this.subscriptionUpdating = true;
     try {
       const context = getContext(this) as common.Context;
-      const result = await SUBSCRIPTIONS_CONTROLLER.updateDue(context, this.language, now);
+      const result = await SUBSCRIPTIONS_CONTROLLER.updateDue(context, this.language, now, this.subscriptionProxyPort());
       if (result.updatedCount === 0 && result.failedCount === 0) {
         return;
       }
@@ -953,7 +954,7 @@ struct Index {
     SHARED_RUNTIME_CONTROLLER.appendLog(this.subscriptionMessage);
     try {
       const context = getContext(this) as common.Context;
-      const state = await SUBSCRIPTIONS_CONTROLLER.update(context, this.selectedGroupId, this.subscriptionUrl, this.selectedNodeId, this.language);
+      const state = await SUBSCRIPTIONS_CONTROLLER.update(context, this.selectedGroupId, this.subscriptionUrl, this.selectedNodeId, this.language, this.subscriptionProxyPort());
       this.applySubscriptionsState(state);
       SHARED_RUNTIME_CONTROLLER.appendLog(state.subscriptionMessage);
       this.applyNodesState(await NODES_CONTROLLER.load(context, this.language));
@@ -1363,6 +1364,10 @@ struct Index {
 
   private isBusy(): boolean {
     return this.connectionOperationRunning || this.status === ConnectionStatus.STARTING || this.status === ConnectionStatus.STOPPING;
+  }
+
+  private subscriptionProxyPort(): number {
+    return this.isRunning() && this.currentSettings.appendHttpProxy ? LOCAL_HTTP_PROXY_PORT : 0;
   }
 
   private async reconnectService(): Promise<void> {

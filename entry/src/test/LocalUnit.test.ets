@@ -1,7 +1,7 @@
 import { describe, it, expect } from '@ohos/hypium';
 import { formatTranslation, missingTranslationKeys, normalizeLanguage, translate } from '../main/ets/core/I18n';
 import { AppSettings, ProxyNode, RoutingRule, SubscriptionGroup } from '../main/ets/core/Profile';
-import { buildXrayConfig, buildXrayConfigWithSettings, normalizeOutboundInput, validateOutboundJson } from '../main/ets/core/XrayConfig';
+import { LOCAL_HTTP_PROXY_PORT, buildXrayConfig, buildXrayConfigWithSettings, normalizeOutboundInput, validateOutboundJson } from '../main/ets/core/XrayConfig';
 import { parseShareLinkToOutboundJson } from '../main/ets/core/ShareLinkParser';
 import { exportRoutingRulesJson, importRoutingRulesJson, resetRoutingRulesFromPreset } from '../main/ets/core/RoutingRules';
 import {
@@ -138,6 +138,21 @@ export default function localUnitTest() {
       expect(result.configJson.indexOf('domain:disabled.example')).assertEqual(-1);
       expect(result.configJson.indexOf('geosite:category-ads-all') < result.configJson.indexOf('domain:example.com')).assertTrue();
       expect(result.configJson.indexOf('domain:example.com') < result.configJson.indexOf('geosite:cn')).assertTrue();
+    });
+
+    it('appends local http proxy inbound when enabled', 0, () => {
+      const settings = buildSettingsFixture();
+      let result = buildXrayConfigWithSettings(VLESS_REALITY_OUTBOUND, settings);
+      expect(result.configJson.indexOf('"tag": "http-in"')).assertEqual(-1);
+
+      settings.appendHttpProxy = true;
+      result = buildXrayConfigWithSettings(VLESS_REALITY_OUTBOUND, settings);
+      expect(result.configJson).assertContain('"tag": "http-in"');
+      expect(result.configJson).assertContain('"protocol": "http"');
+      expect(result.configJson).assertContain(`"port": ${LOCAL_HTTP_PROXY_PORT}`);
+      expect(result.configJson).assertContain('"inboundTag"');
+      expect(result.configJson).assertContain('"outboundTag": "proxy"');
+      expect(result.httpProxyPort).assertEqual(LOCAL_HTTP_PROXY_PORT);
     });
 
     it('imports routing presets while preserving locked rules', 0, () => {
@@ -352,6 +367,13 @@ export default function localUnitTest() {
       expect(SubscriptionManager.validateSubscriptionUrl('http://sub.example/list', true)).assertEqual('');
       expect(SubscriptionManager.validateSubscriptionUrl('http://sub.example/list', false)).assertContain('不安全');
       expect(SubscriptionManager.validateSubscriptionUrl('ftp://sub.example/list', true)).assertContain('http:// 或 https://');
+    });
+
+    it('validates subscription proxy ports', 0, () => {
+      expect(SubscriptionManager.shouldUseSubscriptionProxy(0)).assertFalse();
+      expect(SubscriptionManager.shouldUseSubscriptionProxy(10808)).assertTrue();
+      expect(SubscriptionManager.shouldUseSubscriptionProxy(10808.5)).assertFalse();
+      expect(SubscriptionManager.shouldUseSubscriptionProxy(65536)).assertFalse();
     });
 
     it('moves subscription groups without mutating the source list', 0, () => {

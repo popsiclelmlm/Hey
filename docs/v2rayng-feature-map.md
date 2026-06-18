@@ -21,7 +21,7 @@ v2rayNG's features and design, see
 | ServerActivity protocol editors | Add | Partial. Field-level editor is present for VLESS/VMess/Trojan/Shadowsocks/SOCKS/HTTP (generates outbound JSON into import buffer). WireGuard/Hysteria2/TUIC editors still pending. |
 | ServerCustomConfigActivity | Add | Raw outbound JSON import works. Full custom config import pending. |
 | RoutingSettingActivity / RoutingEditActivity | Route | Present for core ruleset management. Traffic mode (global/rules/direct), domain strategy, bypass-LAN/CN, ad-block, custom routing rules, locked rules, predefined ruleset import, clipboard import, and clipboard export persist and feed generated Xray routing. Advanced custom outbound targets remain future work. |
-| SettingsActivity | Config | Core, VPN DNS, SOCKS port, mux, sniffing, log level and routing strategy persist and feed generated Xray config. Dedicated pickers and full advanced options pending. |
+| SettingsActivity | Config | Core, VPN DNS, local HTTP proxy append, mux, sniffing, log level and routing strategy persist and feed generated Xray config. Dedicated pickers and full advanced options pending. |
 | PerAppProxyActivity | Apps | Partial. Toggle, allowlist/blocklist mode, preset/manual package list, and VPN `blockedApplications`/`trustedApplications` mapping are wired; unrestricted installed-app enumeration is platform-limited. |
 | UserAssetActivity / UserAssetUrlActivity | Assets | Present. geoip/geosite download (Loyalsoldier rules), custom asset URL CRUD, and clipboard backup/restore are implemented. |
 | LogcatActivity | Logs | Present. App diagnostic logs and native runtime stats are visible. |
@@ -35,7 +35,7 @@ v2rayNG's features and design, see
 | --- | --- |
 | Subscription URL fetch and parse | Present for `vless://`, `vmess://`, `trojan://`, `ss://`, `socks://`, `http://`, `https://`, `wireguard://`, `hysteria2://`, `hy2://`. |
 | Node select and save current profile | Present. |
-| Xray config generation | Present for outbound + native TUN inbound + basic direct/block outbounds. |
+| Xray config generation | Present for outbound + native TUN inbound + metrics inbound + optional local HTTP proxy inbound + basic direct/block outbounds. |
 | Persistent app settings | Present for core VPN, DNS, mux, sniffing, log and routing strategy; selected values are applied at connection start. |
 | VPN Extension start/stop | Present, with emulator timeout diagnostics. Real-device verified (2026-06-15). |
 | Xray native TUN runtime | Present in HAP via `CGoSetTunFd` + Xray TUN inbound. Real-device closed loop verified (2026-06-15): TUN → Xray → outbound → reachable. |
@@ -45,10 +45,10 @@ v2rayNG's features and design, see
 | Delay test / real ping / sort by delay | Present. Per-node real outbound delay via libXray `CGoPing` (own SOCKS test inbound on port 10825), persisted per node, with sort-by-delay. Falls back to direct URL test when the native core is unavailable (e.g. emulator). Needs real-device validation. |
 | Delete all / duplicate / invalid configs | Present for the active subscription group. Delete-all, duplicate cleanup, and invalid-node cleanup are wired from the Nodes menu. |
 | Export/share configs and QR generation | Partial. Plain-text share-link export is present, and node detail can render QR codes; system share/file export remains pending. |
-| Multi-subscription groups | Present with legacy single-subscription migration. Rename/edit, enable-disable, delete, reorder, batch update all, per-subscription insecure URL opt-in, auto-update opt-in, and update interval are wired. Foreground due refresh is wired; background refresh and proxy-mediated subscription update remain pending. |
+| Multi-subscription groups | Present with legacy single-subscription migration. Rename/edit, enable-disable, delete, reorder, batch update all, per-subscription insecure URL opt-in, auto-update opt-in, and update interval are wired. Foreground due refresh is wired, and subscription fetches can prefer the local HTTP proxy when the VPN runtime exposes it. Background refresh remains pending. |
 | Routing rulesets and geo assets | Partial. Geo asset download/management present (Assets page). Routing config emits metrics, ad-block, custom enabled rules, and bypass-LAN/CN rules in order. Predefined ruleset import/export is wired; advanced outbound targets are still pending. |
 | Per-app proxy | Partial. VPN app allow/block mapping is wired from saved package names; unrestricted installed-app enumeration remains platform-limited. |
-| Auto subscription update | Partial. Per-subscription `autoUpdate` and `updateIntervalMinutes` persist with v2rayNG-compatible defaults (1440 minutes, minimum 15), and the home page performs throttled foreground due refresh. Harmony background scheduling remains pending. |
+| Auto subscription update | Partial. Per-subscription `autoUpdate` and `updateIntervalMinutes` persist with v2rayNG-compatible defaults (1440 minutes, minimum 15), and the home page performs throttled foreground due refresh through the local HTTP proxy when available. Harmony background scheduling remains pending. |
 | Boot/startup automation | Pending and platform-dependent. |
 
 ## Native Bridge Status

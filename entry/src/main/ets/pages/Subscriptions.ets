@@ -2,8 +2,10 @@ import { common } from '@kit.AbilityKit';
 import { IconButton } from '../components/IconButton';
 import { DEFAULT_LANGUAGE, translate } from '../core/I18n';
 import { AppLanguage, SubscriptionGroup } from '../core/Profile';
+import { LOCAL_HTTP_PROXY_PORT } from '../core/XrayConfig';
 import { SUBSCRIPTIONS_CONTROLLER, SubscriptionsControllerState } from '../features/subscriptions/SubscriptionsController';
 import { SETTINGS_CONTROLLER } from '../features/settings/SettingsController';
+import { SHARED_RUNTIME_CONTROLLER } from '../features/runtime/RuntimeController';
 import { AppRoute } from '../shell/AppRoute';
 import { PageHeader } from '../shell/PageHeader';
 import { router, promptAction } from '@kit.ArkUI';
@@ -18,6 +20,7 @@ struct SubscriptionsPage {
   @State private selectedGroupId: string = '';
   @State private isUpdatingAll: boolean = false;
   @State private isBusy: boolean = false;
+  private subscriptionProxyPort: number = 0;
 
   aboutToAppear(): void {
     this.loadState();
@@ -245,7 +248,9 @@ struct SubscriptionsPage {
     this.isBusy = true;
     try {
       const context = getContext(this) as common.Context;
-      this.language = (await SETTINGS_CONTROLLER.load(context)).language;
+      const settings = await SETTINGS_CONTROLLER.load(context);
+      this.language = settings.language;
+      this.subscriptionProxyPort = settings.appendHttpProxy && SHARED_RUNTIME_CONTROLLER.isRunning() ? LOCAL_HTTP_PROXY_PORT : 0;
       this.applySubscriptionsState(await SUBSCRIPTIONS_CONTROLLER.load(context, this.language));
     } finally {
       this.isBusy = false;
@@ -295,7 +300,7 @@ struct SubscriptionsPage {
     this.isUpdatingAll = true;
     try {
       const context = getContext(this) as common.Context;
-      const state = await SUBSCRIPTIONS_CONTROLLER.updateAll(context, this.language);
+      const state = await SUBSCRIPTIONS_CONTROLLER.updateAll(context, this.language, this.subscriptionProxyPort);
       this.applySubscriptionsState(state);
       promptAction.showToast({ message: state.subscriptionMessage });
     } finally {

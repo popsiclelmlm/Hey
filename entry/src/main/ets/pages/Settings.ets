@@ -21,6 +21,7 @@ struct SettingsPage {
   @State private settingRouteOnly: boolean = false;
   @State private settingLocalDns: boolean = false;
   @State private settingFakeDns: boolean = false;
+  @State private settingAppendHttpProxy: boolean = false;
   @State private settingMux: boolean = false;
   @State private settingFragment: boolean = false;
   @State private settingProxySharing: boolean = false;
@@ -92,6 +93,8 @@ struct SettingsPage {
             this.SettingToggle(this.t('settings.fakeDns'), this.settingFakeDns, 'fakeDns')
             this.RowDivider()
             this.SettingToggle(this.t('settings.proxySharing'), this.settingProxySharing, 'proxySharing')
+            this.RowDivider()
+            this.SettingToggle(this.t('settings.appendHttpProxy'), this.settingAppendHttpProxy, 'appendHttpProxy')
             this.RowDivider()
             this.SettingInput(this.t('settings.vpnDns'), this.settingVpnDns, 'vpnDns')
           }
@@ -259,6 +262,9 @@ struct SettingsPage {
       case 'proxySharing':
         this.settingProxySharing = !this.settingProxySharing;
         break;
+      case 'appendHttpProxy':
+        this.settingAppendHttpProxy = !this.settingAppendHttpProxy;
+        break;
       case 'allowInsecure':
         this.settingAllowInsecure = !this.settingAllowInsecure;
         break;
@@ -335,6 +341,7 @@ struct SettingsPage {
       perAppProxyBypass: this.perAppProxyBypass,
       localDnsEnabled: this.settingLocalDns,
       fakeDnsEnabled: this.settingFakeDns,
+      appendHttpProxy: this.settingAppendHttpProxy,
       muxEnabled: this.settingMux,
       fragmentEnabled: this.settingFragment,
       proxySharingEnabled: this.settingProxySharing,
@@ -362,6 +369,7 @@ struct SettingsPage {
     this.perAppProxyBypass = draft.perAppProxyBypass ?? true;
     this.settingLocalDns = draft.localDnsEnabled;
     this.settingFakeDns = draft.fakeDnsEnabled;
+    this.settingAppendHttpProxy = draft.appendHttpProxy;
     this.settingMux = draft.muxEnabled;
     this.settingFragment = draft.fragmentEnabled;
     this.settingProxySharing = draft.proxySharingEnabled;

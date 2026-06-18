@@ -55,6 +55,8 @@ export interface GeneratedXrayConfig {
   configJson: string;
   socksHost?: string;
   socksPort?: number;
+  httpProxyHost?: string;
+  httpProxyPort?: number;
   metricsServer?: string;
 }
 

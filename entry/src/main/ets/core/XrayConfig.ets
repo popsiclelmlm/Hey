@@ -94,6 +94,11 @@ class SocksInboundSettings {
   userLevel: number = 0;
 }
 
+class HttpInboundSettings {
+  auth: string = 'noauth';
+  userLevel: number = 0;
+}
+
 class TunInboundSettings {
   name: string = 'vpn-tun';
   mtu: number = 1400;
@@ -110,6 +115,8 @@ class EmptySettings {
 const SUPPORTED_PROTOCOLS: Array<string> = ['vless', 'vmess', 'trojan', 'shadowsocks', 'socks', 'http', 'wireguard', 'hysteria2'];
 
 export const DEFAULT_SOCKS_HOST: string = '127.0.0.1';
+export const LOCAL_HTTP_PROXY_HOST: string = '127.0.0.1';
+export const LOCAL_HTTP_PROXY_PORT: number = 10808;
 export const DELAY_TEST_SOCKS_PORT: number = 10825;
 // Local Xray metrics (expvar) endpoint. The generated VPN config exposes a
 // dokodemo inbound on this port routed to the metrics handler so that
@@ -286,6 +293,8 @@ function buildXrayConfigInternal(outboundJson: string, settings: AppSettings | u
     settings: new DokodemoInboundSettings()
   };
 
+  const inbounds: Array<XrayInboundConfig> = [tunInbound, metricsInbound];
+
   // Route the metrics inbound to the metrics handler ahead of any user/traffic
   // rule so the local /debug/vars probe is never proxied or blocked.
   const routingRules = buildRoutingRules(settings);
@@ -294,6 +303,24 @@ function buildXrayConfigInternal(outboundJson: string, settings: AppSettings | u
     inboundTag: [METRICS_IN_TAG],
     outboundTag: METRICS_OUT_TAG
   };
+
+  if (settings !== undefined && settings.appendHttpProxy) {
+    const httpInboundTag = 'http-in';
+    const httpInbound: XrayInboundConfig = {
+      tag: httpInboundTag,
+      listen: LOCAL_HTTP_PROXY_HOST,
+      port: LOCAL_HTTP_PROXY_PORT,
+      protocol: 'http',
+      settings: new HttpInboundSettings()
+    };
+    const httpProxyRule: XrayRoutingRule = {
+      type: 'field',
+      inboundTag: [httpInboundTag],
+      outboundTag: 'proxy'
+    };
+    inbounds.push(httpInbound);
+    routingRules.unshift(httpProxyRule);
+  }
   routingRules.unshift(metricsRule);
 
   const policy: XrayPolicyConfig = {
@@ -310,7 +337,7 @@ function buildXrayConfigInternal(outboundJson: string, settings: AppSettings | u
       loglevel: settings?.logLevel ?? DEFAULT_LOG_LEVEL
     },
     dns: buildDnsConfig(settings),
-    inbounds: [tunInbound, metricsInbound],
+    inbounds,
     outbounds: [outbound, directOutbound, blockOutbound],
     routing: {
       domainStrategy: settings?.routingDomainStrategy ?? DEFAULT_ROUTING_DOMAIN_STRATEGY,
@@ -325,6 +352,8 @@ function buildXrayConfigInternal(outboundJson: string, settings: AppSettings | u
 
   return {
     configJson: JSON.stringify(config, null, 2),
+    httpProxyHost: settings?.appendHttpProxy ? LOCAL_HTTP_PROXY_HOST : undefined,
+    httpProxyPort: settings?.appendHttpProxy ? LOCAL_HTTP_PROXY_PORT : undefined,
     metricsServer: METRICS_SERVER_URL
   };
 }
