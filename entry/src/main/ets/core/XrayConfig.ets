@@ -271,8 +271,8 @@ const SUPPORTED_PROTOCOLS: Array<string> = ['vless', 'vmess', 'trojan', 'shadows
 export const DEFAULT_SOCKS_HOST: string = '127.0.0.1';
 export const LOCAL_HTTP_PROXY_HOST: string = '127.0.0.1';
 export const LOCAL_HTTP_PROXY_LAN_HOST: string = '0.0.0.0';
-export const LOCAL_HTTP_PROXY_PORT: number = 10808;
-export const LOCAL_SOCKS_PROXY_PORT: number = 10809;
+export const LOCAL_SOCKS_PROXY_PORT: number = 10808;
+export const LOCAL_HTTP_PROXY_PORT: number = 10809;
 export const DELAY_TEST_SOCKS_PORT: number = 10825;
 // Local Xray metrics (expvar) endpoint. The generated VPN config exposes a
 // dokodemo inbound on this port routed to the metrics handler so that

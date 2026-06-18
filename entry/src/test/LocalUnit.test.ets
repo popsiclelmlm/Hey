@@ -833,6 +833,7 @@ export default function localUnitTest() {
       expect(result.configJson).assertContain('"tag": "http-in"');
       expect(result.configJson).assertContain('"listen": "127.0.0.1"');
       expect(result.configJson).assertContain('"protocol": "http"');
+      expect(LOCAL_HTTP_PROXY_PORT).assertEqual(10809);
       expect(result.configJson).assertContain(`"port": ${LOCAL_HTTP_PROXY_PORT}`);
       expect(result.configJson).assertContain('"inboundTag"');
       expect(result.configJson).assertContain('"outboundTag": "proxy"');
@@ -872,9 +873,12 @@ export default function localUnitTest() {
 
     it('enables local socks proxy by default like v2rayNG', 0, () => {
       expect(DEFAULT_APP_SETTINGS.localSocksEnabled).assertTrue();
+      expect(DEFAULT_APP_SETTINGS.localSocksPort).assertEqual(10808);
+      expect(LOCAL_SOCKS_PROXY_PORT).assertEqual(10808);
       const result = buildXrayConfigWithSettings(VLESS_REALITY_OUTBOUND, DEFAULT_APP_SETTINGS);
       expect(result.configJson).assertContain('"tag": "socks-in"');
       expect(result.configJson).assertContain('"protocol": "socks"');
+      expect(result.configJson).assertContain('"port": 10808');
       expect(result.configJson).assertContain('"auth": "noauth"');
       expect(result.configJson).assertContain('"udp": true');
       expect(result.socksPort).assertEqual(LOCAL_SOCKS_PROXY_PORT);
@@ -1998,8 +2002,8 @@ export default function localUnitTest() {
 
     it('validates subscription proxy ports', 0, () => {
       expect(SubscriptionManager.shouldUseSubscriptionProxy(0)).assertFalse();
-      expect(SubscriptionManager.shouldUseSubscriptionProxy(10808)).assertTrue();
-      expect(SubscriptionManager.shouldUseSubscriptionProxy(10808.5)).assertFalse();
+      expect(SubscriptionManager.shouldUseSubscriptionProxy(LOCAL_HTTP_PROXY_PORT)).assertTrue();
+      expect(SubscriptionManager.shouldUseSubscriptionProxy(LOCAL_HTTP_PROXY_PORT + 0.5)).assertFalse();
       expect(SubscriptionManager.shouldUseSubscriptionProxy(65536)).assertFalse();
     });
 

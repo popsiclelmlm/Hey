@@ -54,7 +54,7 @@ struct SettingsPage {
   @State private settingFakeDns: boolean = false;
   @State private settingAppendHttpProxy: boolean = false;
   @State private settingLocalSocks: boolean = true;
-  @State private settingLocalSocksPort: string = '10809';
+  @State private settingLocalSocksPort: string = '10808';
   @State private settingLocalSocksDynamicPort: boolean = false;
   @State private settingLocalSocksUdp: boolean = true;
   @State private settingLocalSocksUsername: string = '';

@@ -172,8 +172,8 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 - 测试：新增调度计划纯函数单测覆盖无任务、最短间隔和最小 15 分钟归一化
 
 **进展（2026-06-18 续）**：运行中经由本地 HTTP 代理更新订阅已落地：
-- Xray：设置开启时生成 `http-in` 本地 HTTP inbound（`127.0.0.1:10808`），并将该 inbound 显式路由到 `proxy`
-- 共享：开启「允许来自局域网的连接」时，`http-in.listen` 改为 `0.0.0.0:10808`，对齐 v2rayNG 本地代理共享语义；内部订阅更新仍走 loopback
+- Xray：设置开启时生成 `http-in` 本地 HTTP inbound（`127.0.0.1:10809`），并将该 inbound 显式路由到 `proxy`
+- 共享：开启「允许来自局域网的连接」时，`http-in.listen` 改为 `0.0.0.0:10809`；SOCKS 默认端口保留 v2rayNG 的 `10808`，HTTP inbound 作为 Harmony 兼容近似实现单独避让一个端口；内部订阅更新仍走 loopback
 - 设置：Settings 页新增「追加本地 HTTP 代理」开关，保存后参与运行配置生成
 - 更新：手动更新、订阅详情更新、扫码订阅导入、批量更新全部和前台到期刷新均可优先使用本地 HTTP 代理；代理不可用时回退直连
 - 测试：新增配置生成单测覆盖开关关闭/开启时 HTTP inbound 与代理路由输出
@@ -286,7 +286,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 - ✅ WireGuard `.conf` 文件整段解析（2026-06-18 已完成：`[Interface]`/`[Peer]` 文本或文件导入转为 Xray wireguard outbound）
 - ✅ WireGuard reserved 默认值：分享链接、`.conf` 导入和手动 outbound 生成在缺省时写入 v2rayNG 默认 `0,0,0`，导出分享链接保留 `reserved=0,0,0`（2026-06-19）
 - ✅ WireGuard/Hysteria2 手动编辑器：NodeEdit 已生成可校验 outbound，WG 支持 secret/public/pre-shared/reserved/MTU/IPv6 endpoint，HY2 支持 SNI/ALPN/insecure/obfs/mport/mportHopInt/pinSHA256/bandwidth，且 HY2 bandwidth/obfs/port-hop 会在启动配置中转为 v2rayNG 风格 `finalmask`（2026-06-19）
-- ✅ SOCKS 端口/UDP/认证/动态端口：Settings 已可配置本地 SOCKS inbound，`localSocksEnabled` 按 v2rayNG `pref_enable_local_proxy` 默认开启，写入 `socks-in` 端口、UDP 与用户名/密码认证，并随代理共享监听 LAN；动态端口开启时连接前通过 `CGoGetFreePorts` 选择运行端口，失败回退用户设置端口（2026-06-19 补默认开启语义）
+- ✅ SOCKS 端口/UDP/认证/动态端口：Settings 已可配置本地 SOCKS inbound，`localSocksEnabled` 按 v2rayNG `pref_enable_local_proxy` 默认开启，默认端口按 v2rayNG 为 `10808`，写入 `socks-in` 端口、UDP 与用户名/密码认证，并随代理共享监听 LAN；动态端口开启时连接前通过 `CGoGetFreePorts` 选择运行端口，失败回退用户设置端口（2026-06-19 补默认端口/开启语义）
 - ✅ Mux 协议适用范围：全局 Mux 只应用到 v2rayNG 允许的 VMess/VLESS 等出站，自动跳过 Shadowsocks/SOCKS/HTTP/Trojan/WireGuard/Hysteria2 与 XHTTP，并对 VLESS flow 节点写入 `concurrency=-1`（2026-06-19）
 - ✅ Fragment 运行配置：全局 Fragment 按 v2rayNG 只在 TLS/Reality 且无 `dialerProxy`/既有 `finalmask` 时生成 `streamSettings.finalmask.tcp/udp`，Reality 默认 packets 从 `tlshello` 改为 `1-3`，TLS 强制使用 `tlshello`（2026-06-19）
 - ✅ 本地 DNS / FakeDNS 已生成 Xray `dns-out`、FakeDNS server 和 TUN 53 端口路由；remote/domestic DNS 已按 v2rayNG 规则生成 proxy/direct domain-bound servers、CN `expectIPs`、DNS 专用 proxy/direct 路由、block hosts 和内置 googleapis/Private DNS 默认 hosts（2026-06-19）
@@ -375,7 +375,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-18 | M3 | ✅ 当前分组删除全部配置（Nodes 菜单确认弹窗 + Store/Controller 清空 active group nodes + 删除数量日志）；补齐 v2rayNG `removeAllServer` 的日常批处理路径 |
 | 2026-06-18 | M3 | ✅ 订阅自动更新设置与前台到期刷新（`autoUpdate`/`updateIntervalMinutes` + 1440/15 分钟规则 + 首页节流到期刷新 + 单测）；当时后台任务调度尚未接入 |
 | 2026-06-18 | M3 | 🟡 订阅 WorkScheduler 后台调度接线（持久重复任务 + `SubscriptionUpdateWorkAbility` 到期刷新 + 增删改/首页同步注册 + 诊断日志 + 调度计划单测）；待真机触发回归 |
-| 2026-06-18 | M3 | ✅ 运行中经由本地 HTTP 代理更新订阅（`appendHttpProxy` 设置 + `http-in` inbound 10808 + 订阅拉取 `usingProxy` 优先/直连回退 + 单测） |
+| 2026-06-18 | M3 | ✅ 运行中经由本地 HTTP 代理更新订阅（`appendHttpProxy` 设置 + `http-in` inbound 10809 + 订阅拉取 `usingProxy` 优先/直连回退 + 单测） |
 | 2026-06-18 | M3 | ✅ 本地 HTTP 代理共享开关生效（`proxySharingEnabled` 开启时 `http-in.listen=0.0.0.0`，默认仍为 `127.0.0.1`，补配置生成单测） |
 | 2026-06-18 | M0 补点 | ✅ VPN 接口 DNS 不再写死，`settings.vpnDns` 会规范化后写入 Harmony `VpnConfig.dnsAddresses`，空值回退 `1.1.1.1/8.8.8.8` |
 | 2026-06-18 | M4 | ✅ 系统分享面板接入（批量导出文本 + 单节点分享链接走 `ohos.want.action.sendData`，失败回退剪贴板，并补分享 Want 单测） |
@@ -392,7 +392,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-18 | M1 | 🟡 Native 分享转换接线完成（`CGoConvertShareLinksToXrayJson`/`CGOConvertXrayJsonToShareLinks` 导出 + native wrapper + 导入页批量/base64/Clash YAML 兜底）；待重建 `.so` + 真机复测 |
 | 2026-06-18 | M4 | ✅ WireGuard/Hysteria2 手动编辑器校验完成（抽出 `ManualOutboundBuilder`，NodeEdit 复用，补 WG/HY2 outbound 生成单测）；运行态仍待真机/内核复测 |
 | 2026-06-18 | M4 | ✅ 本地 SOCKS 代理设置完成（`localSocksEnabled`/端口/UDP/用户名/密码 + `socks-in` 生成 + LAN 共享监听 + 单测） |
-| 2026-06-19 | M4 | ✅ 本地 SOCKS 默认开启对齐 v2rayNG（`pref_enable_local_proxy` 默认 true；默认设置生成 `socks-in`，关闭时不生成；补配置生成单测） |
+| 2026-06-19 | M4 | ✅ 本地 SOCKS 默认开启与端口对齐 v2rayNG（`pref_enable_local_proxy` 默认 true；默认 SOCKS 端口 10808；默认设置生成 `socks-in`，关闭时不生成；补配置生成单测） |
 | 2026-06-18 | M4 | ✅ 本地 SOCKS 动态端口完成（`localSocksDynamicPort` 设置 + 启动前 `CGoGetFreePorts` 选择运行端口 + 设置/端口选择单测）；待重建 `.so` + 真机复测 |
 | 2026-06-18 | M4 | ✅ 传输高级设置完成（Settings 展开 mux 并发、XUDP 并发、UDP/443 策略、fragment packets/length/interval，日志级别改为 picker，并补 Settings draft 往返单测） |
 | 2026-06-18 | M4 | ✅ DNS hosts 设置完成（Settings 保存 v2rayNG `domain:address,...` 输入，Xray 生成 `dns.hosts`；同时兼容 JSON object 输入并补配置生成单测） |
@@ -452,5 +452,6 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-19 | 协议点检 | ✅ WireGuard reserved 默认值完成（分享链接、`.conf` 导入和手动 builder 缺省写入 `[0,0,0]`，导出分享链接保留 `reserved=0,0,0`；补默认值单测） |
 | 2026-06-19 | 协议点检 | ✅ Mux 协议适用范围完成（全局 Mux 跳过 v2rayNG 禁用协议与 XHTTP，VLESS flow 节点使用 `concurrency=-1`；补运行配置单测） |
 | 2026-06-19 | 协议点检 | ✅ Fragment finalmask 运行配置完成（TLS/Reality 生成 `finalmask.tcp/udp`，Reality 默认 `packets=1-3`，已有 finalmask 和代理链 dialerProxy 会跳过；补运行配置单测） |
+| 2026-06-19 | 协议点检 | ✅ 本地 SOCKS 默认端口完成（`pref_socks_port` 默认对齐 v2rayNG 为 10808；Hey 的 Harmony HTTP inbound 兼容端口避让到 10809；补默认端口单测） |
 | 2026-06-15 | 自查 | ✅ 字段一致性总扫：AppSettings/SettingsDraft 5 个构造点字段完整一致，SubscriptionGroup.filter 贯通，无需修改 |
 | 2026-06-15 | 自查 | ✅ 深链/metrics 配置形状核对 Xray 官方一致；自查清单收尾（净修复：预检非阻断 + 清理未用导入） |

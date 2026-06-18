@@ -12,7 +12,7 @@
 | 原生 TUN 数据通路 | ✅ 94% | 代码就位且**真机闭环验证通过（2026-06-15）**——TUN→Xray→出站→可上网；`ipv6Enabled` 控制 IPv6 地址/路由，`preferIpv6` 控制 outbound Happy Eyeballs，VPN MTU 默认值已对齐 v2rayNG 为 1500，待真机回归 |
 | 分享链接解析 | ✅ 97% | vless/vmess/trojan/ss/socks/http/wireguard/hy2 已覆盖，VLESS `flow` 含 `xtls-rprx-vision-udp443`、uTLS `fp` 含 `ios/android/randomized`、VMess QR `insecure`、URL-style TLS `insecure`/`allowInsecure` 兼容键导出、URL-style userInfo 编码、空 fragment 默认 `none` 节点名、finalMask `fm`、TCP `headerType=http`、KCP `headerType/seed/mtu/tti`、gRPC `mode=multi`、SOCKS `base64(user:pass)` 认证与 `socks4://` / `socks5://` 导入别名、Shadowsocks legacy base64 兼容尾斜杠与密码冒号、WireGuard reserved 缺省值 `0,0,0`、Hysteria2 `mportHopInt`/`pinSHA256`、HTTPUpgrade host/path、XHTTP `mode/extra` 均可导入导出并在手动编辑器选择/填写；Hysteria2 bandwidth/obfs/port-hop 会在运行配置中生成 v2rayNG 风格 `finalmask.quicParams`、`udpHop` 和 `salamander` mask；Reality `spx`/`pqv` 已按 v2rayNG 映射为 `spiderX`/`mldsa65Verify` 并可导入导出，WireGuard `.conf` 整段导入已支持；导入失败后可走 native 转换兜底支持 v2rayN 多行/base64 与 Clash.Meta YAML（待重建 `.so` 真机验证）；TUIC 在 v2rayNG 当前枚举中未启用且 Xray-core 官方配置不支持，暂不列为运行目标 |
 | 订阅管理 | 🟡 96% | 多分组 + 旧版迁移 + 编辑/重排/批量更新全部 + 订阅级不安全 URL 开关 + 当前分组删除全部 + 自动更新设置/前台到期刷新 + 本地 HTTP 代理经由更新 + WorkScheduler 后台调度接线 + 订阅链接二维码/系统分享；待真机触发回归 |
-| Xray 配置生成 | 🟡 93% | 普通节点生成 TUN/DNS/routing/HTTP 代理和本地 SOCKS 配置，本地 SOCKS 按 v2rayNG `pref_enable_local_proxy` 默认开启且关闭时不生成 `socks-in`；速度显示开启时才生成 metrics/stats/policy；DNS hosts 支持 v2rayNG `domain:address,...` 格式写入 `dns.hosts`，并内置 v2rayNG `googleapis.cn` 与 Android Private DNS 默认 hosts，用户 hosts 可覆盖默认值；remote/domestic DNS 会按自定义 proxy/direct/block 规则生成 `domains`、`expectIPs`、DNS 专用路由和 block hosts，出站域名预解析方式 `0/1/2` 已持久化，并会在启动前用 Harmony 系统 DNS 补齐 live 解析结果，再按模式写入 DNS hosts/UseIP 或替换 outbound 域名；全局 Mux 按 v2rayNG 规则跳过 Shadowsocks/SOCKS/HTTP/Trojan/WireGuard/Hysteria2/XHTTP，且 VLESS flow 节点使用 `concurrency=-1`；全局 Fragment 按 v2rayNG 生成 TLS/Reality `finalmask.tcp/udp`，并跳过已有 finalmask 与代理链 dialerProxy；`routeOnly` 会按 v2rayNG 语义写入 TUN sniffing 并控制 process 规则输出；HTTP/SOCKS 代理支持局域网共享监听，SOCKS 支持启动前动态端口；完整自定义 Xray config 可校验后原样运行；代理链和策略组 JSON 可生成多跳/负载均衡 outbounds，添加节点页可从已有普通节点创建代理链/策略组，策略组支持按订阅分组与节点名正则动态成员，路由规则可选择当前高级出站目标 |
+| Xray 配置生成 | 🟡 93% | 普通节点生成 TUN/DNS/routing/HTTP 代理和本地 SOCKS 配置，本地 SOCKS 按 v2rayNG `pref_enable_local_proxy` 默认开启、默认端口 10808，且关闭时不生成 `socks-in`；速度显示开启时才生成 metrics/stats/policy；DNS hosts 支持 v2rayNG `domain:address,...` 格式写入 `dns.hosts`，并内置 v2rayNG `googleapis.cn` 与 Android Private DNS 默认 hosts，用户 hosts 可覆盖默认值；remote/domestic DNS 会按自定义 proxy/direct/block 规则生成 `domains`、`expectIPs`、DNS 专用路由和 block hosts，出站域名预解析方式 `0/1/2` 已持久化，并会在启动前用 Harmony 系统 DNS 补齐 live 解析结果，再按模式写入 DNS hosts/UseIP 或替换 outbound 域名；全局 Mux 按 v2rayNG 规则跳过 Shadowsocks/SOCKS/HTTP/Trojan/WireGuard/Hysteria2/XHTTP，且 VLESS flow 节点使用 `concurrency=-1`；全局 Fragment 按 v2rayNG 生成 TLS/Reality `finalmask.tcp/udp`，并跳过已有 finalmask 与代理链 dialerProxy；`routeOnly` 会按 v2rayNG 语义写入 TUN sniffing 并控制 process 规则输出；HTTP/SOCKS 代理支持局域网共享监听，SOCKS 支持启动前动态端口；完整自定义 Xray config 可校验后原样运行；代理链和策略组 JSON 可生成多跳/负载均衡 outbounds，添加节点页可从已有普通节点创建代理链/策略组，策略组支持按订阅分组与节点名正则动态成员，路由规则可选择当前高级出站目标 |
 | 节点延迟测速 / 排序 | ✅ 86% | 节点菜单同时提供 TCP 延迟和 v2rayNG 风格真连接测速；真连接测速走 `CGoPing` + 独立 SOCKS 测试 inbound，优先使用 `CGoGetFreePorts` 动态端口，并按 `delayTestUrl` 设置访问目标 URL；批量测速并发数已按 v2rayNG 设置接线；需真机验证 |
 | 路由设置页 | ✅ 83% | 广告拦截、自定义规则、预设规则集导入/导出均已生效；`routeOnly` 控制 process 规则输出和 sniffing routeOnly；自定义规则可选择当前高级出站目标；真机规则回归待补 |
 | Geo 资产管理 | ✅ 93% | 下载 / 自定义 URL / 剪贴板备份还原 / WebDAV ZIP 云备份还原已实现，恢复兼容旧 JSON 包；Geo 文件 native 计数/校验已接线，待重建 `.so` 真机验证 |
@@ -129,13 +129,13 @@
 | 2026-06-18 | 阶段 0 | ✅ VPN 接口地址方案完成；按 v2rayNG 7 组预设选择 TUN IPv4/IPv6 client 地址 |
 | 2026-06-18 | 阶段 0 | ✅ VPN 绕过 LAN 完成；三态设置控制 Harmony VPN 默认路由或公网覆盖路由 |
 | 2026-06-18 | 阶段 0 | ✅ 本地 DNS / FakeDNS 完成；开启后生成 TUN 53 → `dns-out` 路由、DNS outbound 与 FakeDNS 配置 |
-| 2026-06-18 | 阶段 4 | ✅ 本地 HTTP 代理共享监听完成；`proxySharingEnabled` 开启时 `http-in` 监听 `0.0.0.0:10808` |
+| 2026-06-18 | 阶段 4 | ✅ 本地 HTTP 代理共享监听完成；`proxySharingEnabled` 开启时 `http-in` 监听 `0.0.0.0:10809` |
 | 2026-06-18 | 阶段 1 | 🟡 Geo 文件校验/计数接线完成；`CGoReadGeoFiles`/`CGoCountGeoData` 已导出并在 Assets 页展示分类数/规则数，待重建 `.so` + 真机验证 |
 | 2026-06-18 | 阶段 1 | 🟡 Native 空闲端口接线完成；延迟测速与本地 SOCKS 动态端口优先用 `CGoGetFreePorts` 获取运行端口，失败回退静态端口，待重建 `.so` + 真机验证 |
 | 2026-06-18 | 阶段 1 | 🟡 Native 分享转换接线完成；导入失败后调用 `CGoConvertShareLinksToXrayJson` 解析 v2rayN 多行/base64 与 Clash.Meta YAML，并提取 outbounds 保存为手动节点，待重建 `.so` + 真机验证 |
 | 2026-06-18 | 阶段 4 | ✅ WireGuard/Hysteria2 手动编辑器校验完成；NodeEdit 生成可校验 outbound，覆盖 WG IPv6 endpoint、reserved/MTU 与 HY2 obfs/mport/SNI/ALPN 单测 |
 | 2026-06-18 | 阶段 4 | ✅ 本地 SOCKS 代理设置完成；Settings 可配置启用、端口、UDP、用户名/密码认证，Xray 生成 `socks-in` 并随代理共享监听 LAN |
-| 2026-06-19 | 阶段 4 | ✅ 本地 SOCKS 默认开启对齐 v2rayNG；`localSocksEnabled` 新默认值为 true，默认配置会生成 `socks-in`，关闭后仍可移除本地 SOCKS 入口 |
+| 2026-06-19 | 阶段 4 | ✅ 本地 SOCKS 默认开启与端口对齐 v2rayNG；`localSocksEnabled` 新默认值为 true，默认端口 10808，默认配置会生成 `socks-in`，关闭后仍可移除本地 SOCKS 入口 |
 | 2026-06-18 | 阶段 4 | ✅ 本地 SOCKS 动态端口完成；`localSocksDynamicPort` 开启后连接前通过 `CGoGetFreePorts` 写入运行端口，失败回退用户设置端口 |
 | 2026-06-18 | 阶段 4 | ✅ 传输高级设置完成；Settings 可编辑 mux 并发、XUDP 并发、UDP/443 策略、fragment packets/length/interval，并将日志级别改为受控选择 |
 | 2026-06-18 | 阶段 4 | ✅ DNS hosts 设置完成；Settings 可保存 v2rayNG `domain:address,...` 格式并生成 Xray `dns.hosts`，同时兼容 JSON object 输入 |
@@ -195,3 +195,4 @@
 | 2026-06-19 | 协议点检 | ✅ WireGuard reserved 默认值完成；分享链接、`.conf` 导入和手动 builder 缺省写入 `[0,0,0]`，导出保留 `reserved=0,0,0` |
 | 2026-06-19 | 协议点检 | ✅ Mux 协议适用范围完成；全局 Mux 跳过 v2rayNG 禁用协议与 XHTTP，VLESS flow 节点使用 `concurrency=-1` |
 | 2026-06-19 | 协议点检 | ✅ Fragment finalmask 运行配置完成；TLS/Reality 生成 `finalmask.tcp/udp`，Reality 默认 `packets=1-3`，已有 finalmask 和代理链 dialerProxy 会跳过 |
+| 2026-06-19 | 协议点检 | ✅ 本地 SOCKS 默认端口完成；`pref_socks_port` 默认对齐 v2rayNG 为 10808，Harmony HTTP inbound 兼容端口避让到 10809 |
