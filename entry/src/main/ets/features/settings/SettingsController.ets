@@ -45,6 +45,7 @@ export interface SettingsDraft {
   vpnDns: string;
   logLevel: string;
   delayTestUrl: string;
+  ipApiUrl: string;
   realPingConcurrency: string;
   trafficMode: string;
   routingDomainStrategy: string;
@@ -107,6 +108,7 @@ export class SettingsController {
       vpnDns: settings.vpnDns,
       logLevel: settings.logLevel,
       delayTestUrl: settings.delayTestUrl,
+      ipApiUrl: settings.ipApiUrl,
       realPingConcurrency: settings.realPingConcurrency.toString(),
       trafficMode: settings.trafficMode,
       routingDomainStrategy: settings.routingDomainStrategy,
@@ -160,6 +162,7 @@ export class SettingsController {
       domesticDns: draft.domesticDns.trim(),
       dnsHosts: draft.dnsHosts.trim(),
       delayTestUrl: draft.delayTestUrl.trim(),
+      ipApiUrl: draft.ipApiUrl.trim(),
       realPingConcurrency: this.realPingConcurrencyValue(draft.realPingConcurrency, DEFAULT_APP_SETTINGS.realPingConcurrency),
       logLevel: this.logLevelValue(draft.logLevel, DEFAULT_APP_SETTINGS.logLevel),
       mode: DEFAULT_APP_SETTINGS.mode,

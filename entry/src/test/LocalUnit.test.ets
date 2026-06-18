@@ -5,7 +5,7 @@ import { formatTranslation, missingTranslationKeys, normalizeLanguage, translate
 import { defaultJsonConfigNodeName, resolveJsonConfigNodeName } from '../main/ets/core/JsonConfigNames';
 import { selectRuntimeLocalSocksPort, shouldUseDynamicLocalSocksPort, withRuntimeLocalSocksPort } from '../main/ets/core/LocalProxy';
 import { buildManualHysteria2Outbound, buildManualWireguardOutbound } from '../main/ets/core/ManualOutboundBuilder';
-import { AppSettings, normalizeRealPingConcurrency, normalizeUiModeNight, ProxyNode, RoutingRule, SubscriptionGroup } from '../main/ets/core/Profile';
+import { AppSettings, DEFAULT_IP_API_URL, normalizeRealPingConcurrency, normalizeUiModeNight, ProxyNode, RoutingRule, SubscriptionGroup } from '../main/ets/core/Profile';
 import { formatGeoCountSummary, formatGeoCountUnavailable, geoDataSpecForFile, parseGeoCountData } from '../main/ets/core/GeoAssets';
 import { DELAY_TEST_SOCKS_PORT, LOCAL_HTTP_PROXY_LAN_HOST, LOCAL_HTTP_PROXY_PORT, LOCAL_SOCKS_PROXY_PORT, buildDelayTestConfig, buildRuntimeXrayConfig, buildXrayConfig, buildXrayConfigWithSettings, normalizeOutboundInput, validateFullConfigJson, validateOutboundJson, validatePolicyGroupConfigJson, validateProxyChainConfigJson } from '../main/ets/core/XrayConfig';
 import { extractOutboundsFromXrayConfig } from '../main/ets/core/XrayOutbounds';
@@ -21,6 +21,7 @@ import {
 import { DEFAULT_WEBDAV_BACKUP_FILE_NAME, buildWebDavAuthorizationHeader, buildWebDavMkcolUrls, buildWebDavRemoteUrl, isWebDavMkcolAcceptedStatus, normalizeWebDavConfig, validateWebDavConfig } from '../main/ets/core/WebDav';
 import { dedupeNodes, exportNodesText, filterNodes, findInvalidNodes, sortNodes } from '../main/ets/features/nodes/NodeOperations';
 import { SETTINGS_CONTROLLER } from '../main/ets/features/settings/SettingsController';
+import { normalizeIpApiUrl, parseRemoteIpInfoContent } from '../main/ets/services/RemoteIpInfo';
 import { SubscriptionManager } from '../main/ets/services/SubscriptionManager';
 import { buildTextShareWant } from '../main/ets/services/SystemShare';
 import { formatBytes, formatDuration } from '../main/ets/utils/Formatters';
@@ -385,10 +386,11 @@ export default function localUnitTest() {
         vpnMtu: 1400,
         vpnDns: '1.1.1.1',
         remoteDns: '9.9.9.9',
-        domesticDns: '223.5.5.5',
-        dnsHosts: '',
-        delayTestUrl: 'https://www.gstatic.com/generate_204',
-        realPingConcurrency: 16,
+          domesticDns: '223.5.5.5',
+          dnsHosts: '',
+          delayTestUrl: 'https://www.gstatic.com/generate_204',
+          ipApiUrl: DEFAULT_IP_API_URL,
+          realPingConcurrency: 16,
         logLevel: 'debug',
         mode: 'VPN',
         trafficMode: 'rules',
@@ -741,6 +743,7 @@ export default function localUnitTest() {
       settings.fragmentInterval = '5-8';
       settings.logLevel = 'error';
       settings.dnsHosts = 'dns.google:8.8.8.8,cloudflare-dns.com:1.1.1.1';
+      settings.ipApiUrl = 'https://ip.example/geoip';
       settings.realPingConcurrency = 32;
       settings.uiModeNight = '2';
       settings.speedEnabled = true;
@@ -776,6 +779,7 @@ export default function localUnitTest() {
       expect(draft.fragmentInterval).assertEqual('5-8');
       expect(draft.logLevel).assertEqual('error');
       expect(draft.dnsHosts).assertEqual('dns.google:8.8.8.8,cloudflare-dns.com:1.1.1.1');
+      expect(draft.ipApiUrl).assertEqual('https://ip.example/geoip');
       expect(draft.realPingConcurrency).assertEqual('32');
       const rebuilt = SETTINGS_CONTROLLER.buildSettings(draft);
       expect(rebuilt.uiModeNight).assertEqual('2');
@@ -805,6 +809,7 @@ export default function localUnitTest() {
       expect(rebuilt.fragmentInterval).assertEqual('5-8');
       expect(rebuilt.logLevel).assertEqual('error');
       expect(rebuilt.dnsHosts).assertEqual('dns.google:8.8.8.8,cloudflare-dns.com:1.1.1.1');
+      expect(rebuilt.ipApiUrl).assertEqual('https://ip.example/geoip');
       expect(rebuilt.realPingConcurrency).assertEqual(32);
 
       draft.vpnInterfaceAddressIndex = 99;
@@ -857,6 +862,20 @@ export default function localUnitTest() {
       expect(normalizeUiModeNight('2')).assertEqual('2');
       expect(normalizeUiModeNight('bad')).assertEqual('0');
       expect(normalizeUiModeNight('bad', '2')).assertEqual('2');
+    });
+
+    it('parses current connection IP API responses like v2rayNG', 0, () => {
+      const ipSb = parseRemoteIpInfoContent('{"ip":"203.0.113.8","country_code":"US"}');
+      expect(ipSb.ok).assertTrue();
+      expect(ipSb.summary).assertEqual('(US) 203.0.113.8');
+
+      const alt = parseRemoteIpInfoContent('{"query":"198.51.100.9","location":{"country_code":"JP"}}');
+      expect(alt.ok).assertTrue();
+      expect(alt.summary).assertEqual('(JP) 198.51.100.9');
+
+      expect(parseRemoteIpInfoContent('{').ok).assertFalse();
+      expect(normalizeIpApiUrl('')).assertEqual(DEFAULT_IP_API_URL);
+      expect(normalizeIpApiUrl('ftp://example.com')).assertEqual('');
     });
 
     it('formats runtime values through shared helpers', 0, () => {
@@ -1204,10 +1223,11 @@ function buildSettingsFixture(): AppSettings {
     vpnMtu: 1400,
     vpnDns: '1.1.1.1',
     remoteDns: '1.1.1.1',
-    domesticDns: '223.5.5.5',
-    dnsHosts: '',
-    delayTestUrl: 'https://www.gstatic.com/generate_204',
-    realPingConcurrency: 16,
+      domesticDns: '223.5.5.5',
+      dnsHosts: '',
+      delayTestUrl: 'https://www.gstatic.com/generate_204',
+      ipApiUrl: DEFAULT_IP_API_URL,
+      realPingConcurrency: 16,
     logLevel: 'warning',
     mode: 'VPN',
     trafficMode: 'rules',

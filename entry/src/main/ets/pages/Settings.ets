@@ -4,6 +4,7 @@ import { SectionHeader } from '../components/SectionHeader';
 import { DEFAULT_LANGUAGE, translate } from '../core/I18n';
 import {
   AppLanguage,
+  DEFAULT_IP_API_URL,
   resolveVpnInterfaceAddressConfig,
   RoutingRule,
   UI_MODE_NIGHT_DARK,
@@ -69,6 +70,7 @@ struct SettingsPage {
   @State private settingVpnMtu: string = '1400';
   @State private settingLogLevel: string = 'warning';
   @State private settingDelayTestUrl: string = 'https://www.gstatic.com/generate_204';
+  @State private settingIpApiUrl: string = DEFAULT_IP_API_URL;
   @State private settingRealPingConcurrency: string = '16';
   @State private settingAutoSortAfterTest: boolean = false;
   @State private settingAutoRemoveAfterTest: boolean = false;
@@ -215,6 +217,8 @@ struct SettingsPage {
             this.SettingInput(this.t('settings.dnsHosts'), this.settingDnsHosts, 'dnsHosts')
             this.RowDivider()
             this.SettingInput(this.t('settings.delayTestUrl'), this.settingDelayTestUrl, 'delayTestUrl')
+            this.RowDivider()
+            this.SettingInput(this.t('settings.ipApiUrl'), this.settingIpApiUrl, 'ipApiUrl')
             this.RowDivider()
             this.SettingOption(this.t('settings.logLevel'), this.logLevelLabel(), 'logLevel')
           }
@@ -461,6 +465,9 @@ struct SettingsPage {
       case 'delayTestUrl':
         this.settingDelayTestUrl = value;
         break;
+      case 'ipApiUrl':
+        this.settingIpApiUrl = value;
+        break;
       case 'realPingConcurrency':
         this.settingRealPingConcurrency = value;
         break;
@@ -554,6 +561,7 @@ struct SettingsPage {
       vpnDns: this.settingVpnDns,
       logLevel: this.settingLogLevel,
       delayTestUrl: this.settingDelayTestUrl,
+      ipApiUrl: this.settingIpApiUrl,
       realPingConcurrency: this.settingRealPingConcurrency,
       trafficMode: this.trafficMode,
       routingDomainStrategy: this.routingStrategy,
@@ -607,6 +615,7 @@ struct SettingsPage {
     this.settingVpnDns = draft.vpnDns;
     this.settingLogLevel = draft.logLevel;
     this.settingDelayTestUrl = draft.delayTestUrl;
+    this.settingIpApiUrl = draft.ipApiUrl;
     this.settingRealPingConcurrency = draft.realPingConcurrency;
     this.trafficMode = draft.trafficMode;
     this.routingStrategy = draft.routingDomainStrategy;

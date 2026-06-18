@@ -4,6 +4,7 @@ import { DEFAULT_LANGUAGE, normalizeLanguage } from '../core/I18n';
 import {
   AppLanguage,
   AppSettings,
+  DEFAULT_IP_API_URL,
   DEFAULT_VPN_BYPASS_LAN,
   DEFAULT_VPN_INTERFACE_ADDRESS_INDEX,
   DEFAULT_VPN_MTU,
@@ -60,6 +61,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   domesticDns: '223.5.5.5',
   dnsHosts: '',
   delayTestUrl: 'https://www.gstatic.com/generate_204',
+  ipApiUrl: DEFAULT_IP_API_URL,
   realPingConcurrency: 16,
   logLevel: 'warning',
   mode: 'VPN',
@@ -145,6 +147,7 @@ export class SettingsStore {
       domesticDns: SettingsStore.stringValue(raw.domesticDns, base.domesticDns),
       dnsHosts: SettingsStore.stringValue(raw.dnsHosts, base.dnsHosts),
       delayTestUrl: SettingsStore.stringValue(raw.delayTestUrl, base.delayTestUrl),
+      ipApiUrl: SettingsStore.stringValue(raw.ipApiUrl, base.ipApiUrl),
       realPingConcurrency: normalizeRealPingConcurrency(raw.realPingConcurrency, base.realPingConcurrency),
       logLevel: SettingsStore.stringValue(raw.logLevel, base.logLevel),
       mode: SettingsStore.stringValue(raw.mode, base.mode),

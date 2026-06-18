@@ -288,6 +288,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 - [x] UI 模式：Settings 保存 v2rayNG `uiModeNight=0/1/2`，应用启动/回前台/保存设置后切换 Harmony 跟随系统/浅色/深色 colorMode（2026-06-18）
 - [x] 显示所有分组：Settings 保存 `groupAllDisplay`，节点页开启 All 虚拟分组并聚合所有订阅分组节点，搜索/测速/导出按聚合可见节点执行（2026-06-18）
 - [x] 双列显示：Settings 保存 `doubleColumnDisplay`，默认关闭；开启后节点页以双列列表展示配置并保留选择/滑动操作（2026-06-18）
+- [x] 当前连接信息测试网址：Settings 保存 `ipApiUrl`，默认 `https://api.ip.sb/geoip`；启动成功后经本地 HTTP 代理查询出口国家/IP 并写入运行日志（2026-06-18）
 - [x] 二维码生成：节点详情页用 `@kit.ScanKit` `generateBarcode.createBarcode` 渲染分享链接 QR + 复制链接（2026-06-15）
 - [x] URL Scheme / Want 深链导入：`hey://install-sub` / `hey://install-config?url=` 注册 scheme + `EntryAbility.onCreate/onNewWant` 暂存 + Index `onPageShow` 解析导入（2026-06-15）
 
@@ -361,6 +362,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-18 | M4 | ✅ UI 模式设置完成（`uiModeNight=0/1/2` 对齐 v2rayNG 跟随系统/浅色/深色；应用启动、回前台和 Settings 保存后应用 Harmony colorMode，并补 Settings 往返/归一化单测） |
 | 2026-06-18 | M4 | ✅ 显示所有分组设置完成（`groupAllDisplay` 默认关闭；开启后节点页显示 All 虚拟分组，聚合所有订阅分组节点，并让搜索、批量测速和导出复用聚合可见节点；补 Settings 往返单测） |
 | 2026-06-18 | M4 | ✅ 双列显示设置完成（`doubleColumnDisplay` 默认关闭；开启后节点页使用双列 `List` lanes 展示配置，并补 Settings 往返单测） |
+| 2026-06-18 | M4 | ✅ 当前连接信息测试网址完成（`ipApiUrl` 默认 `https://api.ip.sb/geoip`；运行时经本地 HTTP 代理查询 IP API，解析 v2rayNG 兼容字段并追加当前连接日志；补 Settings 往返/解析单测） |
 | 2026-06-18 | M5 | 🟡 代理链运行核心完成（`proxy-chain` configType + JSON 导入识别 + 多跳 outbounds `dialerProxy` 串联 + 单测）；真机组合场景待回归 |
 | 2026-06-18 | M5 | 🟡 策略组/负载均衡运行核心完成（`policy-group` configType + JSON 导入识别 + `routing.balancers` + leastPing/leastLoad 观测配置 + 单测） |
 | 2026-06-18 | M5 | 🟡 高级出站构建器完成（已有普通 outbound 节点 → `proxy-chain`/`policy-group` JSON + strategy 映射 + 嵌套/无效节点拒绝 + 单测） |

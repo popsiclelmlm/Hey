@@ -100,6 +100,7 @@ export const VPN_INTERFACE_ADDRESS_CONFIGS: Array<VpnInterfaceAddressConfig> = [
 ];
 
 export const DEFAULT_VPN_INTERFACE_ADDRESS_INDEX: number = 0;
+export const DEFAULT_IP_API_URL: string = 'https://api.ip.sb/geoip';
 export const VPN_BYPASS_LAN_FOLLOW_CONFIG: string = '0';
 export const VPN_BYPASS_LAN_BYPASS: string = '1';
 export const VPN_BYPASS_LAN_PROXY: string = '2';
@@ -227,6 +228,7 @@ export interface AppSettings {
   domesticDns: string;
   dnsHosts: string;
   delayTestUrl: string;
+  ipApiUrl: string;
   realPingConcurrency: number;
   logLevel: string;
   mode: string;

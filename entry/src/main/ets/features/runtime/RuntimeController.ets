@@ -1,8 +1,10 @@
 import { common } from '@kit.AbilityKit';
 import { DEFAULT_LANGUAGE, translate } from '../../core/I18n';
 import { AppLanguage, AppSettings, ConnectionStatus, ProxyProfile, RuntimeStats } from '../../core/Profile';
+import { LOCAL_HTTP_PROXY_PORT } from '../../core/XrayConfig';
 import { ConnectionController, ConnectionSnapshot } from '../../services/ConnectionController';
 import { DiagnosticEvent, DiagnosticLog } from '../../services/DiagnosticLog';
+import { fetchRemoteIpInfo, RemoteIpInfoResult } from '../../services/RemoteIpInfo';
 import { connectionStatusBackground, connectionStatusColor, formatClockTime, formatDuration } from '../../utils/Formatters';
 import { formatOne, localizedConnectionStatus, localizeCoreMessage } from '../../utils/LocalizationPresenter';
 
@@ -39,6 +41,7 @@ export class RuntimeController {
     const snapshot = await this.controller.start(context, profile, settings);
     this.applySnapshot(snapshot, language);
     this.appendLog(this.status === ConnectionStatus.RUNNING ? translate(language, 'log.vpnStarted') : translate(language, 'log.vpnStartIncomplete'));
+    await this.appendRemoteIpInfo(profile, settings, language);
     return this.refresh(context, language);
   }
 
@@ -118,6 +121,16 @@ export class RuntimeController {
     this.status = snapshot.status;
     this.startedAt = snapshot.startedAt;
     this.lastError = localizeCoreMessage(language, snapshot.lastError);
+  }
+
+  private async appendRemoteIpInfo(profile: ProxyProfile, settings: AppSettings, language: AppLanguage): Promise<void> {
+    if (this.status !== ConnectionStatus.RUNNING || !settings.appendHttpProxy || (profile.configType ?? 'outbound') === 'full') {
+      return;
+    }
+    const result: RemoteIpInfoResult = await fetchRemoteIpInfo(settings.ipApiUrl, LOCAL_HTTP_PROXY_PORT);
+    if (result.ok && result.summary.length > 0) {
+      this.appendLog(formatOne(language, 'log.remoteIpInfo', 'info', result.summary));
+    }
   }
 
   private async refreshDiagnostics(context: common.Context, language: AppLanguage): Promise<void> {
