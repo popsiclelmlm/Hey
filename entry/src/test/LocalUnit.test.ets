@@ -1,5 +1,6 @@
 import { describe, it, expect } from '@ohos/hypium';
 import { buildPolicyGroupConfigFromNodes, buildProxyChainConfigFromNodes, isAdvancedOutboundBuildableNode, normalizePolicyGroupBuilderStrategy } from '../main/ets/core/AdvancedOutboundBuilder';
+import { buildAppBackupPayload, parseAppBackupPayload } from '../main/ets/core/AppBackup';
 import { formatTranslation, missingTranslationKeys, normalizeLanguage, translate } from '../main/ets/core/I18n';
 import { selectRuntimeLocalSocksPort, shouldUseDynamicLocalSocksPort, withRuntimeLocalSocksPort } from '../main/ets/core/LocalProxy';
 import { buildManualHysteria2Outbound, buildManualWireguardOutbound } from '../main/ets/core/ManualOutboundBuilder';
@@ -16,6 +17,7 @@ import {
   moveSubscriptionGroup,
   normalizeSubscriptionUpdateInterval
 } from '../main/ets/core/SubscriptionGroups';
+import { buildWebDavAuthorizationHeader, buildWebDavMkcolUrls, buildWebDavRemoteUrl, isWebDavMkcolAcceptedStatus, normalizeWebDavConfig, validateWebDavConfig } from '../main/ets/core/WebDav';
 import { dedupeNodes, exportNodesText, filterNodes, findInvalidNodes, sortNodes } from '../main/ets/features/nodes/NodeOperations';
 import { SETTINGS_CONTROLLER } from '../main/ets/features/settings/SettingsController';
 import { SubscriptionManager } from '../main/ets/services/SubscriptionManager';
@@ -653,6 +655,46 @@ export default function localUnitTest() {
       expect(want.parameters?.['ohos.extra.param.key.contentTitle']?.toString()).assertEqual('Hey nodes');
       expect(want.parameters?.['ohos.extra.param.key.shareAbstract']?.toString()).assertEqual('vless://example');
       expect(want.parameters?.['ohos.extra.param.key.shareUrl']?.toString()).assertEqual('vless://example');
+    });
+
+    it('builds and validates app backup payloads', 0, () => {
+      const backup = buildAppBackupPayload('profile-json', 'settings-json', 'subscription-json', 'assets-json', 1234);
+      expect(backup).assertContain('"hey_backup":true');
+      const parsed = parseAppBackupPayload(backup);
+      expect(parsed.valid).assertTrue();
+      expect(parsed.payload?.version).assertEqual('1');
+      expect(parsed.payload?.createdAt).assertEqual(1234);
+      expect(parsed.payload?.profile).assertEqual('profile-json');
+      expect(parsed.payload?.settings).assertEqual('settings-json');
+      expect(parsed.payload?.subscription).assertEqual('subscription-json');
+      expect(parsed.payload?.assets).assertEqual('assets-json');
+      expect(parseAppBackupPayload('{"hey_backup":false}').valid).assertFalse();
+      expect(parseAppBackupPayload('{').valid).assertFalse();
+    });
+
+    it('normalizes webdav backup urls and auth headers', 0, () => {
+      const config = normalizeWebDavConfig({
+        baseUrl: 'https://example.com/remote.php/dav/files/user/',
+        username: 'alice',
+        password: 'secret',
+        remoteBasePath: '/backups/hey/',
+        remoteFileName: 'backup.json',
+        timeoutSeconds: 2
+      });
+      expect(config.baseUrl).assertEqual('https://example.com/remote.php/dav/files/user');
+      expect(config.remoteBasePath).assertEqual('backups/hey');
+      expect(config.timeoutSeconds).assertEqual(5);
+      expect(buildWebDavRemoteUrl(config)).assertEqual('https://example.com/remote.php/dav/files/user/backups/hey/backup.json');
+      expect(buildWebDavAuthorizationHeader(config.username, config.password)).assertEqual('Basic YWxpY2U6c2VjcmV0');
+
+      const mkcolUrls = buildWebDavMkcolUrls(config);
+      expect(mkcolUrls[0]).assertEqual('https://example.com/remote.php');
+      expect(mkcolUrls[mkcolUrls.length - 1]).assertEqual('https://example.com/remote.php/dav/files/user/backups/hey');
+      expect(validateWebDavConfig({ baseUrl: 'ftp://example.com' }).valid).assertFalse();
+      expect(validateWebDavConfig({ baseUrl: 'https://example.com/dav', remoteFileName: 'bad/name.json' }).valid).assertFalse();
+      expect(isWebDavMkcolAcceptedStatus(201)).assertTrue();
+      expect(isWebDavMkcolAcceptedStatus(405)).assertTrue();
+      expect(isWebDavMkcolAcceptedStatus(500)).assertFalse();
     });
 
     it('filters nodes by name protocol and source', 0, () => {

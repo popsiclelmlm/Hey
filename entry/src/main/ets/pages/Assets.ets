@@ -4,6 +4,7 @@ import { preferences } from '@kit.ArkData';
 import { picker } from '@kit.CoreFileKit';
 import { DEFAULT_LANGUAGE, translate } from '../core/I18n';
 import { AppLanguage } from '../core/Profile';
+import { DEFAULT_WEBDAV_BACKUP_DIR, DEFAULT_WEBDAV_BACKUP_FILE_NAME, normalizeWebDavConfig, WebDavConfig, WebDavConfigInput } from '../core/WebDav';
 import { SETTINGS_CONTROLLER } from '../features/settings/SettingsController';
 import { SectionHeader } from '../components/SectionHeader';
 import { PageHeader } from '../shell/PageHeader';
@@ -35,6 +36,13 @@ struct AssetsPage {
 
   // 暂存本地导入的 URI，双向绑定传递给 CustomAssetList
   @State private tempImportUri: string = '';
+
+  @State private webDavBaseUrl: string = '';
+  @State private webDavUsername: string = '';
+  @State private webDavPassword: string = '';
+  @State private webDavRemotePath: string = DEFAULT_WEBDAV_BACKUP_DIR;
+  @State private webDavFileName: string = DEFAULT_WEBDAV_BACKUP_FILE_NAME;
+  @State private webDavBusy: boolean = false;
 
   aboutToAppear(): void {
     this.loadState();
@@ -127,6 +135,38 @@ struct AssetsPage {
               .borderRadius(Radius.lg)
               .clip(true)
               .margin({ left: Space.lg, right: Space.lg })
+
+              SectionHeader({ title: this.t('assets.webdav.title'), detail: this.t('assets.webdav.detail') })
+              Column({ space: Space.md }) {
+                this.WebDavInputRow(this.t('assets.webdav.url'), this.webDavBaseUrl, 'https://example.com/remote.php/dav/files/user', (value: string) => {
+                  this.webDavBaseUrl = value;
+                })
+                this.WebDavInputRow(this.t('assets.webdav.user'), this.webDavUsername, this.t('assets.webdav.user'), (value: string) => {
+                  this.webDavUsername = value;
+                })
+                this.WebDavInputRow(this.t('assets.webdav.pass'), this.webDavPassword, this.t('assets.webdav.pass'), (value: string) => {
+                  this.webDavPassword = value;
+                })
+                this.WebDavInputRow(this.t('assets.webdav.remotePath'), this.webDavRemotePath, DEFAULT_WEBDAV_BACKUP_DIR, (value: string) => {
+                  this.webDavRemotePath = value;
+                })
+                this.WebDavInputRow(this.t('assets.webdav.fileName'), this.webDavFileName, DEFAULT_WEBDAV_BACKUP_FILE_NAME, (value: string) => {
+                  this.webDavFileName = value;
+                })
+
+                Row({ space: Space.md }) {
+                  this.WebDavButton(this.t('assets.webdav.save'), false, () => this.saveWebDavConfig(true))
+                  this.WebDavButton(this.t('assets.webdav.backup'), true, () => this.backupWebDav())
+                  this.WebDavButton(this.t('assets.webdav.restore'), false, () => this.restoreWebDav())
+                }
+                .width('100%')
+              }
+              .width('100%')
+              .padding(Space.lg)
+              .backgroundColor(AppColor.surface)
+              .borderRadius(Radius.lg)
+              .clip(true)
+              .margin({ left: Space.lg, right: Space.lg })
             }
             .width('100%')
             .padding({ top: Space.sm, bottom: Space.xxl })
@@ -202,6 +242,55 @@ struct AssetsPage {
     }
     .width('100%')
     .padding(Space.lg)
+    .onClick(() => {
+      onTap();
+    })
+  }
+
+  @Builder
+  private WebDavInputRow(label: string, value: string, placeholder: string, onChange: (value: string) => void) {
+    Column({ space: Space.sm }) {
+      Text(label)
+        .fontSize(FontSz.footnote)
+        .fontColor(AppColor.textSecondary)
+        .width('100%')
+      TextInput({ text: value, placeholder: placeholder })
+        .height(42)
+        .fontSize(FontSz.body)
+        .fontColor(AppColor.textPrimary)
+        .placeholderColor(AppColor.textTertiary)
+        .backgroundColor(AppColor.surfaceAlt)
+        .borderRadius(Radius.md)
+        .padding({ left: Space.md, right: Space.md })
+        .onChange((next: string) => {
+          onChange(next);
+        })
+    }
+    .width('100%')
+  }
+
+  @Builder
+  private WebDavButton(title: string, primary: boolean, onTap: () => void) {
+    Button() {
+      Row() {
+        if (this.webDavBusy && primary) {
+          LoadingProgress()
+            .width(16)
+            .height(16)
+            .color(AppColor.onBrand)
+            .margin({ right: Space.xs })
+        }
+        Text(title)
+          .fontSize(FontSz.footnote)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(primary ? AppColor.onBrand : AppColor.textSecondary)
+      }
+    }
+    .layoutWeight(1)
+    .height(42)
+    .enabled(!this.webDavBusy)
+    .backgroundColor(primary ? AppColor.brand : AppColor.surfaceAlt)
+    .borderRadius(Radius.pill)
     .onClick(() => {
       onTap();
     })
@@ -358,6 +447,71 @@ struct AssetsPage {
     );
   }
 
+  private currentWebDavConfig(): WebDavConfigInput {
+    return {
+      baseUrl: this.webDavBaseUrl,
+      username: this.webDavUsername,
+      password: this.webDavPassword,
+      remoteBasePath: this.webDavRemotePath,
+      remoteFileName: this.webDavFileName
+    };
+  }
+
+  private applyWebDavConfig(config: WebDavConfig): void {
+    this.webDavBaseUrl = config.baseUrl;
+    this.webDavUsername = config.username;
+    this.webDavPassword = config.password;
+    this.webDavRemotePath = config.remoteBasePath;
+    this.webDavFileName = config.remoteFileName;
+  }
+
+  private async saveWebDavConfig(showToast: boolean): Promise<WebDavConfig> {
+    const context = getContext(this) as common.Context;
+    const saved = await AssetStore.saveWebDavConfig(context, this.currentWebDavConfig());
+    this.applyWebDavConfig(saved);
+    if (showToast) {
+      promptAction.showToast({ message: this.t('assets.webdav.saved') });
+    }
+    return saved;
+  }
+
+  private async backupWebDav(): Promise<void> {
+    if (this.webDavBusy) {
+      return;
+    }
+    const context = getContext(this) as common.Context;
+    this.webDavBusy = true;
+    try {
+      const config = await this.saveWebDavConfig(false);
+      await ASSETS_CONTROLLER.backupConfigToWebDav(context, this.language, config);
+    } finally {
+      this.webDavBusy = false;
+    }
+  }
+
+  private async restoreWebDav(): Promise<void> {
+    if (this.webDavBusy) {
+      return;
+    }
+    const context = getContext(this) as common.Context;
+    this.webDavBusy = true;
+    try {
+      const config = await this.saveWebDavConfig(false);
+      await ASSETS_CONTROLLER.restoreConfigFromWebDav(
+        context,
+        this.language,
+        config,
+        () => {
+          this.loadState();
+          this.loadCustomAssets();
+        },
+        () => {}
+      );
+    } finally {
+      this.webDavBusy = false;
+    }
+  }
+
   private async loadState(): Promise<void> {
     const context = getContext(this) as common.Context;
     this.language = (await SETTINGS_CONTROLLER.load(context)).language;
@@ -369,6 +523,7 @@ struct AssetsPage {
     const found = GEO_SOURCES.find(s => s.url === this.currentSourceUrl);
     this.currentSourceName = found ? found.name : GEO_SOURCES[0].name;
 
+    this.applyWebDavConfig(normalizeWebDavConfig(await AssetStore.loadWebDavConfig(context)));
     this.updateFileStatus();
   }
 

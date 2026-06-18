@@ -6,11 +6,14 @@ import { http } from '@kit.NetworkKit';
 import fs from '@ohos.file.fs';
 import { AppLanguage } from '../../core/Profile';
 import { translate } from '../../core/I18n';
+import { buildAppBackupPayload, parseAppBackupPayload } from '../../core/AppBackup';
 import { formatGeoCountSummary, formatGeoCountUnavailable, geoDataSpecForFile, parseGeoCountData } from '../../core/GeoAssets';
+import { validateWebDavConfig, WebDavConfigInput } from '../../core/WebDav';
 import { countNativeGeoData } from '../../native/HeyNative';
 import { formatOne, formatTwo } from '../../utils/LocalizationPresenter';
 import { SHARED_RUNTIME_CONTROLLER } from '../runtime/RuntimeController';
 import { AssetStore, CustomAssetUrl } from '../../storage/AssetStore';
+import { WEBDAV_MANAGER } from '../../services/WebDavManager';
 
 export interface GeoSource {
   name: string;
@@ -330,25 +333,7 @@ export class AssetsController {
   // 配置一键备份到剪贴板
   async backupConfig(context: common.Context, language: AppLanguage): Promise<void> {
     try {
-      const profileStore = await preferences.getPreferences(context, 'hey_vpn_profile');
-      const settingsStore = await preferences.getPreferences(context, 'hey_vpn_settings');
-      const subStore = await preferences.getPreferences(context, 'hey_vpn_subscription');
-      const assetStore = await preferences.getPreferences(context, 'hey_vpn_assets');
-
-      const profileVal = await profileStore.get('default_profile', '');
-      const settingsVal = await settingsStore.get('app_settings', '');
-      const subVal = await subStore.get('subscription_profile', '');
-      const assetVal = await assetStore.get('custom_assets', '');
-
-      const backupObj: Record<string, string | boolean> = {
-        'hey_backup': true,
-        'profile': profileVal.toString(),
-        'settings': settingsVal.toString(),
-        'subscription': subVal.toString(),
-        'assets': assetVal.toString()
-      };
-
-      const backupStr = JSON.stringify(backupObj);
+      const backupStr = await this.buildBackupText(context);
       const systemPasteboard = pasteboard.getSystemPasteboard();
       const pasteData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, backupStr);
       await systemPasteboard.setData(pasteData);
@@ -381,33 +366,11 @@ export class AssetsController {
         return;
       }
 
-      const backupObj = JSON.parse(text.trim()) as Record<string, Object>;
-      if (backupObj['hey_backup'] !== true) {
+      const restored = await this.applyBackupText(context, text);
+      if (!restored) {
         promptAction.showToast({ message: this.t(language, 'assets.invalidBackupData') });
         onFailure();
         return;
-      }
-
-      const profileStore = await preferences.getPreferences(context, 'hey_vpn_profile');
-      const settingsStore = await preferences.getPreferences(context, 'hey_vpn_settings');
-      const subStore = await preferences.getPreferences(context, 'hey_vpn_subscription');
-      const assetStore = await preferences.getPreferences(context, 'hey_vpn_assets');
-
-      if (backupObj['profile'] !== undefined) {
-        await profileStore.put('default_profile', backupObj['profile'].toString());
-        await profileStore.flush();
-      }
-      if (backupObj['settings'] !== undefined) {
-        await settingsStore.put('app_settings', backupObj['settings'].toString());
-        await settingsStore.flush();
-      }
-      if (backupObj['subscription'] !== undefined) {
-        await subStore.put('subscription_profile', backupObj['subscription'].toString());
-        await subStore.flush();
-      }
-      if (backupObj['assets'] !== undefined) {
-        await assetStore.put('custom_assets', backupObj['assets'].toString());
-        await assetStore.flush();
       }
 
       promptAction.showToast({ message: this.t(language, 'assets.restoreSuccess') });
@@ -417,6 +380,122 @@ export class AssetsController {
       promptAction.showToast({ message: this.t(language, 'assets.restoreFailed').replace('{error}', JSON.stringify(error)) });
       onFailure();
     }
+  }
+
+  async backupConfigToWebDav(context: common.Context, language: AppLanguage, config: WebDavConfigInput): Promise<boolean> {
+    const validation = validateWebDavConfig(config);
+    if (!validation.valid) {
+      promptAction.showToast({ message: this.localizeWebDavValidationMessage(language, validation.message) });
+      return false;
+    }
+
+    try {
+      promptAction.showToast({ message: this.t(language, 'assets.webdav.backup.start') });
+      const backupStr = await this.buildBackupText(context);
+      const result = await WEBDAV_MANAGER.uploadText(validation.config, backupStr);
+      if (!result.ok) {
+        promptAction.showToast({ message: this.t(language, 'assets.webdav.backup.failed').replace('{error}', result.message) });
+        SHARED_RUNTIME_CONTROLLER.appendLog(`WebDAV 备份失败：${result.message}`);
+        return false;
+      }
+      promptAction.showToast({ message: this.t(language, 'assets.webdav.backup.success') });
+      SHARED_RUNTIME_CONTROLLER.appendLog(`WebDAV 备份已上传：${result.remoteUrl}`);
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : JSON.stringify(error);
+      promptAction.showToast({ message: this.t(language, 'assets.webdav.backup.failed').replace('{error}', message) });
+      return false;
+    }
+  }
+
+  async restoreConfigFromWebDav(
+    context: common.Context,
+    language: AppLanguage,
+    config: WebDavConfigInput,
+    onSuccess: () => void,
+    onFailure: () => void
+  ): Promise<void> {
+    const validation = validateWebDavConfig(config);
+    if (!validation.valid) {
+      promptAction.showToast({ message: this.localizeWebDavValidationMessage(language, validation.message) });
+      onFailure();
+      return;
+    }
+
+    try {
+      promptAction.showToast({ message: this.t(language, 'assets.webdav.restore.start') });
+      const result = await WEBDAV_MANAGER.downloadText(validation.config);
+      if (!result.ok) {
+        promptAction.showToast({ message: this.t(language, 'assets.webdav.restore.failed').replace('{error}', result.message) });
+        SHARED_RUNTIME_CONTROLLER.appendLog(`WebDAV 还原下载失败：${result.message}`);
+        onFailure();
+        return;
+      }
+      const restored = await this.applyBackupText(context, result.content);
+      if (!restored) {
+        promptAction.showToast({ message: this.t(language, 'assets.invalidBackupData') });
+        onFailure();
+        return;
+      }
+      promptAction.showToast({ message: this.t(language, 'assets.webdav.restore.success') });
+      SHARED_RUNTIME_CONTROLLER.appendLog(`WebDAV 备份已还原：${result.remoteUrl}`);
+      onSuccess();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : JSON.stringify(error);
+      promptAction.showToast({ message: this.t(language, 'assets.webdav.restore.failed').replace('{error}', message) });
+      onFailure();
+    }
+  }
+
+  private async buildBackupText(context: common.Context): Promise<string> {
+    const profileStore = await preferences.getPreferences(context, 'hey_vpn_profile');
+    const settingsStore = await preferences.getPreferences(context, 'hey_vpn_settings');
+    const subStore = await preferences.getPreferences(context, 'hey_vpn_subscription');
+    const assetStore = await preferences.getPreferences(context, 'hey_vpn_assets');
+
+    const profileVal = await profileStore.get('default_profile', '');
+    const settingsVal = await settingsStore.get('app_settings', '');
+    const subVal = await subStore.get('subscription_profile', '');
+    const assetVal = await assetStore.get('custom_assets', '');
+
+    return buildAppBackupPayload(
+      profileVal.toString(),
+      settingsVal.toString(),
+      subVal.toString(),
+      assetVal.toString()
+    );
+  }
+
+  private async applyBackupText(context: common.Context, backupText: string): Promise<boolean> {
+    const parsed = parseAppBackupPayload(backupText);
+    if (!parsed.valid || parsed.payload === null) {
+      return false;
+    }
+    const payload = parsed.payload;
+    const profileStore = await preferences.getPreferences(context, 'hey_vpn_profile');
+    const settingsStore = await preferences.getPreferences(context, 'hey_vpn_settings');
+    const subStore = await preferences.getPreferences(context, 'hey_vpn_subscription');
+    const assetStore = await preferences.getPreferences(context, 'hey_vpn_assets');
+
+    await profileStore.put('default_profile', payload.profile);
+    await profileStore.flush();
+    await settingsStore.put('app_settings', payload.settings);
+    await settingsStore.flush();
+    await subStore.put('subscription_profile', payload.subscription);
+    await subStore.flush();
+    await assetStore.put('custom_assets', payload.assets);
+    await assetStore.flush();
+    return true;
+  }
+
+  private localizeWebDavValidationMessage(language: AppLanguage, message: string): string {
+    if (message === 'WebDAV 服务器地址必须以 http:// 或 https:// 开头。') {
+      return this.t(language, 'assets.webdav.invalidUrl');
+    }
+    if (message === 'WebDAV 远程文件名不能包含路径分隔符。') {
+      return this.t(language, 'assets.webdav.invalidFileName');
+    }
+    return message;
   }
 }
 

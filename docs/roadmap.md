@@ -15,7 +15,7 @@
 | Xray 配置生成 | 🟡 79% | 普通节点生成 TUN/metrics/DNS/routing/HTTP 代理和本地 SOCKS 配置，HTTP/SOCKS 代理支持局域网共享监听，SOCKS 支持启动前动态端口；完整自定义 Xray config 可校验后原样运行；代理链和策略组 JSON 可生成多跳/负载均衡 outbounds，且已有普通节点可构建为代理链/策略组配置；高级出站目标 UI 仍待补 |
 | 节点延迟测速 / 排序 | ✅ 82% | `CGoPing` 真测速 + 排序，测速 SOCKS inbound 优先使用 `CGoGetFreePorts` 动态端口；需真机验证 |
 | 路由设置页 | ✅ 80% | 广告拦截、自定义规则、预设规则集导入/导出均已生效；高级出站目标与真机规则回归待补 |
-| Geo 资产管理 | ✅ 90% | 下载 / 自定义 URL / 备份还原已实现；Geo 文件 native 计数/校验已接线，待重建 `.so` 真机验证 |
+| Geo 资产管理 | ✅ 92% | 下载 / 自定义 URL / 剪贴板备份还原 / WebDAV JSON 云备份还原已实现；Geo 文件 native 计数/校验已接线，待重建 `.so` 真机验证 |
 | 分应用代理 | 🟡 70% | 开关、黑白名单、手动包名、应用枚举和 VPN 应用映射已接线；仍受平台可见性限制，待真机回归 |
 | 设置页 | 🟡 76% | 核心项持久化并生效，本地 SOCKS 代理静态/动态端口、UDP、认证已写入运行配置 |
 | 扫码导入 | ✅ 80% | 粘贴导入和 ScanKit 相机扫码已接线，待真机相机权限/机型回归 |
@@ -132,3 +132,4 @@
 | 2026-06-18 | 阶段 5 | 🟡 代理链运行核心完成；JSON 导入支持 `proxy-chain`，运行时生成多跳 outbounds 并通过 `sockopt.dialerProxy` 串联，专门编辑器/成员选择待补 |
 | 2026-06-18 | 阶段 5 | 🟡 策略组/负载均衡运行核心完成；JSON 导入支持 `policy-group`，运行时生成 `routing.balancers`、leastPing/leastLoad 观测配置与默认 balancer 路由，专门编辑器/订阅筛选待补 |
 | 2026-06-18 | 阶段 5 | 🟡 高级出站构建器完成；可从已有普通 outbound 节点生成 `proxy-chain`/`policy-group` JSON，并拒绝完整配置、嵌套高级节点和无效节点，专门 UI 仍待补 |
+| 2026-06-18 | 阶段 5 | ✅ WebDAV 云备份/还原完成；Assets 页可保存 WebDAV 配置并上传/下载 Hey JSON 备份包，支持 Basic Auth 与 best-effort MKCOL |
