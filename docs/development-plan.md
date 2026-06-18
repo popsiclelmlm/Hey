@@ -229,7 +229,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 - **负载均衡（Balancer）**：`leastPing/leastLoad/random/roundRobin` +
   `observatory` 探测，生成 `routing.balancers`
 - **策略组（PolicyGroup）**：从订阅按正则动态选成员
-- **代理链（ProxyChain）**：多段代理串联
+- 🟡 **代理链（ProxyChain）**：运行核心已完成，`proxy-chain` JSON 导入后可生成多段 outbounds 并用 `sockopt.dialerProxy` 串联；专门编辑器/成员选择待补
 - **WebDAV 云备份/恢复**：BASIC 认证 + `MKCOL` 建目录 + 上传/下载 ZIP
 
 **v2rayNG 对照**：`BalancerStrategyType`、`ServerGroupActivity`、`ServerProxyChainActivity`、
@@ -342,5 +342,6 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-18 | M4 | ✅ WireGuard/Hysteria2 手动编辑器校验完成（抽出 `ManualOutboundBuilder`，NodeEdit 复用，补 WG/HY2 outbound 生成单测）；运行态仍待真机/内核复测 |
 | 2026-06-18 | M4 | ✅ 本地 SOCKS 代理设置完成（`localSocksEnabled`/端口/UDP/用户名/密码 + `socks-in` 生成 + LAN 共享监听 + 单测） |
 | 2026-06-18 | M4 | ✅ 本地 SOCKS 动态端口完成（`localSocksDynamicPort` 设置 + 启动前 `CGoGetFreePorts` 选择运行端口 + 设置/端口选择单测）；待重建 `.so` + 真机复测 |
+| 2026-06-18 | M5 | 🟡 代理链运行核心完成（`proxy-chain` configType + JSON 导入识别 + 多跳 outbounds `dialerProxy` 串联 + 单测）；专门编辑器/成员选择待补 |
 | 2026-06-15 | 自查 | ✅ 字段一致性总扫：AppSettings/SettingsDraft 5 个构造点字段完整一致，SubscriptionGroup.filter 贯通，无需修改 |
 | 2026-06-15 | 自查 | ✅ 深链/metrics 配置形状核对 Xray 官方一致；自查清单收尾（净修复：预检非阻断 + 清理未用导入） |

@@ -12,7 +12,7 @@
 | 原生 TUN 数据通路 | ✅ 93% | 代码就位且**真机闭环验证通过（2026-06-15）**——TUN→Xray→出站→可上网；IPv6 地址/路由与 outbound Happy Eyeballs 已按设置生成，待真机回归 |
 | 分享链接解析 | ✅ 90% | vless/vmess/trojan/ss/socks/http/wireguard/hy2 已覆盖，WireGuard `.conf` 整段导入已支持；导入失败后可走 native 转换兜底支持 v2rayN 多行/base64 与 Clash.Meta YAML（待重建 `.so` 真机验证）；**缺 TUIC** |
 | 订阅管理 | 🟡 91% | 多分组 + 旧版迁移 + 编辑/重排/批量更新全部 + 订阅级不安全 URL 开关 + 当前分组删除全部 + 自动更新设置/前台到期刷新 + 本地 HTTP 代理经由更新；**缺后台调度** |
-| Xray 配置生成 | 🟡 74% | 普通节点生成 TUN/metrics/DNS/routing/HTTP 代理和本地 SOCKS 配置，HTTP/SOCKS 代理支持局域网共享监听，SOCKS 支持启动前动态端口；完整自定义 Xray config 可校验后原样运行；高级出站目标仍待补 |
+| Xray 配置生成 | 🟡 76% | 普通节点生成 TUN/metrics/DNS/routing/HTTP 代理和本地 SOCKS 配置，HTTP/SOCKS 代理支持局域网共享监听，SOCKS 支持启动前动态端口；完整自定义 Xray config 可校验后原样运行；代理链 JSON 可生成多跳 `dialerProxy` outbounds；高级出站目标仍待补 |
 | 节点延迟测速 / 排序 | ✅ 82% | `CGoPing` 真测速 + 排序，测速 SOCKS inbound 优先使用 `CGoGetFreePorts` 动态端口；需真机验证 |
 | 路由设置页 | ✅ 80% | 广告拦截、自定义规则、预设规则集导入/导出均已生效；高级出站目标与真机规则回归待补 |
 | Geo 资产管理 | ✅ 90% | 下载 / 自定义 URL / 备份还原已实现；Geo 文件 native 计数/校验已接线，待重建 `.so` 真机验证 |
@@ -129,3 +129,4 @@
 | 2026-06-18 | 阶段 4 | ✅ WireGuard/Hysteria2 手动编辑器校验完成；NodeEdit 生成可校验 outbound，覆盖 WG IPv6 endpoint、reserved/MTU 与 HY2 obfs/mport/SNI/ALPN 单测 |
 | 2026-06-18 | 阶段 4 | ✅ 本地 SOCKS 代理设置完成；Settings 可配置启用、端口、UDP、用户名/密码认证，Xray 生成 `socks-in` 并随代理共享监听 LAN |
 | 2026-06-18 | 阶段 4 | ✅ 本地 SOCKS 动态端口完成；`localSocksDynamicPort` 开启后连接前通过 `CGoGetFreePorts` 写入运行端口，失败回退用户设置端口 |
+| 2026-06-18 | 阶段 5 | 🟡 代理链运行核心完成；JSON 导入支持 `proxy-chain`，运行时生成多跳 outbounds 并通过 `sockopt.dialerProxy` 串联，专门编辑器/成员选择待补 |

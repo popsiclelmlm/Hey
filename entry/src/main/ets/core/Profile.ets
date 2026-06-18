@@ -1,6 +1,6 @@
 export const DEFAULT_PROFILE_ID: string = 'default-profile';
 
-export type XrayConfigType = 'outbound' | 'full';
+export type XrayConfigType = 'outbound' | 'full' | 'proxy-chain';
 
 export interface ProxyProfile {
   id: string;

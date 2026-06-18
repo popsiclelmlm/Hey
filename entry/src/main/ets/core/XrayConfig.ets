@@ -104,6 +104,12 @@ interface XrayFullConfig {
   policy?: XrayPolicyConfig;
 }
 
+interface XrayProxyChainConfig {
+  outbounds: Array<XrayOutbound>;
+  remarks?: string;
+  name?: string;
+}
+
 class SocksInboundSettings {
   auth: string;
   udp: boolean;
@@ -230,10 +236,39 @@ export function validateFullConfigJson(configJson: string): ValidationResult {
   }
 }
 
+export function validateProxyChainConfigJson(configJson: string): ValidationResult {
+  const trimmed = configJson.trim();
+  if (trimmed.length === 0) {
+    return {
+      valid: false,
+      message: '请先粘贴代理链 JSON。',
+      protocol: 'proxy-chain',
+      normalizedJson: '',
+      configType: 'proxy-chain'
+    };
+  }
+
+  try {
+    const config = parseProxyChainConfig(trimmed);
+    return validateProxyChainConfigObject(config);
+  } catch (error) {
+    return {
+      valid: false,
+      message: `JSON 解析失败：${JSON.stringify(error)}`,
+      protocol: 'proxy-chain',
+      normalizedJson: '',
+      configType: 'proxy-chain'
+    };
+  }
+}
+
 export function normalizeConfigInput(input: string, preferredType?: XrayConfigType): ValidationResult {
   const trimmed = input.trim();
   if (preferredType === 'full') {
     return validateFullConfigJson(trimmed);
+  }
+  if (preferredType === 'proxy-chain') {
+    return validateProxyChainConfigJson(trimmed);
   }
 
   if (isWireguardConfigFile(trimmed)) {
@@ -304,6 +339,12 @@ function validateJsonConfigInput(input: string, preferredType?: XrayConfigType):
 
   try {
     const parsed = JSON.parse(input) as Object;
+    if (isProxyChainCandidate(parsed)) {
+      const proxyChain = normalizeProxyChainConfigObject(parsed);
+      if (proxyChain !== null) {
+        return validateProxyChainConfigObject(proxyChain);
+      }
+    }
     if (isFullConfigCandidate(parsed)) {
       return validateFullConfigObject(parsed as XrayFullConfig);
     }
@@ -317,6 +358,100 @@ function validateJsonConfigInput(input: string, preferredType?: XrayConfigType):
       configType: preferredType ?? 'outbound'
     };
   }
+}
+
+function validateProxyChainConfigObject(config: XrayProxyChainConfig): ValidationResult {
+  if (!Array.isArray(config.outbounds)) {
+    return {
+      valid: false,
+      message: '代理链配置缺少 outbounds 数组。',
+      protocol: 'proxy-chain',
+      normalizedJson: '',
+      configType: 'proxy-chain'
+    };
+  }
+
+  if (config.outbounds.length < 2) {
+    return {
+      valid: false,
+      message: '代理链至少需要两个 outbound。',
+      protocol: 'proxy-chain',
+      normalizedJson: '',
+      configType: 'proxy-chain'
+    };
+  }
+
+  for (let index = 0; index < config.outbounds.length; index++) {
+    const validation = validateOutboundObject(config.outbounds[index]);
+    if (!validation.valid) {
+      return {
+        valid: false,
+        message: `代理链第 ${index + 1} 跳无效：${validation.message}`,
+        protocol: 'proxy-chain',
+        normalizedJson: '',
+        configType: 'proxy-chain'
+      };
+    }
+  }
+
+  return {
+    valid: true,
+    message: '代理链配置校验通过。',
+    protocol: 'proxy-chain',
+    normalizedJson: JSON.stringify(config, null, 2),
+    configType: 'proxy-chain'
+  };
+}
+
+function parseProxyChainConfig(configJson: string): XrayProxyChainConfig {
+  const parsed = JSON.parse(configJson) as Object;
+  const config = normalizeProxyChainConfigObject(parsed);
+  if (config === null) {
+    return {
+      outbounds: []
+    };
+  }
+  return config;
+}
+
+function normalizeProxyChainConfigObject(value: Object): XrayProxyChainConfig | null {
+  if (Array.isArray(value)) {
+    return {
+      outbounds: value as Array<XrayOutbound>
+    };
+  }
+  if (typeof value !== 'object' || value === null) {
+    return null;
+  }
+  const record = value as Record<string, Object>;
+  if (!Array.isArray(record['outbounds'])) {
+    return null;
+  }
+  const config: XrayProxyChainConfig = {
+    outbounds: record['outbounds'] as Array<XrayOutbound>
+  };
+  if (typeof record['remarks'] === 'string') {
+    config.remarks = record['remarks'] as string;
+  }
+  if (typeof record['name'] === 'string') {
+    config.name = record['name'] as string;
+  }
+  return config;
+}
+
+function isProxyChainCandidate(value: Object): boolean {
+  if (Array.isArray(value)) {
+    return true;
+  }
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const record = value as Record<string, Object>;
+  return Array.isArray(record['outbounds']) &&
+    record['inbounds'] === undefined &&
+    record['routing'] === undefined &&
+    record['dns'] === undefined &&
+    record['log'] === undefined;
 }
 
 function validateOutboundObject(outbound: XrayOutbound): ValidationResult {
@@ -420,6 +555,9 @@ export function buildRuntimeXrayConfig(configJson: string, settings?: AppSetting
       configJson: validation.normalizedJson
     };
   }
+  if (validation.configType === 'proxy-chain') {
+    return buildProxyChainXrayConfigInternal(validation.normalizedJson, settings);
+  }
 
   return buildXrayConfigInternal(validation.normalizedJson, settings);
 }
@@ -434,6 +572,37 @@ function buildXrayConfigInternal(outboundJson: string, settings: AppSettings | u
   if (outbound.tag === undefined || outbound.tag.length === 0) {
     outbound.tag = 'proxy';
   }
+  applyOutboundRuntimeSettings(outbound, settings);
+
+  return buildXrayConfigFromOutbounds([outbound], settings);
+}
+
+function buildProxyChainXrayConfigInternal(chainJson: string, settings: AppSettings | undefined): GeneratedXrayConfig {
+  const validation = validateProxyChainConfigJson(chainJson);
+  if (!validation.valid) {
+    throw new Error(validation.message);
+  }
+
+  const config = parseProxyChainConfig(validation.normalizedJson);
+  const outbounds = new Array<XrayOutbound>();
+  for (let index = 0; index < config.outbounds.length; index++) {
+    const outbound = cloneOutbound(config.outbounds[index]);
+    outbound.tag = index === 0 ? 'proxy' : `proxy-chain-${index}`;
+    applyOutboundRuntimeSettings(outbound, settings);
+    outbounds.push(outbound);
+  }
+  for (let index = 0; index < outbounds.length - 1; index++) {
+    const sockopt = ensureOutboundSockopt(outbounds[index]);
+    sockopt['dialerProxy'] = outbounds[index + 1].tag;
+  }
+  return buildXrayConfigFromOutbounds(outbounds, settings);
+}
+
+function cloneOutbound(outbound: XrayOutbound): XrayOutbound {
+  return JSON.parse(JSON.stringify(outbound)) as XrayOutbound;
+}
+
+function applyOutboundRuntimeSettings(outbound: XrayOutbound, settings: AppSettings | undefined): void {
   if (settings !== undefined && settings.muxEnabled) {
     const mux: XrayMuxConfig = {
       enabled: true,
@@ -461,7 +630,9 @@ function buildXrayConfigInternal(outboundJson: string, settings: AppSettings | u
     sockopt['domainStrategy'] = 'UseIP';
     sockopt['happyEyeballs'] = happyEyeballs;
   }
+}
 
+function buildXrayConfigFromOutbounds(proxyOutbounds: Array<XrayOutbound>, settings: AppSettings | undefined): GeneratedXrayConfig {
   const tunInbound: XrayInboundConfig = {
     tag: 'tun-in',
     protocol: 'tun',
@@ -491,7 +662,7 @@ function buildXrayConfigInternal(outboundJson: string, settings: AppSettings | u
   };
 
   const inbounds: Array<XrayInboundConfig> = [tunInbound, metricsInbound];
-  const outbounds: Array<XrayOutbound> = [outbound, directOutbound, blockOutbound];
+  const outbounds: Array<XrayOutbound> = proxyOutbounds.concat([directOutbound, blockOutbound]);
 
   // Route the metrics inbound to the metrics handler ahead of any user/traffic
   // rule so the local /debug/vars probe is never proxied or blocked.

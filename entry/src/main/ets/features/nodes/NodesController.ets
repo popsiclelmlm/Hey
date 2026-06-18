@@ -174,10 +174,16 @@ export class NodesController {
     if (validation.configType === 'full') {
       return 'full';
     }
+    if (validation.configType === 'proxy-chain') {
+      return 'proxy-chain';
+    }
     if (validation.configType === 'outbound') {
       return 'outbound';
     }
-    return fallback === 'full' ? 'full' : 'outbound';
+    if (fallback === 'full' || fallback === 'proxy-chain') {
+      return fallback;
+    }
+    return 'outbound';
   }
 
   private findNodeInList(nodes: Array<ProxyNode>, nodeId: string): ProxyNode | null {

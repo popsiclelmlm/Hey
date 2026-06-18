@@ -296,7 +296,7 @@ export class SubscriptionStore {
     
     const validation = normalizeConfigInput(outboundJson, configType);
     const resolvedConfigType = SubscriptionStore.resolveConfigType(validation.configType, configType);
-    const protocol = validation.valid ? (resolvedConfigType === 'full' ? 'custom' : validation.protocol) : 'unknown';
+    const protocol = validation.valid ? SubscriptionStore.protocolForConfigType(resolvedConfigType, validation.protocol) : 'unknown';
     
     const nodeId = `manual-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
     const finalName = name.trim().length > 0 ? name.trim() : `手动-${protocol.toUpperCase()}`;
@@ -413,7 +413,7 @@ export class SubscriptionStore {
       normalized.push({
         id,
         name: node.name ?? '',
-        protocol: protocol.length > 0 ? protocol : (configType === 'full' ? 'custom' : ''),
+        protocol: protocol.length > 0 ? protocol : SubscriptionStore.protocolForConfigType(configType, ''),
         outboundJson: node.outboundJson ?? '',
         configType,
         sourceUrl: node.sourceUrl ?? '',
@@ -578,17 +578,36 @@ export class SubscriptionStore {
     if (node.configType === 'full') {
       return 'full';
     }
+    if (node.configType === 'proxy-chain') {
+      return 'proxy-chain';
+    }
     const validation = normalizeConfigInput(node.outboundJson ?? '');
-    return validation.configType === 'full' ? 'full' : 'outbound';
+    return validation.configType === 'full' || validation.configType === 'proxy-chain' ? validation.configType : 'outbound';
   }
 
   private static resolveConfigType(detected?: XrayConfigType, fallback?: XrayConfigType): XrayConfigType {
     if (detected === 'full') {
       return 'full';
     }
+    if (detected === 'proxy-chain') {
+      return 'proxy-chain';
+    }
     if (detected === 'outbound') {
       return 'outbound';
     }
-    return fallback === 'full' ? 'full' : 'outbound';
+    if (fallback === 'full' || fallback === 'proxy-chain') {
+      return fallback;
+    }
+    return 'outbound';
+  }
+
+  private static protocolForConfigType(configType: XrayConfigType, detectedProtocol: string): string {
+    if (configType === 'full') {
+      return 'custom';
+    }
+    if (configType === 'proxy-chain') {
+      return 'proxy-chain';
+    }
+    return detectedProtocol;
   }
 }

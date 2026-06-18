@@ -84,6 +84,18 @@ export function localizeCoreMessage(language: AppLanguage, message: string): str
   if (message === '完整 Xray 配置校验通过。') {
     return translate(language, 'core.validFullConfig');
   }
+  if (message === '请先粘贴代理链 JSON。') {
+    return translate(language, 'core.emptyProxyChainConfig');
+  }
+  if (message === '代理链配置缺少 outbounds 数组。') {
+    return translate(language, 'core.missingProxyChainOutbounds');
+  }
+  if (message === '代理链至少需要两个 outbound。') {
+    return translate(language, 'core.insufficientProxyChainOutbounds');
+  }
+  if (message === '代理链配置校验通过。') {
+    return translate(language, 'core.validProxyChainConfig');
+  }
   if (message === '暂只支持 vless://、vmess://、trojan://、ss://、socks://、http://、wireguard:// 和 hysteria2:// 分享链接。') {
     return translate(language, 'core.unsupportedShareLink');
   }
@@ -144,6 +156,15 @@ export function localizeCoreMessage(language: AppLanguage, message: string): str
   if (message.endsWith(validSuffix)) {
     const protocol = message.substring(0, message.length - validSuffix.length);
     return formatOne(language, 'core.validOutbound', 'protocol', protocol);
+  }
+
+  const proxyChainHopPrefix = '代理链第 ';
+  const proxyChainHopMiddle = ' 跳无效：';
+  const proxyChainHopMiddleIndex = message.indexOf(proxyChainHopMiddle);
+  if (message.startsWith(proxyChainHopPrefix) && proxyChainHopMiddleIndex > proxyChainHopPrefix.length) {
+    const index = message.substring(proxyChainHopPrefix.length, proxyChainHopMiddleIndex);
+    const error = message.substring(proxyChainHopMiddleIndex + proxyChainHopMiddle.length);
+    return formatTwo(language, 'core.invalidProxyChainHop', 'index', index, 'error', localizeCoreMessage(language, error));
   }
 
   const shareSuffix = ' 分享链接导入成功。';

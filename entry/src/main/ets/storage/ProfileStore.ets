@@ -59,18 +59,29 @@ export class ProfileStore {
     if (configType === 'full') {
       return 'full';
     }
+    if (configType === 'proxy-chain') {
+      return 'proxy-chain';
+    }
     if (configType === 'outbound') {
       return 'outbound';
     }
-    return ProfileStore.looksLikeFullConfig(configJson) ? 'full' : 'outbound';
+    const detected = ProfileStore.detectConfigType(configJson);
+    return detected ?? 'outbound';
   }
 
-  private static looksLikeFullConfig(configJson: string): boolean {
+  private static detectConfigType(configJson: string): XrayConfigType | null {
     try {
       const parsed = JSON.parse(configJson) as Record<string, Object>;
-      return parsed['inbounds'] !== undefined || parsed['outbounds'] !== undefined;
+      if (Array.isArray(parsed) || (Array.isArray(parsed['outbounds']) &&
+        parsed['inbounds'] === undefined &&
+        parsed['routing'] === undefined &&
+        parsed['dns'] === undefined &&
+        parsed['log'] === undefined)) {
+        return 'proxy-chain';
+      }
+      return parsed['inbounds'] !== undefined || parsed['outbounds'] !== undefined ? 'full' : null;
     } catch (error) {
-      return false;
+      return null;
     }
   }
 }

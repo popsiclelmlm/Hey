@@ -4,7 +4,7 @@ import { selectRuntimeLocalSocksPort, shouldUseDynamicLocalSocksPort, withRuntim
 import { buildManualHysteria2Outbound, buildManualWireguardOutbound } from '../main/ets/core/ManualOutboundBuilder';
 import { AppSettings, ProxyNode, RoutingRule, SubscriptionGroup } from '../main/ets/core/Profile';
 import { formatGeoCountSummary, formatGeoCountUnavailable, geoDataSpecForFile, parseGeoCountData } from '../main/ets/core/GeoAssets';
-import { DELAY_TEST_SOCKS_PORT, LOCAL_HTTP_PROXY_LAN_HOST, LOCAL_HTTP_PROXY_PORT, LOCAL_SOCKS_PROXY_PORT, buildDelayTestConfig, buildRuntimeXrayConfig, buildXrayConfig, buildXrayConfigWithSettings, normalizeOutboundInput, validateFullConfigJson, validateOutboundJson } from '../main/ets/core/XrayConfig';
+import { DELAY_TEST_SOCKS_PORT, LOCAL_HTTP_PROXY_LAN_HOST, LOCAL_HTTP_PROXY_PORT, LOCAL_SOCKS_PROXY_PORT, buildDelayTestConfig, buildRuntimeXrayConfig, buildXrayConfig, buildXrayConfigWithSettings, normalizeOutboundInput, validateFullConfigJson, validateOutboundJson, validateProxyChainConfigJson } from '../main/ets/core/XrayConfig';
 import { extractOutboundsFromXrayConfig } from '../main/ets/core/XrayOutbounds';
 import { parseShareLinkToOutboundJson } from '../main/ets/core/ShareLinkParser';
 import { exportRoutingRulesJson, importRoutingRulesJson, resetRoutingRulesFromPreset } from '../main/ets/core/RoutingRules';
@@ -24,6 +24,10 @@ import { formatOne, localizedProfileSavedText, localizeCoreMessage } from '../ma
 
 const VLESS_REALITY_OUTBOUND: string =
   '{"protocol":"vless","tag":"proxy","settings":{"vnext":[{"address":"example.com","port":443,"users":[{"id":"00000000-0000-0000-0000-000000000000","encryption":"none","flow":"xtls-rprx-vision"}]}]},"streamSettings":{"network":"tcp","security":"reality","realitySettings":{"serverName":"www.example.com","publicKey":"test-public-key","shortId":"abcd","fingerprint":"chrome"}}}';
+const TROJAN_OUTBOUND: string =
+  '{"protocol":"trojan","tag":"relay","settings":{"servers":[{"address":"relay.example.com","port":443,"password":"secret"}]}}';
+const PROXY_CHAIN_CONFIG: string =
+  `{"remarks":"chain-demo","outbounds":[${VLESS_REALITY_OUTBOUND},${TROJAN_OUTBOUND}]}`;
 const FULL_XRAY_CONFIG: string =
   '{"remarks":"Custom full config","log":{"loglevel":"info"},"inbounds":[{"tag":"tun-in","protocol":"tun","settings":{"name":"vpn-tun","mtu":1400}}],"outbounds":[{"tag":"direct","protocol":"freedom","settings":{}}],"routing":{"domainStrategy":"AsIs","rules":[]}}';
 const WIREGUARD_CONF: string =
@@ -69,6 +73,29 @@ export default function localUnitTest() {
       expect(autoValidation.valid).assertTrue();
       expect(autoValidation.configType).assertEqual('full');
       expect(autoValidation.message).assertEqual('完整 Xray 配置校验通过。');
+    });
+
+    it('validates and builds proxy chain xray config', 0, () => {
+      const validation = validateProxyChainConfigJson(PROXY_CHAIN_CONFIG);
+      expect(validation.valid).assertTrue();
+      expect(validation.protocol).assertEqual('proxy-chain');
+      expect(validation.configType).assertEqual('proxy-chain');
+      expect(validation.normalizedJson).assertContain('"remarks": "chain-demo"');
+
+      const autoValidation = normalizeOutboundInput(PROXY_CHAIN_CONFIG);
+      expect(autoValidation.valid).assertTrue();
+      expect(autoValidation.configType).assertEqual('proxy-chain');
+      expect(validateProxyChainConfigJson(`{"outbounds":[${VLESS_REALITY_OUTBOUND}]}`).valid).assertFalse();
+      expect(localizeCoreMessage('en', '代理链至少需要两个 outbound。')).assertEqual('Proxy chain needs at least two outbounds.');
+      expect(localizeCoreMessage('en', '代理链第 2 跳无效：outbound 缺少 settings 字段。')).assertEqual('Proxy chain hop 2 is invalid: outbound is missing the settings field.');
+
+      const result = buildRuntimeXrayConfig(validation.normalizedJson, buildSettingsFixture(), 'proxy-chain');
+      expect(result.configJson).assertContain('"tag": "proxy"');
+      expect(result.configJson).assertContain('"tag": "proxy-chain-1"');
+      expect(result.configJson).assertContain('"dialerProxy": "proxy-chain-1"');
+      expect(result.configJson).assertContain('"protocol": "trojan"');
+      expect(result.configJson).assertContain('"tag": "direct"');
+      expect(result.metricsServer !== undefined).assertTrue();
     });
 
     it('extracts importable outbounds from native-converted xray config', 0, () => {
