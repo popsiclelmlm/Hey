@@ -26,7 +26,7 @@ v2rayNG's features and design, see
 | PerAppProxyActivity | Apps | Partial. Toggle, allowlist/blocklist mode, preset/manual package list, and VPN `blockedApplications`/`trustedApplications` mapping are wired; unrestricted installed-app enumeration is platform-limited. |
 | UserAssetActivity / UserAssetUrlActivity / BackupActivity | Assets | Present. geoip/geosite download (Loyalsoldier rules), custom asset URL CRUD, clipboard backup/restore, WebDAV ZIP cloud backup/restore, and native Geo count status are implemented. |
 | LogcatActivity | Logs | Present. App diagnostic logs and native runtime stats are visible. |
-| AboutActivity | About | Present. Harmony-specific about/license note. |
+| AboutActivity | About | Present. Harmony-specific about/license note, native Xray core version display, and v2rayNG-style GitHub release update check that parses tag/assets, compares against the current app version, and opens the download/release page when a newer version exists. |
 | TaskerActivity / shortcuts / widgets / QS tile | Platform equivalents | Partial. Harmony control deep links cover the core start/stop/toggle/scan actions (`hey://control?action=...` plus short hosts) and can be invoked by external Want/automation surfaces. A 2×2 ArkTS desktop service card is registered through `ControlCardAbility` and uses `FormLink` to call `hey://toggle`, `hey://start`, `hey://stop`, and `hey://scan`; form IDs and latest card state are persisted, and runtime status changes refresh the card through `formProvider.updateForm` with a 3-second throttle. True device add/click and launcher refresh regression remain pending. |
 | UrlSchemeActivity | Import entry | Present. Harmony Want/deep-link import handles subscription and config links. |
 

@@ -3,9 +3,11 @@ import { pasteboard } from '@kit.BasicServicesKit';
 import { promptAction } from '@kit.ArkUI';
 import { DEFAULT_LANGUAGE, translate } from '../core/I18n';
 import { AppLanguage } from '../core/Profile';
+import { CURRENT_APP_VERSION, HEY_RELEASES_PAGE_URL } from '../core/UpdateChecker';
 import { SETTINGS_CONTROLLER } from '../features/settings/SettingsController';
 import { SHARED_RUNTIME_CONTROLLER } from '../features/runtime/RuntimeController';
 import { nativeXrayVersion } from '../native/HeyNative';
+import { UPDATE_CHECKER_MANAGER } from '../services/UpdateCheckerManager';
 import { SectionHeader } from '../components/SectionHeader';
 import { PageHeader } from '../shell/PageHeader';
 import { formatOne } from '../utils/LocalizationPresenter';
@@ -82,7 +84,7 @@ struct AboutPage {
             this.RowDivider()
             AboutItem({
               title: this.t('about.update.title'),
-              detail: this.t('about.update.detail'),
+              detail: this.f1('about.update.detail', 'version', CURRENT_APP_VERSION),
               isChecking: this.isCheckingUpdate,
               onAction: () => {
                 this.checkUpdate();
@@ -209,15 +211,31 @@ struct AboutPage {
     }
   }
 
-  private checkUpdate(): void {
+  private async checkUpdate(): Promise<void> {
     if (this.isCheckingUpdate) {
       return;
     }
     this.isCheckingUpdate = true;
-    setTimeout(() => {
+    try {
+      const result = await UPDATE_CHECKER_MANAGER.checkForUpdate(CURRENT_APP_VERSION);
+      if (!result.ok) {
+        promptAction.showToast({ message: this.f1('about.update.failed', 'error', result.error) });
+        SHARED_RUNTIME_CONTROLLER.appendLog(this.f1('about.update.failed', 'error', result.error));
+        return;
+      }
+      if (!result.hasUpdate) {
+        promptAction.showToast({ message: this.f1('about.update.latest', 'version', result.currentVersion) });
+        SHARED_RUNTIME_CONTROLLER.appendLog(this.f1('about.update.latest', 'version', result.currentVersion));
+        return;
+      }
+
+      promptAction.showToast({ message: this.f1('about.update.found', 'version', result.latestVersion) });
+      SHARED_RUNTIME_CONTROLLER.appendLog(this.f1('about.update.found', 'version', result.latestVersion));
+      const url = result.downloadUrl.length > 0 ? result.downloadUrl : HEY_RELEASES_PAGE_URL;
+      await this.openUrl(url, this.t('about.update.title'));
+    } finally {
       this.isCheckingUpdate = false;
-      promptAction.showToast({ message: this.t('about.update.latest') });
-    }, 1200);
+    }
   }
 
   private async loadState(): Promise<void> {

@@ -234,8 +234,10 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 - 🟡 **常驻速度通知**：上下行实时显示；运行中且“启用速度显示”开启时发布 Harmony ongoing 通知，
   每 3 秒按 `CGoQueryStats` 累计值差分刷新上传/下载速率，停止或关闭设置时取消
   （2026-06-18 代码完成，待真机通知权限与展示回归）
+- ✅ **关于页更新检查**：对应 v2rayNG `UpdateCheckerManager`；
+  About 页从 GitHub latest release 拉取 tag/assets，比较当前版本 `1.1.0`，发现新版本时打开下载页/Release 页，失败时记录运行日志
 
-**v2rayNG 对照**：`UrlSchemeActivity`、`share2QRCode`、`WidgetProvider`/`QSTileService`/`shortcuts.xml`。
+**v2rayNG 对照**：`UrlSchemeActivity`、`share2QRCode`、`WidgetProvider`/`QSTileService`/`shortcuts.xml`、`UpdateCheckerManager`。
 **验收标准**：外部链接可一键导入；节点可生成二维码被另一台设备扫入。
 **依赖**：M1（速度通知）；其余独立。
 
@@ -400,5 +402,6 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-18 | M4 | 🟡 常驻速度通知代码完成（`SpeedNotificationManager` 接 Harmony NotificationKit，运行中且 speedEnabled 开启时每 3 秒刷新速率/累计流量，停止或关闭设置时取消，补速率/节流文案单测）；待真机通知权限与通知中心展示回归 |
 | 2026-06-18 | M4 | 🟡 桌面服务卡片基础入口完成（`ControlCardAbility` + `form_config` + 2×2 ArkTS 卡片，提供 toggle/start/stop/scan 四个 `FormLink` 控制深链，补卡片 URI 单测）；待真机添加卡片、点击调起与运行态动态刷新回归 |
 | 2026-06-18 | M4 | 🟡 桌面服务卡片动态状态刷新代码完成（保存卡片 formId 与最近运行态，首页运行态变化同步状态文案、详情、主按钮动作并按 3 秒节流通过 `formProvider.updateForm` 刷新）；待真机添加卡片、点击调起与系统刷新回归 |
+| 2026-06-18 | M4 | ✅ 关于页更新检查完成（About 页通过 GitHub latest release API 解析 tag/assets，比较当前版本 `1.1.0`，发现新版本时打开下载页/Release 页，失败写运行日志；补版本比较与 release 解析单测） |
 | 2026-06-15 | 自查 | ✅ 字段一致性总扫：AppSettings/SettingsDraft 5 个构造点字段完整一致，SubscriptionGroup.filter 贯通，无需修改 |
 | 2026-06-15 | 自查 | ✅ 深链/metrics 配置形状核对 Xray 官方一致；自查清单收尾（净修复：预检非阻断 + 清理未用导入） |

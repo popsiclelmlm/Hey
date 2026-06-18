@@ -23,6 +23,7 @@ import {
 import { buildSubscriptionAutoUpdateSchedulePlan } from '../main/ets/core/SubscriptionSchedulerPlan';
 import { buildSpeedNotificationAdditionalText, buildSpeedNotificationText, calculateSpeedNotificationRates, sampleSpeedNotificationStats, shouldPublishSpeedNotification } from '../main/ets/core/SpeedNotification';
 import { DEFAULT_WEBDAV_BACKUP_FILE_NAME, buildWebDavAuthorizationHeader, buildWebDavMkcolUrls, buildWebDavRemoteUrl, isWebDavMkcolAcceptedStatus, normalizeWebDavConfig, validateWebDavConfig } from '../main/ets/core/WebDav';
+import { CURRENT_APP_VERSION, buildUpdateCheckResult, compareVersions, normalizeVersionTag } from '../main/ets/core/UpdateChecker';
 import { dedupeNodes, exportNodesText, filterNodes, findInvalidNodes, sortNodes } from '../main/ets/features/nodes/NodeOperations';
 import { SETTINGS_CONTROLLER } from '../main/ets/features/settings/SettingsController';
 import { normalizeIpApiUrl, parseRemoteIpInfoContent } from '../main/ets/services/RemoteIpInfo';
@@ -1369,6 +1370,29 @@ export default function localUnitTest() {
       const errored = buildControlCardFormData('en', ConnectionStatus.ERROR, '', 'bad config');
       expect(errored.statusLabel).assertEqual('Error');
       expect(errored.statusDetail).assertEqual('bad config');
+    });
+
+    it('parses GitHub release update check results', 0, () => {
+      expect(CURRENT_APP_VERSION).assertEqual('1.1.0');
+      expect(normalizeVersionTag('v1.2.3-beta.1')).assertEqual('1.2.3');
+      expect(compareVersions('1.10.0', '1.2.9') > 0).assertTrue();
+      expect(compareVersions('1.1', '1.1.0')).assertEqual(0);
+      expect(compareVersions('1.0.9', '1.1.0') < 0).assertTrue();
+
+      const content = '{"tag_name":"v1.2.0","body":"notes","html_url":"https://example.com/release","prerelease":false,"assets":[{"name":"Hey-source.zip","browser_download_url":"https://example.com/source.zip"},{"name":"Hey-ohos-arm64.hap","browser_download_url":"https://example.com/hey.hap"}]}';
+      const result = buildUpdateCheckResult(content, '1.1.0');
+      expect(result.ok).assertTrue();
+      expect(result.hasUpdate).assertTrue();
+      expect(result.latestVersion).assertEqual('1.2.0');
+      expect(result.releaseNotes).assertEqual('notes');
+      expect(result.downloadUrl).assertEqual('https://example.com/hey.hap');
+
+      const latest = buildUpdateCheckResult('{"tag_name":"v1.1.0","assets":[]}', '1.1.0');
+      expect(latest.ok).assertTrue();
+      expect(latest.hasUpdate).assertFalse();
+
+      const invalid = buildUpdateCheckResult('{"body":"missing tag"}', '1.1.0');
+      expect(invalid.ok).assertFalse();
     });
 
     it('builds subscription background auto update schedule plan', 0, () => {

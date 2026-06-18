@@ -8,7 +8,7 @@
 
 | 模块 | 状态 | 说明 |
 | --- | --- | --- |
-| 应用骨架 / 导航 / i18n | ✅ 96% | 双语、分层清晰、路由完整，UI 模式可按设置跟随系统/浅色/深色 |
+| 应用骨架 / 导航 / i18n | ✅ 97% | 双语、分层清晰、路由完整，UI 模式可按设置跟随系统/浅色/深色，About 页已接 GitHub release 更新检查 |
 | 原生 TUN 数据通路 | ✅ 93% | 代码就位且**真机闭环验证通过（2026-06-15）**——TUN→Xray→出站→可上网；`ipv6Enabled` 控制 IPv6 地址/路由，`preferIpv6` 控制 outbound Happy Eyeballs，待真机回归 |
 | 分享链接解析 | ✅ 91% | vless/vmess/trojan/ss/socks/http/wireguard/hy2 已覆盖，Reality `spx`/`pqv` 已按 v2rayNG 映射为 `spiderX`/`mldsa65Verify` 并可导入导出，WireGuard `.conf` 整段导入已支持；导入失败后可走 native 转换兜底支持 v2rayN 多行/base64 与 Clash.Meta YAML（待重建 `.so` 真机验证）；TUIC 在 v2rayNG 当前枚举中未启用且 Xray-core 官方配置不支持，暂不列为运行目标 |
 | 订阅管理 | 🟡 95% | 多分组 + 旧版迁移 + 编辑/重排/批量更新全部 + 订阅级不安全 URL 开关 + 当前分组删除全部 + 自动更新设置/前台到期刷新 + 本地 HTTP 代理经由更新 + WorkScheduler 后台调度接线；待真机触发回归 |
@@ -160,3 +160,4 @@
 | 2026-06-18 | 阶段 5 | 🟡 常驻速度通知代码完成；运行中且速度显示开启时通过 NotificationKit 发布 ongoing 通知，按 3 秒节流刷新上传/下载速率和累计流量，停止或关闭设置时取消，待真机回归 |
 | 2026-06-18 | 阶段 5 | 🟡 桌面服务卡片基础入口完成；注册 `ControlCardAbility` 与 `form_config`，2×2 ArkTS 卡片用 FormLink 调起 toggle/start/stop/scan 控制深链，待真机添加卡片、点击调起和动态状态刷新回归 |
 | 2026-06-18 | 阶段 5 | 🟡 桌面服务卡片动态状态刷新代码完成；保存卡片 formId 与最近运行态，首页运行态变化同步状态文案、详情、主按钮动作并按 3 秒节流通过 `formProvider.updateForm` 刷新，待真机添加卡片、点击调起和系统刷新回归 |
+| 2026-06-18 | 阶段 5 | ✅ 关于页更新检查完成；About 页通过 GitHub latest release API 解析 tag/assets，比较当前版本 `1.1.0`，发现新版本时打开下载页/Release 页，失败写运行日志 |
