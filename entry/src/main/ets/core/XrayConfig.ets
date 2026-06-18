@@ -248,6 +248,17 @@ const DEFAULT_ROUTING_DOMAIN_STRATEGY: string = 'AsIs';
 const GEOSITE_CN_DOMAIN: string = 'geosite:cn';
 const GEOIP_CN_EXPECT: string = 'geoip:cn';
 const DNS_BLOCK_HOST: string = '127.0.0.1';
+const DEFAULT_DNS_HOSTS: Record<string, string | Array<string>> = {
+  'domain:googleapis.cn': 'googleapis.com',
+  'dns.alidns.com': ['223.5.5.5', '223.6.6.6', '2400:3200::1', '2400:3200:baba::1'],
+  'one.one.one.one': ['1.1.1.1', '1.0.0.1', '2606:4700:4700::1111', '2606:4700:4700::1001'],
+  'dns.cloudflare.com': ['104.16.132.229', '104.16.133.229', '2606:4700::6810:84e5', '2606:4700::6810:85e5'],
+  'cloudflare-dns.com': ['104.16.248.249', '104.16.249.249', '2606:4700::6810:f8f9', '2606:4700::6810:f9f9'],
+  'dot.pub': ['1.12.12.12', '120.53.53.53'],
+  'dns.google': ['8.8.8.8', '8.8.4.4', '2001:4860:4860::8888', '2001:4860:4860::8844'],
+  'dns.quad9.net': ['9.9.9.9', '149.112.112.112', '2620:fe::fe', '2620:fe::9'],
+  'common.dot.dns.yandex.net': ['77.88.8.8', '77.88.8.1', '2a02:6b8::feed:0ff', '2a02:6b8:0:1::feed:0ff']
+};
 
 function isSupportedProtocol(protocol: string): boolean {
   return SUPPORTED_PROTOCOLS.indexOf(protocol.toLowerCase()) >= 0;
@@ -1329,6 +1340,8 @@ function applyDnsHosts(dns: XrayDnsConfig, settings: AppSettings): void {
     hosts[blockDomains[index]] = DNS_BLOCK_HOST;
   }
 
+  applyDefaultDnsHosts(hosts);
+
   const parsedHosts = settings.dnsHosts.trim().length > 0 ? parseDnsHostsValue(settings.dnsHosts) : undefined;
   if (parsedHosts !== undefined) {
     const userKeys = Object.keys(parsedHosts.hosts);
@@ -1343,6 +1356,14 @@ function applyDnsHosts(dns: XrayDnsConfig, settings: AppSettings): void {
   }
   if (parsedHosts !== undefined) {
     dns.hosts = parsedHosts.value;
+  }
+}
+
+function applyDefaultDnsHosts(hosts: Record<string, string | Array<string>>): void {
+  const keys = Object.keys(DEFAULT_DNS_HOSTS);
+  for (let index = 0; index < keys.length; index++) {
+    const value = DEFAULT_DNS_HOSTS[keys[index]];
+    hosts[keys[index]] = Array.isArray(value) ? value.slice() : value;
   }
 }
 

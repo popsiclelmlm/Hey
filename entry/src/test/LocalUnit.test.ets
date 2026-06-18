@@ -536,6 +536,25 @@ export default function localUnitTest() {
       expect(result.configJson).assertContain('"outboundTag": "direct"');
     });
 
+    it('adds v2rayng default dns hosts before user hosts', 0, () => {
+      const settings = buildSettingsFixture();
+      settings.dnsHosts = 'dns.google:8.8.4.4';
+
+      const result = buildXrayConfigWithSettings(VLESS_REALITY_OUTBOUND, settings);
+      const config = JSON.parse(result.configJson) as Record<string, Object>;
+      const dns = config.dns as Record<string, Object>;
+      const hosts = dns.hosts as Record<string, Object>;
+      const aliDns = hosts['dns.alidns.com'] as Array<string>;
+      const cloudflareDns = hosts['one.one.one.one'] as Array<string>;
+
+      expect(hosts['domain:googleapis.cn'] as string).assertEqual('googleapis.com');
+      expect(aliDns[0]).assertEqual('223.5.5.5');
+      expect(aliDns[3]).assertEqual('2400:3200:baba::1');
+      expect(cloudflareDns[0]).assertEqual('1.1.1.1');
+      expect(cloudflareDns[2]).assertEqual('2606:4700:4700::1111');
+      expect(hosts['dns.google'] as string).assertEqual('8.8.4.4');
+    });
+
     it('applies outbound domain pre-resolve settings to generated xray config', 0, () => {
       const settings = buildSettingsFixture();
       settings.dnsHosts = 'example.com:203.0.113.8';

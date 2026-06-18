@@ -273,7 +273,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 - ✅ WireGuard `.conf` 文件整段解析（2026-06-18 已完成：`[Interface]`/`[Peer]` 文本或文件导入转为 Xray wireguard outbound）
 - ✅ WireGuard/Hysteria2 手动编辑器：NodeEdit 已生成可校验 outbound，WG 支持 secret/public/pre-shared/reserved/MTU/IPv6 endpoint，HY2 支持 SNI/ALPN/insecure/obfs/mport/bandwidth（2026-06-18）
 - ✅ SOCKS 端口/UDP/认证/动态端口：Settings 已可配置本地 SOCKS inbound，写入 `socks-in` 端口、UDP 与用户名/密码认证，并随代理共享监听 LAN；动态端口开启时连接前通过 `CGoGetFreePorts` 选择运行端口，失败回退用户设置端口（2026-06-18）
-- ✅ 本地 DNS / FakeDNS 已生成 Xray `dns-out`、FakeDNS server 和 TUN 53 端口路由；remote/domestic DNS 已按 v2rayNG 规则生成 proxy/direct domain-bound servers、CN `expectIPs`、DNS 专用 proxy/direct 路由和 block hosts（2026-06-19）
+- ✅ 本地 DNS / FakeDNS 已生成 Xray `dns-out`、FakeDNS server 和 TUN 53 端口路由；remote/domestic DNS 已按 v2rayNG 规则生成 proxy/direct domain-bound servers、CN `expectIPs`、DNS 专用 proxy/direct 路由、block hosts 和内置 googleapis/Private DNS 默认 hosts（2026-06-19）
 
 ---
 
@@ -380,6 +380,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-18 | M4 | ✅ 出站域名预解析方式设置完成（Settings 保存 v2rayNG `pref_outbound_domain_resolve_method=0/1/2`，静态 DNS hosts 命中时可为 outbound 写入 `UseIP`/`happyEyeballs` 或直接替换服务器域名；补配置生成与 Settings 往返单测） |
 | 2026-06-18 | M4 | ✅ 启动前 live DNS 预解析完成（连接启动前用 Harmony `connection.getAddressesByName` 解析 outbound 域名，合并到运行时 DNS hosts，不改持久化设置；普通节点、代理链、策略组均覆盖） |
 | 2026-06-19 | M4 | ✅ DNS 分流配置增强完成（remote/domestic DNS 按自定义 proxy/direct/block 规则生成 domain-bound servers、CN `expectIPs`、DNS 模块 proxy/direct 路由、block hosts 与多上游 parallel query；补配置生成单测） |
+| 2026-06-19 | M4 | ✅ DNS 默认 hosts 完成（内置 v2rayNG `googleapis.cn` 与 Android Private DNS 域名地址映射，用户 `dnsHosts` 后写覆盖默认值；补配置生成单测） |
 | 2026-06-18 | M4 | ✅ 真连接延迟测试并发设置完成（`realPingConcurrency` 按 v2rayNG 默认 16 与 1..128 范围保存，首页批量测速按配置并发测量、串行保存结果，并补 Settings 往返/归一化单测） |
 | 2026-06-18 | M4 | ✅ 删除配置确认设置完成（`confirmRemove` 默认关闭，Settings 开关保存后控制单节点删除和订阅分组删除确认弹窗，并补 Settings 往返单测） |
 | 2026-06-18 | M4 | ✅ 立即启动扫码设置完成（`startScanImmediate` 默认关闭，Settings 开关保存后控制 Scanner 页是否自动拉起 ScanKit，并修正此前无条件自动扫码行为） |

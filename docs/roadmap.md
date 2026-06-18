@@ -12,7 +12,7 @@
 | 原生 TUN 数据通路 | ✅ 93% | 代码就位且**真机闭环验证通过（2026-06-15）**——TUN→Xray→出站→可上网；`ipv6Enabled` 控制 IPv6 地址/路由，`preferIpv6` 控制 outbound Happy Eyeballs，待真机回归 |
 | 分享链接解析 | ✅ 91% | vless/vmess/trojan/ss/socks/http/wireguard/hy2 已覆盖，Reality `spx`/`pqv` 已按 v2rayNG 映射为 `spiderX`/`mldsa65Verify` 并可导入导出，WireGuard `.conf` 整段导入已支持；导入失败后可走 native 转换兜底支持 v2rayN 多行/base64 与 Clash.Meta YAML（待重建 `.so` 真机验证）；TUIC 在 v2rayNG 当前枚举中未启用且 Xray-core 官方配置不支持，暂不列为运行目标 |
 | 订阅管理 | 🟡 95% | 多分组 + 旧版迁移 + 编辑/重排/批量更新全部 + 订阅级不安全 URL 开关 + 当前分组删除全部 + 自动更新设置/前台到期刷新 + 本地 HTTP 代理经由更新 + WorkScheduler 后台调度接线；待真机触发回归 |
-| Xray 配置生成 | 🟡 88% | 普通节点生成 TUN/DNS/routing/HTTP 代理和本地 SOCKS 配置，速度显示开启时才生成 metrics/stats/policy；DNS hosts 支持 v2rayNG `domain:address,...` 格式写入 `dns.hosts`，remote/domestic DNS 会按自定义 proxy/direct/block 规则生成 `domains`、`expectIPs`、DNS 专用路由和 block hosts，出站域名预解析方式 `0/1/2` 已持久化，并会在启动前用 Harmony 系统 DNS 补齐 live 解析结果，再按模式写入 DNS hosts/UseIP 或替换 outbound 域名；HTTP/SOCKS 代理支持局域网共享监听，SOCKS 支持启动前动态端口；完整自定义 Xray config 可校验后原样运行；代理链和策略组 JSON 可生成多跳/负载均衡 outbounds，添加节点页可从已有普通节点创建代理链/策略组，策略组支持按订阅分组与节点名正则动态成员，路由规则可选择当前高级出站目标 |
+| Xray 配置生成 | 🟡 89% | 普通节点生成 TUN/DNS/routing/HTTP 代理和本地 SOCKS 配置，速度显示开启时才生成 metrics/stats/policy；DNS hosts 支持 v2rayNG `domain:address,...` 格式写入 `dns.hosts`，并内置 v2rayNG `googleapis.cn` 与 Android Private DNS 默认 hosts，用户 hosts 可覆盖默认值；remote/domestic DNS 会按自定义 proxy/direct/block 规则生成 `domains`、`expectIPs`、DNS 专用路由和 block hosts，出站域名预解析方式 `0/1/2` 已持久化，并会在启动前用 Harmony 系统 DNS 补齐 live 解析结果，再按模式写入 DNS hosts/UseIP 或替换 outbound 域名；HTTP/SOCKS 代理支持局域网共享监听，SOCKS 支持启动前动态端口；完整自定义 Xray config 可校验后原样运行；代理链和策略组 JSON 可生成多跳/负载均衡 outbounds，添加节点页可从已有普通节点创建代理链/策略组，策略组支持按订阅分组与节点名正则动态成员，路由规则可选择当前高级出站目标 |
 | 节点延迟测速 / 排序 | ✅ 84% | `CGoPing` 真测速 + 排序，测速 SOCKS inbound 优先使用 `CGoGetFreePorts` 动态端口；批量测速并发数已按 v2rayNG 设置接线；需真机验证 |
 | 路由设置页 | ✅ 82% | 广告拦截、自定义规则、预设规则集导入/导出均已生效；自定义规则可选择当前高级出站目标；真机规则回归待补 |
 | Geo 资产管理 | ✅ 93% | 下载 / 自定义 URL / 剪贴板备份还原 / WebDAV ZIP 云备份还原已实现，恢复兼容旧 JSON 包；Geo 文件 native 计数/校验已接线，待重建 `.so` 真机验证 |
@@ -138,6 +138,7 @@
 | 2026-06-18 | 阶段 4 | ✅ 出站域名预解析方式设置完成；Settings 保存 v2rayNG `pref_outbound_domain_resolve_method=0/1/2`，静态 DNS hosts 命中时可为 outbound 写入 `UseIP`/`happyEyeballs` 或直接替换服务器域名 |
 | 2026-06-18 | 阶段 4 | ✅ 启动前 live DNS 预解析完成；普通节点、代理链和策略组在连接前通过 Harmony 系统 DNS 解析 outbound 域名，并把结果合并到运行时 DNS hosts 后按 `0/1/2` 模式生成配置 |
 | 2026-06-19 | 阶段 4 | ✅ DNS 分流配置增强完成；remote/domestic DNS 按自定义路由规则生成 domain-bound servers、CN `expectIPs`、DNS 模块 proxy/direct 路由和 block hosts |
+| 2026-06-19 | 阶段 4 | ✅ DNS 默认 hosts 完成；生成配置内置 v2rayNG `googleapis.cn` 与 Android Private DNS 域名地址映射，用户 DNS hosts 后写覆盖 |
 | 2026-06-18 | 阶段 4 | ✅ 真连接延迟测试并发设置完成；Settings 保存 `realPingConcurrency`（默认 16、范围 1..128），首页批量测速按配置分批并发执行并串行保存结果 |
 | 2026-06-18 | 阶段 4 | ✅ 删除配置确认设置完成；Settings 保存 `confirmRemove`（默认关闭），开启后单节点删除与订阅分组删除会弹二次确认 |
 | 2026-06-18 | 阶段 4 | ✅ 立即启动扫码设置完成；Settings 保存 `startScanImmediate`（默认关闭），开启后进入 Scanner 页自动拉起 ScanKit 相机扫码 |
