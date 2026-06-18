@@ -4,8 +4,10 @@ import { DEFAULT_LANGUAGE, normalizeLanguage } from '../core/I18n';
 import {
   AppLanguage,
   AppSettings,
+  DEFAULT_VPN_BYPASS_LAN,
   DEFAULT_VPN_INTERFACE_ADDRESS_INDEX,
   DEFAULT_VPN_MTU,
+  normalizeVpnBypassLanMode,
   normalizeVpnInterfaceAddressIndex,
   normalizeVpnMtuValue,
   RoutingRule
@@ -37,6 +39,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   allowInsecure: false,
   localDnsPort: 10853,
   vpnInterfaceAddressIndex: DEFAULT_VPN_INTERFACE_ADDRESS_INDEX,
+  vpnBypassLan: DEFAULT_VPN_BYPASS_LAN,
   vpnMtu: DEFAULT_VPN_MTU,
   vpnDns: '1.1.1.1',
   remoteDns: '1.1.1.1',
@@ -108,6 +111,7 @@ export class SettingsStore {
       allowInsecure: SettingsStore.boolValue(raw.allowInsecure, base.allowInsecure),
       localDnsPort: SettingsStore.portValue(raw.localDnsPort, base.localDnsPort),
       vpnInterfaceAddressIndex: normalizeVpnInterfaceAddressIndex(raw.vpnInterfaceAddressIndex, base.vpnInterfaceAddressIndex),
+      vpnBypassLan: normalizeVpnBypassLanMode(raw.vpnBypassLan, base.vpnBypassLan),
       vpnMtu: normalizeVpnMtuValue(raw.vpnMtu, base.vpnMtu),
       vpnDns: SettingsStore.stringValue(raw.vpnDns, base.vpnDns),
       remoteDns: SettingsStore.stringValue(raw.remoteDns, base.remoteDns),

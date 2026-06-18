@@ -100,6 +100,10 @@ export const VPN_INTERFACE_ADDRESS_CONFIGS: Array<VpnInterfaceAddressConfig> = [
 ];
 
 export const DEFAULT_VPN_INTERFACE_ADDRESS_INDEX: number = 0;
+export const VPN_BYPASS_LAN_FOLLOW_CONFIG: string = '0';
+export const VPN_BYPASS_LAN_BYPASS: string = '1';
+export const VPN_BYPASS_LAN_PROXY: string = '2';
+export const DEFAULT_VPN_BYPASS_LAN: string = VPN_BYPASS_LAN_BYPASS;
 export const DEFAULT_VPN_MTU: number = 1400;
 export const MIN_VPN_MTU: number = 1280;
 export const MAX_VPN_MTU: number = 9000;
@@ -118,6 +122,13 @@ export function normalizeVpnInterfaceAddressIndex(value: number | undefined, fal
 
 export function resolveVpnInterfaceAddressConfig(index?: number): VpnInterfaceAddressConfig {
   return VPN_INTERFACE_ADDRESS_CONFIGS[normalizeVpnInterfaceAddressIndex(index)];
+}
+
+export function normalizeVpnBypassLanMode(value: string | undefined, fallback: string = DEFAULT_VPN_BYPASS_LAN): string {
+  if (value === VPN_BYPASS_LAN_FOLLOW_CONFIG || value === VPN_BYPASS_LAN_BYPASS || value === VPN_BYPASS_LAN_PROXY) {
+    return value;
+  }
+  return fallback === VPN_BYPASS_LAN_FOLLOW_CONFIG || fallback === VPN_BYPASS_LAN_PROXY ? fallback : DEFAULT_VPN_BYPASS_LAN;
 }
 
 export function normalizeVpnMtuValue(value: number | undefined, fallback: number = DEFAULT_VPN_MTU): number {
@@ -157,6 +168,7 @@ export interface AppSettings {
   allowInsecure: boolean;
   localDnsPort: number;
   vpnInterfaceAddressIndex: number;
+  vpnBypassLan: string;
   vpnMtu: number;
   vpnDns: string;
   remoteDns: string;

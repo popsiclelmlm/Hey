@@ -57,7 +57,7 @@
 
 ### 3.3 绕过局域网（`SettingsManager.kt:182-206`）
 
-`routingRulesetsBypassLan()`：查 direct 规则是否含 `geosite:private`/`geoip:private`；`PREF_VPN_BYPASS_LAN`："1" 自动 / "2" 始终代理 LAN / 其他 旁路。
+`routingRulesetsBypassLan()`：查 direct 规则是否含 `geosite:private`/`geoip:private`；`PREF_VPN_BYPASS_LAN`："0" 跟随配置 / "1" 绕过 LAN / "2" 不绕过 LAN。
 
 ### 3.4 负载均衡（`enums/BalancerStrategyType.kt`）
 

@@ -1,6 +1,15 @@
 import { vpnExtension } from '@kit.NetworkKit';
 import Want from '@ohos.app.ability.Want';
-import { DEFAULT_VPN_MTU, normalizeVpnMtuValue, resolveVpnInterfaceAddressConfig } from '../core/Profile';
+import {
+  DEFAULT_VPN_MTU,
+  normalizeVpnBypassLanMode,
+  normalizeVpnMtuValue,
+  resolveVpnInterfaceAddressConfig,
+  RoutingRule,
+  VPN_BYPASS_LAN_BYPASS,
+  VPN_BYPASS_LAN_FOLLOW_CONFIG,
+  VPN_BYPASS_LAN_PROXY
+} from '../core/Profile';
 
 export const BUNDLE_NAME: string = 'com.lmlm.hey';
 export const VPN_ABILITY_NAME: string = 'HeyVpnAbility';
@@ -11,6 +20,39 @@ export const TUN_IPV4: string = resolveVpnInterfaceAddressConfig().ipv4Client;
 export const TUN_IPV6: string = resolveVpnInterfaceAddressConfig().ipv6Client;
 export const VPN_INTERFACE_NAME: string = 'vpn-tun';
 export const DEFAULT_VPN_DNS_ADDRESSES: string[] = ['1.1.1.1', '8.8.8.8'];
+export const VPN_BYPASS_LAN_IPV4_ROUTES: string[] = [
+  '0.0.0.0/5',
+  '8.0.0.0/7',
+  '11.0.0.0/8',
+  '12.0.0.0/6',
+  '16.0.0.0/4',
+  '32.0.0.0/3',
+  '64.0.0.0/2',
+  '128.0.0.0/3',
+  '160.0.0.0/5',
+  '168.0.0.0/6',
+  '172.0.0.0/12',
+  '172.32.0.0/11',
+  '172.64.0.0/10',
+  '172.128.0.0/9',
+  '173.0.0.0/8',
+  '174.0.0.0/7',
+  '176.0.0.0/4',
+  '192.0.0.0/9',
+  '192.128.0.0/11',
+  '192.160.0.0/13',
+  '192.169.0.0/16',
+  '192.170.0.0/15',
+  '192.172.0.0/14',
+  '192.176.0.0/12',
+  '192.192.0.0/10',
+  '193.0.0.0/8',
+  '194.0.0.0/7',
+  '196.0.0.0/6',
+  '200.0.0.0/5',
+  '208.0.0.0/4',
+  '240.0.0.0/4'
+];
 const ADDRESS_FAMILY_IPV4: number = 1;
 const ADDRESS_FAMILY_IPV6: number = 2;
 
@@ -51,11 +93,15 @@ export function createDefaultVpnConfig(
   vpnDns?: string,
   preferIpv6?: boolean,
   vpnMtu?: number,
-  vpnInterfaceAddressIndex?: number
+  vpnInterfaceAddressIndex?: number,
+  vpnBypassLan?: string,
+  routingRules?: Array<RoutingRule>,
+  routeOnlyBypassesPrivate?: boolean
 ): vpnExtension.VpnConfig {
   const selfBundle = BUNDLE_NAME;
   const ipv6Enabled = preferIpv6 === true;
   const addressConfig = resolveVpnInterfaceAddressConfig(vpnInterfaceAddressIndex);
+  const bypassLan = resolveVpnBypassLan(vpnBypassLan, routingRules, routeOnlyBypassesPrivate);
   let blockedApps: string[] = [];
   let trustedApps: string[] = [];
 
@@ -81,25 +127,7 @@ export function createDefaultVpnConfig(
       prefixLength: 30
     }
   ];
-  const routes: Array<vpnExtension.RouteInfo> = [
-    {
-      interface: VPN_INTERFACE_NAME,
-      destination: {
-        address: {
-          address: '0.0.0.0',
-          family: ADDRESS_FAMILY_IPV4
-        },
-        prefixLength: 0
-      },
-      gateway: {
-        address: '0.0.0.0',
-        family: ADDRESS_FAMILY_IPV4,
-        port: 0
-      },
-      hasGateway: false,
-      isDefaultRoute: true
-    }
-  ];
+  const routes = buildVpnRoutes(bypassLan, ipv6Enabled);
 
   if (ipv6Enabled) {
     addresses.push({
@@ -108,23 +136,6 @@ export function createDefaultVpnConfig(
         family: ADDRESS_FAMILY_IPV6
       },
       prefixLength: 126
-    });
-    routes.push({
-      interface: VPN_INTERFACE_NAME,
-      destination: {
-        address: {
-          address: '::',
-          family: ADDRESS_FAMILY_IPV6
-        },
-        prefixLength: 0
-      },
-      gateway: {
-        address: '::',
-        family: ADDRESS_FAMILY_IPV6,
-        port: 0
-      },
-      hasGateway: false,
-      isDefaultRoute: true
     });
   }
 
@@ -151,6 +162,24 @@ export function normalizeVpnMtu(vpnMtu?: number): number {
   return normalizeVpnMtuValue(vpnMtu, VPN_MTU);
 }
 
+export function resolveVpnBypassLan(
+  vpnBypassLan?: string,
+  routingRules?: Array<RoutingRule>,
+  routeOnlyBypassesPrivate?: boolean
+): boolean {
+  const mode = normalizeVpnBypassLanMode(vpnBypassLan);
+  if (mode === VPN_BYPASS_LAN_BYPASS) {
+    return true;
+  }
+  if (mode === VPN_BYPASS_LAN_PROXY) {
+    return false;
+  }
+  if (mode === VPN_BYPASS_LAN_FOLLOW_CONFIG && routeOnlyBypassesPrivate === true) {
+    return true;
+  }
+  return hasDirectPrivateRoutingRule(routingRules);
+}
+
 export function normalizeVpnDnsAddresses(vpnDns?: string): string[] {
   if (vpnDns === undefined || vpnDns.trim().length === 0) {
     return DEFAULT_VPN_DNS_ADDRESSES.slice();
@@ -169,4 +198,62 @@ export function normalizeVpnDnsAddresses(vpnDns?: string): string[] {
     return DEFAULT_VPN_DNS_ADDRESSES.slice();
   }
   return result;
+}
+
+function buildVpnRoutes(bypassLan: boolean, ipv6Enabled: boolean): Array<vpnExtension.RouteInfo> {
+  const routes = new Array<vpnExtension.RouteInfo>();
+  if (bypassLan) {
+    for (let index = 0; index < VPN_BYPASS_LAN_IPV4_ROUTES.length; index++) {
+      const parts = VPN_BYPASS_LAN_IPV4_ROUTES[index].split('/');
+      routes.push(createVpnRoute(parts[0], Number(parts[1]), ADDRESS_FAMILY_IPV4));
+    }
+    if (ipv6Enabled) {
+      routes.push(createVpnRoute('2000::', 3, ADDRESS_FAMILY_IPV6));
+      routes.push(createVpnRoute('fc00::', 18, ADDRESS_FAMILY_IPV6));
+    }
+    return routes;
+  }
+
+  routes.push(createVpnRoute('0.0.0.0', 0, ADDRESS_FAMILY_IPV4));
+  if (ipv6Enabled) {
+    routes.push(createVpnRoute('::', 0, ADDRESS_FAMILY_IPV6));
+  }
+  return routes;
+}
+
+function createVpnRoute(address: string, prefixLength: number, family: number): vpnExtension.RouteInfo {
+  const gatewayAddress = family === ADDRESS_FAMILY_IPV6 ? '::' : '0.0.0.0';
+  return {
+    interface: VPN_INTERFACE_NAME,
+    destination: {
+      address: {
+        address,
+        family
+      },
+      prefixLength
+    },
+    gateway: {
+      address: gatewayAddress,
+      family,
+      port: 0
+    },
+    hasGateway: false,
+    isDefaultRoute: prefixLength === 0
+  };
+}
+
+function hasDirectPrivateRoutingRule(routingRules?: Array<RoutingRule>): boolean {
+  if (routingRules === undefined) {
+    return false;
+  }
+  for (let index = 0; index < routingRules.length; index++) {
+    const rule = routingRules[index];
+    if (!rule.enabled || rule.outboundTag !== 'direct') {
+      continue;
+    }
+    if (rule.ip.indexOf('geoip:private') >= 0 || rule.domain.indexOf('geosite:private') >= 0) {
+      return true;
+    }
+  }
+  return false;
 }

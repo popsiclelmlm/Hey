@@ -8,7 +8,9 @@ import {
   createVpnWant,
   normalizeVpnDnsAddresses,
   normalizeVpnMtu,
+  resolveVpnBypassLan,
   VPN_ABILITY_NAME,
+  VPN_BYPASS_LAN_IPV4_ROUTES,
   VPN_COMMAND_KEY,
   VPN_COMMAND_STOP,
   VPN_MTU
@@ -70,12 +72,50 @@ export default function abilityTest() {
       expect(fallback.addresses[0].address.address).assertEqual('10.10.14.1');
     });
 
+    it('applies vpn bypass lan routes', 0, () => {
+      const bypassConfig = createDefaultVpnConfig(false, true, [], '1.1.1.1', true, 1420, 0, '1');
+      const bypassRoutes = bypassConfig.routes === undefined ? [] : bypassConfig.routes;
+      expect(bypassRoutes.length).assertEqual(VPN_BYPASS_LAN_IPV4_ROUTES.length + 2);
+      expect(bypassRoutes[0].destination.address.address).assertEqual('0.0.0.0');
+      expect(bypassRoutes[0].destination.prefixLength).assertEqual(5);
+      expect(bypassRoutes[bypassRoutes.length - 2].destination.address.address).assertEqual('2000::');
+      expect(bypassRoutes[bypassRoutes.length - 2].destination.prefixLength).assertEqual(3);
+      expect(bypassRoutes[bypassRoutes.length - 1].destination.address.address).assertEqual('fc00::');
+      expect(bypassRoutes[bypassRoutes.length - 1].destination.prefixLength).assertEqual(18);
+
+      const proxyConfig = createDefaultVpnConfig(false, true, [], '1.1.1.1', true, 1420, 0, '2');
+      const proxyRoutes = proxyConfig.routes === undefined ? [] : proxyConfig.routes;
+      expect(proxyRoutes.length).assertEqual(2);
+      expect(proxyRoutes[0].destination.address.address).assertEqual('0.0.0.0');
+      expect(proxyRoutes[0].destination.prefixLength).assertEqual(0);
+      expect(proxyRoutes[1].destination.address.address).assertEqual('::');
+      expect(proxyRoutes[1].destination.prefixLength).assertEqual(0);
+    });
+
+    it('follows direct private routing rule for auto vpn bypass lan', 0, () => {
+      expect(resolveVpnBypassLan('0', [])).assertFalse();
+      expect(resolveVpnBypassLan('0', [], true)).assertTrue();
+      expect(resolveVpnBypassLan('0', [{
+        id: 'private',
+        remarks: 'Private direct',
+        domain: ['geosite:private'],
+        ip: ['geoip:private'],
+        process: [],
+        outboundTag: 'direct',
+        port: '',
+        network: '',
+        protocol: [],
+        enabled: true,
+        locked: false
+      }])).assertTrue();
+    });
+
     it('adds ipv6 interface address and route when enabled', 0, () => {
-      const ipv4Only = createDefaultVpnConfig(false, true, [], '1.1.1.1', false);
+      const ipv4Only = createDefaultVpnConfig(false, true, [], '1.1.1.1', false, 1400, 0, '2');
       expect(ipv4Only.isIPv6Accepted).assertFalse();
       expect(ipv4Only.addresses.length).assertEqual(1);
 
-      const ipv6Config = createDefaultVpnConfig(false, true, [], '1.1.1.1', true);
+      const ipv6Config = createDefaultVpnConfig(false, true, [], '1.1.1.1', true, 1400, 0, '2');
       const routes = ipv6Config.routes === undefined ? [] : ipv6Config.routes;
       expect(ipv6Config.isIPv6Accepted).assertTrue();
       expect(ipv6Config.addresses.length).assertEqual(2);

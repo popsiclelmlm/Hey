@@ -2,7 +2,15 @@ import { common } from '@kit.AbilityKit';
 import { promptAction } from '@kit.ArkUI';
 import { SectionHeader } from '../components/SectionHeader';
 import { DEFAULT_LANGUAGE, translate } from '../core/I18n';
-import { AppLanguage, resolveVpnInterfaceAddressConfig, RoutingRule, VPN_INTERFACE_ADDRESS_CONFIGS } from '../core/Profile';
+import {
+  AppLanguage,
+  resolveVpnInterfaceAddressConfig,
+  RoutingRule,
+  VPN_BYPASS_LAN_BYPASS,
+  VPN_BYPASS_LAN_FOLLOW_CONFIG,
+  VPN_BYPASS_LAN_PROXY,
+  VPN_INTERFACE_ADDRESS_CONFIGS
+} from '../core/Profile';
 import {
   LanguageToggleRow,
   SettingInputRow,
@@ -33,6 +41,7 @@ struct SettingsPage {
   @State private settingDomesticDns: string = '223.5.5.5';
   @State private settingVpnDns: string = '1.1.1.1';
   @State private settingVpnInterfaceAddressIndex: number = 0;
+  @State private settingVpnBypassLan: string = VPN_BYPASS_LAN_BYPASS;
   @State private settingVpnMtu: string = '1400';
   @State private settingLogLevel: string = 'warning';
   @State private settingDelayTestUrl: string = 'https://www.gstatic.com/generate_204';
@@ -102,7 +111,9 @@ struct SettingsPage {
             this.RowDivider()
             this.SettingToggle(this.t('settings.preferIpv6'), this.settingPreferIpv6, 'preferIpv6')
             this.RowDivider()
-            this.SettingOption(this.t('settings.vpnInterfaceAddress'), this.vpnInterfaceAddressLabel())
+            this.SettingOption(this.t('settings.vpnBypassLan'), this.vpnBypassLanLabel(), 'vpnBypassLan')
+            this.RowDivider()
+            this.SettingOption(this.t('settings.vpnInterfaceAddress'), this.vpnInterfaceAddressLabel(), 'vpnInterfaceAddress')
             this.RowDivider()
             this.SettingInput(this.t('settings.vpnDns'), this.settingVpnDns, 'vpnDns')
             this.RowDivider()
@@ -241,7 +252,7 @@ struct SettingsPage {
   }
 
   @Builder
-  private SettingOption(title: string, value: string) {
+  private SettingOption(title: string, value: string, action: string) {
     Row({ space: Space.md }) {
       Text(title)
         .fontSize(FontSz.callout)
@@ -262,7 +273,7 @@ struct SettingsPage {
     .padding({ left: Space.lg, right: Space.lg })
     .backgroundColor(AppColor.surface)
     .onClick(() => {
-      this.showVpnInterfaceAddressMenu();
+      this.showSettingOptionMenu(action);
     })
   }
 
@@ -392,6 +403,7 @@ struct SettingsPage {
       remoteDns: this.settingRemoteDns,
       domesticDns: this.settingDomesticDns,
       vpnInterfaceAddressIndex: this.settingVpnInterfaceAddressIndex,
+      vpnBypassLan: this.settingVpnBypassLan,
       vpnMtu: this.settingVpnMtu,
       vpnDns: this.settingVpnDns,
       logLevel: this.settingLogLevel,
@@ -423,6 +435,7 @@ struct SettingsPage {
     this.settingRemoteDns = draft.remoteDns;
     this.settingDomesticDns = draft.domesticDns;
     this.settingVpnInterfaceAddressIndex = draft.vpnInterfaceAddressIndex;
+    this.settingVpnBypassLan = draft.vpnBypassLan;
     this.settingVpnMtu = draft.vpnMtu;
     this.settingVpnDns = draft.vpnDns;
     this.settingLogLevel = draft.logLevel;
@@ -456,6 +469,36 @@ struct SettingsPage {
     return result;
   }
 
+  private showSettingOptionMenu(action: string): void {
+    if (action === 'vpnBypassLan') {
+      this.showVpnBypassLanMenu();
+      return;
+    }
+    if (action === 'vpnInterfaceAddress') {
+      this.showVpnInterfaceAddressMenu();
+    }
+  }
+
+  private showVpnBypassLanMenu(): void {
+    const values: string[] = [VPN_BYPASS_LAN_FOLLOW_CONFIG, VPN_BYPASS_LAN_BYPASS, VPN_BYPASS_LAN_PROXY];
+    const buttons: [promptAction.Button, promptAction.Button, promptAction.Button] = [
+      { text: this.t('settings.vpnBypassLan.followConfig'), color: AppColor.brand } as promptAction.Button,
+      { text: this.t('settings.vpnBypassLan.bypass'), color: AppColor.brand } as promptAction.Button,
+      { text: this.t('settings.vpnBypassLan.proxy'), color: AppColor.brand } as promptAction.Button
+    ];
+
+    promptAction.showActionMenu({
+      title: this.t('settings.vpnBypassLan'),
+      buttons
+    }).then((result) => {
+      if (result.index >= 0 && result.index < values.length) {
+        this.settingVpnBypassLan = values[result.index];
+        SHARED_RUNTIME_CONTROLLER.appendLog(this.f1('log.settingsChanged', 'action', this.t('settings.vpnBypassLan')));
+        this.persistSettings(false);
+      }
+    });
+  }
+
   private showVpnInterfaceAddressMenu(): void {
     const buttons = new Array<promptAction.Button>();
     for (let index = 0; index < VPN_INTERFACE_ADDRESS_CONFIGS.length; index++) {
@@ -475,6 +518,16 @@ struct SettingsPage {
 
   private vpnInterfaceAddressLabel(): string {
     return resolveVpnInterfaceAddressConfig(this.settingVpnInterfaceAddressIndex).displayName;
+  }
+
+  private vpnBypassLanLabel(): string {
+    if (this.settingVpnBypassLan === VPN_BYPASS_LAN_FOLLOW_CONFIG) {
+      return this.t('settings.vpnBypassLan.followConfig');
+    }
+    if (this.settingVpnBypassLan === VPN_BYPASS_LAN_PROXY) {
+      return this.t('settings.vpnBypassLan.proxy');
+    }
+    return this.t('settings.vpnBypassLan.bypass');
   }
 
   private t(key: string): string {

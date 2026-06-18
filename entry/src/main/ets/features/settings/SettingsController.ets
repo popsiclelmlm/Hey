@@ -1,5 +1,5 @@
 import { common } from '@kit.AbilityKit';
-import { AppLanguage, AppSettings, normalizeVpnInterfaceAddressIndex, normalizeVpnMtuValue, RoutingRule } from '../../core/Profile';
+import { AppLanguage, AppSettings, normalizeVpnBypassLanMode, normalizeVpnInterfaceAddressIndex, normalizeVpnMtuValue, RoutingRule } from '../../core/Profile';
 import { DEFAULT_APP_SETTINGS, SettingsStore } from '../../storage/SettingsStore';
 
 export interface SettingsDraft {
@@ -20,6 +20,7 @@ export interface SettingsDraft {
   remoteDns: string;
   domesticDns: string;
   vpnInterfaceAddressIndex: number;
+  vpnBypassLan: string;
   vpnMtu: string;
   vpnDns: string;
   logLevel: string;
@@ -60,6 +61,7 @@ export class SettingsController {
       remoteDns: settings.remoteDns,
       domesticDns: settings.domesticDns,
       vpnInterfaceAddressIndex: settings.vpnInterfaceAddressIndex,
+      vpnBypassLan: settings.vpnBypassLan,
       vpnMtu: settings.vpnMtu.toString(),
       vpnDns: settings.vpnDns,
       logLevel: settings.logLevel,
@@ -97,6 +99,7 @@ export class SettingsController {
       allowInsecure: draft.allowInsecure,
       localDnsPort: DEFAULT_APP_SETTINGS.localDnsPort,
       vpnInterfaceAddressIndex: normalizeVpnInterfaceAddressIndex(draft.vpnInterfaceAddressIndex, DEFAULT_APP_SETTINGS.vpnInterfaceAddressIndex),
+      vpnBypassLan: normalizeVpnBypassLanMode(draft.vpnBypassLan, DEFAULT_APP_SETTINGS.vpnBypassLan),
       vpnMtu: this.vpnMtuValue(draft.vpnMtu, DEFAULT_APP_SETTINGS.vpnMtu),
       vpnDns: draft.vpnDns.trim(),
       remoteDns: draft.remoteDns.trim(),

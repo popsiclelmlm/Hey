@@ -93,10 +93,13 @@ export default class HeyVpnAbility extends VpnExtensionAbility {
         settings.vpnDns,
         settings.preferIpv6,
         vpnMtu,
-        settings.vpnInterfaceAddressIndex
+        settings.vpnInterfaceAddressIndex,
+        settings.vpnBypassLan,
+        settings.routingRules,
+        settings.trafficMode === 'rules' && settings.routeOnlyEnabled
       );
       this.tunFd = await this.vpnConnection.create(vpnConfig);
-      this.emitInfo('VPN created.', `tunFd=${this.tunFd}, dns=${dnsAddresses.join(',')}, ipv6=${settings.preferIpv6}, mtu=${vpnMtu}, address=${addressConfig.displayName}`);
+      this.emitInfo('VPN created.', `tunFd=${this.tunFd}, dns=${dnsAddresses.join(',')}, ipv6=${settings.preferIpv6}, mtu=${vpnMtu}, address=${addressConfig.displayName}, bypassLan=${settings.vpnBypassLan}`);
 
       const tunResult = setNativeTunFd(this.tunFd);
       if (!tunResult.ok) {
