@@ -290,6 +290,8 @@ interface FormTlsSettings {
   serverName?: string;
   alpn?: Array<string>;
   fingerprint?: string;
+  echConfigList?: string;
+  pinnedPeerCertSha256?: string;
   publicKey?: string;
   shortId?: string;
   spiderX?: string;
@@ -344,6 +346,8 @@ struct NodeEditPage {
   @State private tlsAlpn: string = '';
   @State private tlsAllowInsecure: boolean = false;
   @State private tlsFingerprint: string = 'none';
+  @State private tlsEchConfigList: string = '';
+  @State private tlsPinnedPeerCertSha256: string = '';
   
   // Reality 专属字段
   @State private realityPublicKey: string = '';
@@ -577,6 +581,12 @@ struct NodeEditPage {
                     this.EditorRow('ALPN (可选)', this.tlsAlpn, '多个 ALPN 以逗号连接，如 h2,http/1.1', (value: string) => {
                       this.tlsAlpn = value;
                     })
+                    this.EditorRow('ECH 配置 (ech)', this.tlsEchConfigList, 'ECH config list', (value: string) => {
+                      this.tlsEchConfigList = value;
+                    })
+                    this.EditorRow('证书钉住 SHA256 (pcs)', this.tlsPinnedPeerCertSha256, 'Pinned peer certificate SHA256', (value: string) => {
+                      this.tlsPinnedPeerCertSha256 = value;
+                    })
                     ToggleRow({
                       label: '允许不安全证书',
                       isOn: $tlsAllowInsecure
@@ -591,6 +601,12 @@ struct NodeEditPage {
                   else if (this.tlsSecurity === 'reality') {
                     this.EditorRow('Reality SNI', this.tlsSni, 'Reality 目标目标服务器域名', (value: string) => {
                       this.tlsSni = value;
+                    })
+                    this.EditorRow('ECH 配置 (ech)', this.tlsEchConfigList, 'ECH config list', (value: string) => {
+                      this.tlsEchConfigList = value;
+                    })
+                    this.EditorRow('证书钉住 SHA256 (pcs)', this.tlsPinnedPeerCertSha256, 'Pinned peer certificate SHA256', (value: string) => {
+                      this.tlsPinnedPeerCertSha256 = value;
                     })
                     this.EditorRow('Reality 公钥 (pbk)', this.realityPublicKey, 'Reality 密钥对的 PublicKey', (value: string) => {
                       this.realityPublicKey = value;
@@ -860,6 +876,12 @@ struct NodeEditPage {
             }
             if (this.tlsFingerprint.trim().length > 0 && this.tlsFingerprint.trim() !== 'none') {
               tlsConfig.fingerprint = this.tlsFingerprint.trim();
+            }
+            if (this.tlsEchConfigList.trim().length > 0) {
+              tlsConfig.echConfigList = this.tlsEchConfigList.trim();
+            }
+            if (this.tlsPinnedPeerCertSha256.trim().length > 0) {
+              tlsConfig.pinnedPeerCertSha256 = this.tlsPinnedPeerCertSha256.trim();
             }
 
             if (security === 'tls') {

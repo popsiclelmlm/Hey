@@ -365,6 +365,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-18 | M4 | ✅ 当前连接信息测试网址完成（`ipApiUrl` 默认 `https://api.ip.sb/geoip`；运行时经本地 HTTP 代理查询 IP API，解析 v2rayNG 兼容字段并追加当前连接日志；补 Settings 往返/解析单测） |
 | 2026-06-18 | 协议点检 | ✅ Reality `pqv`/`mldsa65Verify` 完成（分享链接导入/导出、Clash.Meta 订阅解析与 NodeEdit Reality 表单均保留 ML-DSA-65 验签公钥；补解析/导出单测） |
 | 2026-06-18 | 协议点检 | ✅ TLS/Reality `ech`/`pcs` 完成（分享链接导入/导出保留 ECH 配置与证书钉住 SHA256；TLS `insecure`、`allowInsecure`、`allow_insecure` 三种查询名统一解析；补解析/导出单测） |
+| 2026-06-18 | 协议点检 | ✅ TLS/Reality `ech`/`pcs` 手动编辑完成（NodeEdit TLS/Reality 表单新增 ECH config list 与 pinned peer certificate SHA256，保存时写入 `tlsSettings`/`realitySettings`） |
 | 2026-06-18 | M4 | ✅ 运行模式设置完成（`pref_mode` 保存 v2rayNG `VPN`/`Proxy only` 值；VPN 模式仍走 Harmony VPN Extension，Proxy-only 模式生成无 TUN 的本地 SOCKS 运行配置并直接调用 native Xray start/stop；补配置生成、动态端口和 Settings 往返单测） |
 | 2026-06-18 | M0 补点 | ✅ IPv6 启用与优先 IPv6 拆分完成（新增 `ipv6Enabled` 对齐 v2rayNG `pref_ipv6_enabled`，VPN IPv6 地址/路由和 WireGuard IPv6 local address 受其控制；`preferIpv6` 仅保留 outbound Happy Eyeballs 语义） |
 | 2026-06-18 | M5 | 🟡 代理链运行核心完成（`proxy-chain` configType + JSON 导入识别 + 多跳 outbounds `dialerProxy` 串联 + 单测）；真机组合场景待回归 |
