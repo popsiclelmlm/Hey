@@ -28,6 +28,11 @@ export const V2RAYNG_SUPPORTED_TRANSPORT_OPTIONS: Array<string> = [
   'grpc'
 ];
 
+export const V2RAYNG_TCP_HEADER_TYPE_OPTIONS: Array<string> = [
+  'none',
+  'http'
+];
+
 export const V2RAYNG_KCP_HEADER_TYPE_OPTIONS: Array<string> = [
   'none',
   'srtp',

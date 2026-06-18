@@ -25,7 +25,7 @@ import { buildSubscriptionAutoUpdateSchedulePlan } from '../main/ets/core/Subscr
 import { buildSpeedNotificationAdditionalText, buildSpeedNotificationText, calculateSpeedNotificationRates, sampleSpeedNotificationStats, shouldPublishSpeedNotification } from '../main/ets/core/SpeedNotification';
 import { DEFAULT_WEBDAV_BACKUP_FILE_NAME, buildWebDavAuthorizationHeader, buildWebDavMkcolUrls, buildWebDavRemoteUrl, isWebDavMkcolAcceptedStatus, normalizeWebDavConfig, validateWebDavConfig } from '../main/ets/core/WebDav';
 import { CURRENT_APP_VERSION, buildUpdateCheckResult, compareVersions, normalizeVersionTag } from '../main/ets/core/UpdateChecker';
-import { V2RAYNG_FLOW_OPTIONS, V2RAYNG_GRPC_MODE_OPTIONS, V2RAYNG_KCP_HEADER_TYPE_OPTIONS, V2RAYNG_SUPPORTED_TRANSPORT_OPTIONS, V2RAYNG_UTLS_FINGERPRINT_OPTIONS, V2RAYNG_XHTTP_MODE_OPTIONS } from '../main/ets/core/V2rayNgOptions';
+import { V2RAYNG_FLOW_OPTIONS, V2RAYNG_GRPC_MODE_OPTIONS, V2RAYNG_KCP_HEADER_TYPE_OPTIONS, V2RAYNG_SUPPORTED_TRANSPORT_OPTIONS, V2RAYNG_TCP_HEADER_TYPE_OPTIONS, V2RAYNG_UTLS_FINGERPRINT_OPTIONS, V2RAYNG_XHTTP_MODE_OPTIONS } from '../main/ets/core/V2rayNgOptions';
 import { dedupeNodes, exportNodesText, filterNodes, findInvalidNodes, sortNodes } from '../main/ets/features/nodes/NodeOperations';
 import { SETTINGS_CONTROLLER } from '../main/ets/features/settings/SettingsController';
 import { normalizeIpApiUrl, parseRemoteIpInfoContent } from '../main/ets/services/RemoteIpInfo';
@@ -1447,6 +1447,7 @@ export default function localUnitTest() {
       expect(V2RAYNG_FLOW_OPTIONS.join('|')).assertEqual('none|xtls-rprx-vision|xtls-rprx-vision-udp443');
       expect(V2RAYNG_UTLS_FINGERPRINT_OPTIONS.join('|')).assertEqual('none|chrome|firefox|safari|ios|android|edge|360|qq|random|randomized');
       expect(V2RAYNG_SUPPORTED_TRANSPORT_OPTIONS.join('|')).assertEqual('tcp|kcp|ws|httpupgrade|xhttp|h2|grpc');
+      expect(V2RAYNG_TCP_HEADER_TYPE_OPTIONS.join('|')).assertEqual('none|http');
       expect(V2RAYNG_KCP_HEADER_TYPE_OPTIONS.join('|')).assertEqual('none|srtp|utp|wechat-video|dtls|wireguard|dns');
       expect(V2RAYNG_XHTTP_MODE_OPTIONS.join('|')).assertEqual('auto|packet-up|stream-up|stream-one');
       expect(V2RAYNG_GRPC_MODE_OPTIONS.join('|')).assertEqual('gun|multi');
@@ -1459,6 +1460,22 @@ export default function localUnitTest() {
       const exported = formatOutboundJsonToShareLink(imported.outboundJson, 'udp443');
       expect(exported).assertContain('flow=xtls-rprx-vision-udp443');
       expect(exported).assertContain('fp=randomized');
+    });
+
+    it('round-trips tcp http header transport parameters', 0, () => {
+      const tcp = parseShareLinkToOutboundJson('vless://00000000-0000-0000-0000-000000000000@example.com:443?encryption=none&security=tls&type=tcp&headerType=http&host=front.example%2Capi.example&path=%2Flogin%2C%2Fapi#tcp-http');
+      expect(tcp.success).assertTrue();
+      expect(tcp.outboundJson).assertContain('"network": "tcp"');
+      expect(tcp.outboundJson).assertContain('"tcpSettings"');
+      expect(tcp.outboundJson).assertContain('"type": "http"');
+      expect(tcp.outboundJson).assertContain('"Host"');
+      expect(tcp.outboundJson).assertContain('"front.example"');
+      expect(tcp.outboundJson).assertContain('"/login"');
+      const exportedTcp = formatOutboundJsonToShareLink(tcp.outboundJson, 'tcp-http');
+      expect(exportedTcp).assertContain('type=tcp');
+      expect(exportedTcp).assertContain('headerType=http');
+      expect(exportedTcp).assertContain('host=front.example%2Capi.example');
+      expect(exportedTcp).assertContain('path=%2Flogin%2C%2Fapi');
     });
 
     it('round-trips httpupgrade and xhttp transport share parameters', 0, () => {

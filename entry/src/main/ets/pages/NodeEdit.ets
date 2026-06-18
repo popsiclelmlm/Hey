@@ -4,7 +4,7 @@ import { DEFAULT_LANGUAGE, translate } from '../core/I18n';
 import { buildKcpFinalMask } from '../core/KcpTransport';
 import { buildManualHysteria2Outbound, buildManualWireguardOutbound } from '../core/ManualOutboundBuilder';
 import { AppLanguage } from '../core/Profile';
-import { V2RAYNG_FLOW_OPTIONS, V2RAYNG_GRPC_MODE_OPTIONS, V2RAYNG_KCP_HEADER_TYPE_OPTIONS, V2RAYNG_SUPPORTED_TRANSPORT_OPTIONS, V2RAYNG_UTLS_FINGERPRINT_OPTIONS, V2RAYNG_XHTTP_MODE_OPTIONS } from '../core/V2rayNgOptions';
+import { V2RAYNG_FLOW_OPTIONS, V2RAYNG_GRPC_MODE_OPTIONS, V2RAYNG_KCP_HEADER_TYPE_OPTIONS, V2RAYNG_SUPPORTED_TRANSPORT_OPTIONS, V2RAYNG_TCP_HEADER_TYPE_OPTIONS, V2RAYNG_UTLS_FINGERPRINT_OPTIONS, V2RAYNG_XHTTP_MODE_OPTIONS } from '../core/V2rayNgOptions';
 import { NODES_CONTROLLER } from '../features/nodes/NodesController';
 import { SETTINGS_CONTROLLER } from '../features/settings/SettingsController';
 import { SHARED_RUNTIME_CONTROLLER } from '../features/runtime/RuntimeController';
@@ -359,6 +359,7 @@ struct NodeEditPage {
   @State private transportHost: string = '';
   @State private transportPath: string = '';
   @State private transportFinalMask: string = '';
+  @State private transportTcpHeaderType: string = 'none';
   @State private transportKcpHeaderType: string = 'none';
   @State private transportKcpMtu: string = '';
   @State private transportKcpTti: string = '';
@@ -592,6 +593,13 @@ struct NodeEditPage {
                   options: V2RAYNG_SUPPORTED_TRANSPORT_OPTIONS,
                   selectedValue: $transportType
                 })
+                if (this.transportType === 'tcp') {
+                  PickerRow({
+                    label: 'TCP 伪装类型 (headerType)',
+                    options: V2RAYNG_TCP_HEADER_TYPE_OPTIONS,
+                    selectedValue: $transportTcpHeaderType
+                  })
+                }
                 if (this.transportType === 'kcp') {
                   PickerRow({
                     label: 'KCP 伪装类型 (headerType)',
@@ -976,7 +984,23 @@ struct NodeEditPage {
         }
 
         // 填充底层传输协议专属配置
-        if (network === 'kcp') {
+        if (network === 'tcp') {
+          const tcpHeader: FormTcpHeader = {
+            type: this.transportTcpHeaderType === 'http' ? 'http' : 'none'
+          };
+          if (tcpHeader.type === 'http') {
+            const headers: Record<string, Array<string>> = {};
+            headers['Host'] = this.splitCsv(this.transportHost);
+            tcpHeader.request = {
+              path: this.splitCsvWithDefault(this.transportPath, '/'),
+              headers
+            };
+          }
+          streamSettings.tcpSettings = {
+            header: tcpHeader
+          };
+        }
+        else if (network === 'kcp') {
           const kcpSettings: FormKcpSettings = {};
           const mtu = this.optionalPositiveInteger(this.transportKcpMtu);
           if (mtu < 0) {
@@ -1104,6 +1128,18 @@ struct NodeEditPage {
   private valueOr(value: string, fallback: string): string {
     const trimmed = value.trim();
     return trimmed.length > 0 ? trimmed : fallback;
+  }
+
+  private splitCsv(value: string): Array<string> {
+    return value.split(',').map(item => item.trim()).filter(item => item.length > 0);
+  }
+
+  private splitCsvWithDefault(value: string, fallback: string): Array<string> {
+    const result = this.splitCsv(value);
+    if (result.length === 0) {
+      result.push(fallback);
+    }
+    return result;
   }
 
   private numberOr(value: string, fallback: number): number {
