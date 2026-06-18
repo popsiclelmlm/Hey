@@ -245,7 +245,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 
 不单列里程碑，随手补齐：
 
-- Reality 全参数（`spiderX`、`mldsa65`/`pqv`）解析与下发
+- ✅ Reality 全参数（`spiderX`、`mldsa65Verify`/`pqv`）解析与下发：分享链接导入/导出、Clash.Meta 订阅解析和 NodeEdit Reality 表单均会保留后量子验签公钥（2026-06-18）
 - `flow`（`xtls-rprx-vision`）字段
 - uTLS fingerprint（`fp`）
 - ✅ Hysteria2 端口跳跃（`mport`）与 `obfs`：分享链接解析和手动编辑器均已写入 outbound（2026-06-18；运行态仍待真机/内核验证）
@@ -363,6 +363,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-18 | M4 | ✅ 显示所有分组设置完成（`groupAllDisplay` 默认关闭；开启后节点页显示 All 虚拟分组，聚合所有订阅分组节点，并让搜索、批量测速和导出复用聚合可见节点；补 Settings 往返单测） |
 | 2026-06-18 | M4 | ✅ 双列显示设置完成（`doubleColumnDisplay` 默认关闭；开启后节点页使用双列 `List` lanes 展示配置，并补 Settings 往返单测） |
 | 2026-06-18 | M4 | ✅ 当前连接信息测试网址完成（`ipApiUrl` 默认 `https://api.ip.sb/geoip`；运行时经本地 HTTP 代理查询 IP API，解析 v2rayNG 兼容字段并追加当前连接日志；补 Settings 往返/解析单测） |
+| 2026-06-18 | 协议点检 | ✅ Reality `pqv`/`mldsa65Verify` 完成（分享链接导入/导出、Clash.Meta 订阅解析与 NodeEdit Reality 表单均保留 ML-DSA-65 验签公钥；补解析/导出单测） |
 | 2026-06-18 | M5 | 🟡 代理链运行核心完成（`proxy-chain` configType + JSON 导入识别 + 多跳 outbounds `dialerProxy` 串联 + 单测）；真机组合场景待回归 |
 | 2026-06-18 | M5 | 🟡 策略组/负载均衡运行核心完成（`policy-group` configType + JSON 导入识别 + `routing.balancers` + leastPing/leastLoad 观测配置 + 单测） |
 | 2026-06-18 | M5 | 🟡 高级出站构建器完成（已有普通 outbound 节点 → `proxy-chain`/`policy-group` JSON + strategy 映射 + 嵌套/无效节点拒绝 + 单测） |

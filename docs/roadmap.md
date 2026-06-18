@@ -10,7 +10,7 @@
 | --- | --- | --- |
 | 应用骨架 / 导航 / i18n | ✅ 96% | 双语、分层清晰、路由完整，UI 模式可按设置跟随系统/浅色/深色 |
 | 原生 TUN 数据通路 | ✅ 93% | 代码就位且**真机闭环验证通过（2026-06-15）**——TUN→Xray→出站→可上网；IPv6 地址/路由与 outbound Happy Eyeballs 已按设置生成，待真机回归 |
-| 分享链接解析 | ✅ 90% | vless/vmess/trojan/ss/socks/http/wireguard/hy2 已覆盖，WireGuard `.conf` 整段导入已支持；导入失败后可走 native 转换兜底支持 v2rayN 多行/base64 与 Clash.Meta YAML（待重建 `.so` 真机验证）；**缺 TUIC** |
+| 分享链接解析 | ✅ 91% | vless/vmess/trojan/ss/socks/http/wireguard/hy2 已覆盖，Reality `spx`/`pqv` 已按 v2rayNG 映射为 `spiderX`/`mldsa65Verify` 并可导入导出，WireGuard `.conf` 整段导入已支持；导入失败后可走 native 转换兜底支持 v2rayN 多行/base64 与 Clash.Meta YAML（待重建 `.so` 真机验证）；TUIC 在 v2rayNG 当前枚举中未启用且 Xray-core 官方配置不支持，暂不列为运行目标 |
 | 订阅管理 | 🟡 91% | 多分组 + 旧版迁移 + 编辑/重排/批量更新全部 + 订阅级不安全 URL 开关 + 当前分组删除全部 + 自动更新设置/前台到期刷新 + 本地 HTTP 代理经由更新；**缺后台调度** |
 | Xray 配置生成 | 🟡 85% | 普通节点生成 TUN/DNS/routing/HTTP 代理和本地 SOCKS 配置，速度显示开启时才生成 metrics/stats/policy；DNS hosts 支持 v2rayNG `domain:address,...` 格式写入 `dns.hosts`，HTTP/SOCKS 代理支持局域网共享监听，SOCKS 支持启动前动态端口；完整自定义 Xray config 可校验后原样运行；代理链和策略组 JSON 可生成多跳/负载均衡 outbounds，添加节点页可从已有普通节点创建代理链/策略组，策略组支持按订阅分组与节点名正则动态成员，路由规则可选择当前高级出站目标 |
 | 节点延迟测速 / 排序 | ✅ 84% | `CGoPing` 真测速 + 排序，测速 SOCKS inbound 优先使用 `CGoGetFreePorts` 动态端口；批量测速并发数已按 v2rayNG 设置接线；需真机验证 |
@@ -78,7 +78,7 @@
 
 - ✅ 相机扫码（`@kit.ScanKit` scanBarcode）替代纯粘贴
 - 二维码生成（节点分享）
-- TUIC 协议解析 + 运行
+- Reality `mldsa65Verify` / `pqv` 后量子验签参数导入导出（已完成）
 - 完整自定义 Xray config 导入、编辑与原样运行（已完成）
 - 自动订阅更新后台调度（前台到期刷新已完成）
 - 运行中经由本地代理更新订阅（已完成）
@@ -140,6 +140,7 @@
 | 2026-06-18 | 阶段 4 | ✅ 显示所有分组设置完成；Settings 保存 `groupAllDisplay`（默认关闭），开启后节点页增加 All 虚拟分组并聚合所有订阅分组节点，搜索/测速/导出按聚合可见节点执行 |
 | 2026-06-18 | 阶段 4 | ✅ 双列显示设置完成；Settings 保存 `doubleColumnDisplay`（默认关闭），开启后节点页按双列列表展示配置并保留选择/滑动操作 |
 | 2026-06-18 | 阶段 4 | ✅ 当前连接信息测试网址完成；Settings 保存 `ipApiUrl`（默认 `https://api.ip.sb/geoip`），VPN 启动成功且本地 HTTP 代理可用时经代理查询出口国家/IP 并写入运行日志 |
+| 2026-06-18 | 阶段 4 | ✅ Reality `pqv`/`mldsa65Verify` 参数完成；分享链接、Clash.Meta 订阅、节点导出和 NodeEdit Reality 表单均保留后量子验签公钥 |
 | 2026-06-18 | 阶段 5 | 🟡 代理链运行核心完成；JSON 导入支持 `proxy-chain`，运行时生成多跳 outbounds 并通过 `sockopt.dialerProxy` 串联，真机组合场景待回归 |
 | 2026-06-18 | 阶段 5 | 🟡 策略组/负载均衡运行核心完成；JSON 导入支持 `policy-group`，运行时生成 `routing.balancers`、leastPing/leastLoad 观测配置与默认 balancer 路由 |
 | 2026-06-18 | 阶段 5 | 🟡 高级出站构建器完成；可从已有普通 outbound 节点生成 `proxy-chain`/`policy-group` JSON，并拒绝完整配置、嵌套高级节点和无效节点 |

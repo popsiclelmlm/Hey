@@ -107,6 +107,8 @@ interface ClashTlsSettings {
   alpn?: Array<string>;
   publicKey?: string;
   shortId?: string;
+  spiderX?: string;
+  mldsa65Verify?: string;
   show?: boolean;
 }
 
@@ -1003,6 +1005,14 @@ export class SubscriptionManager {
     if (publicKey.length > 0) {
       tlsSettings.publicKey = publicKey;
       tlsSettings.shortId = SubscriptionManager.mapFirstValue(entry, ['reality-opts.short-id', 'reality_opts.short-id', 'sid'], '');
+      const spiderX = SubscriptionManager.mapFirstValue(entry, ['reality-opts.spider-x', 'reality_opts.spider-x', 'reality-opts.spiderX', 'spx'], '');
+      if (spiderX.length > 0) {
+        tlsSettings.spiderX = spiderX;
+      }
+      const mldsa65Verify = SubscriptionManager.mapFirstValue(entry, ['reality-opts.mldsa65-verify', 'reality_opts.mldsa65-verify', 'reality-opts.mldsa65Verify', 'mldsa65Verify', 'pqv'], '');
+      if (mldsa65Verify.length > 0) {
+        tlsSettings.mldsa65Verify = mldsa65Verify;
+      }
       tlsSettings.show = false;
     }
 

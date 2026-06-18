@@ -293,6 +293,7 @@ interface FormTlsSettings {
   publicKey?: string;
   shortId?: string;
   spiderX?: string;
+  mldsa65Verify?: string;
   show?: boolean;
 }
 
@@ -348,6 +349,7 @@ struct NodeEditPage {
   @State private realityPublicKey: string = '';
   @State private realityShortId: string = '';
   @State private realitySpiderX: string = '/';
+  @State private realityMldsa65Verify: string = '';
 
   // WireGuard 专属字段
   @State private wgPublicKey: string = '';
@@ -598,6 +600,9 @@ struct NodeEditPage {
                     })
                     this.EditorRow('Reality Path (spx)', this.realitySpiderX, 'Reality SpiderX 路径', (value: string) => {
                       this.realitySpiderX = value;
+                    })
+                    this.EditorRow('Mldsa65Verify (pqv - 可选)', this.realityMldsa65Verify, 'ML-DSA-65 验签公钥', (value: string) => {
+                      this.realityMldsa65Verify = value;
                     })
                     PickerRow({
                       label: '客户端指纹 (fingerprint)',
@@ -863,6 +868,9 @@ struct NodeEditPage {
               tlsConfig.publicKey = this.realityPublicKey.trim();
               tlsConfig.shortId = this.realityShortId.trim();
               tlsConfig.spiderX = this.realitySpiderX.trim();
+              if (this.realityMldsa65Verify.trim().length > 0) {
+                tlsConfig.mldsa65Verify = this.realityMldsa65Verify.trim();
+              }
               tlsConfig.show = false;
               streamSettings.realitySettings = tlsConfig;
             }

@@ -9,7 +9,7 @@ import { AppSettings, DEFAULT_IP_API_URL, normalizeRealPingConcurrency, normaliz
 import { formatGeoCountSummary, formatGeoCountUnavailable, geoDataSpecForFile, parseGeoCountData } from '../main/ets/core/GeoAssets';
 import { DELAY_TEST_SOCKS_PORT, LOCAL_HTTP_PROXY_LAN_HOST, LOCAL_HTTP_PROXY_PORT, LOCAL_SOCKS_PROXY_PORT, buildDelayTestConfig, buildRuntimeXrayConfig, buildXrayConfig, buildXrayConfigWithSettings, normalizeOutboundInput, validateFullConfigJson, validateOutboundJson, validatePolicyGroupConfigJson, validateProxyChainConfigJson } from '../main/ets/core/XrayConfig';
 import { extractOutboundsFromXrayConfig } from '../main/ets/core/XrayOutbounds';
-import { parseShareLinkToOutboundJson } from '../main/ets/core/ShareLinkParser';
+import { formatOutboundJsonToShareLink, parseShareLinkToOutboundJson } from '../main/ets/core/ShareLinkParser';
 import { exportRoutingRulesJson, importRoutingRulesJson, resetRoutingRulesFromPreset } from '../main/ets/core/RoutingRules';
 import {
   DEFAULT_SUBSCRIPTION_UPDATE_INTERVAL_MINUTES,
@@ -998,17 +998,21 @@ export default function localUnitTest() {
     });
 
     it('imports vless reality share link as outbound json', 0, () => {
-      const link = 'vless://00000000-0000-0000-0000-000000000000@example.com:443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.example.com&fp=chrome&pbk=test-public-key&sid=abcd&type=tcp#demo';
+      const link = 'vless://00000000-0000-0000-0000-000000000000@example.com:443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.example.com&fp=chrome&pbk=test-public-key&sid=abcd&spx=%2Fbot&pqv=test-mldsa65-verify&type=tcp#demo';
       const imported = parseShareLinkToOutboundJson(link);
       expect(imported.success).assertTrue();
       expect(imported.protocol).assertEqual('vless');
       expect(imported.outboundJson).assertContain('"protocol": "vless"');
       expect(imported.outboundJson).assertContain('"realitySettings"');
       expect(imported.outboundJson).assertContain('"publicKey": "test-public-key"');
+      expect(imported.outboundJson).assertContain('"spiderX": "/bot"');
+      expect(imported.outboundJson).assertContain('"mldsa65Verify": "test-mldsa65-verify"');
+      expect(formatOutboundJsonToShareLink(imported.outboundJson, 'demo')).assertContain('pqv=test-mldsa65-verify');
 
       const validation = normalizeOutboundInput(link);
       expect(validation.valid).assertTrue();
       expect(validation.normalizedJson).assertContain('"flow": "xtls-rprx-vision"');
+      expect(validation.normalizedJson).assertContain('"mldsa65Verify": "test-mldsa65-verify"');
     });
 
     it('imports trojan ws tls share link as outbound json', 0, () => {
@@ -1089,13 +1093,26 @@ export default function localUnitTest() {
         '      path: /ws\n' +
         '      headers:\n' +
         '        Host: cdn.example\n' +
+        '  - name: clash-reality\n' +
+        '    type: vless\n' +
+        '    server: reality.example.com\n' +
+        '    port: 443\n' +
+        '    uuid: 00000000-0000-0000-0000-000000000001\n' +
+        '    flow: xtls-rprx-vision\n' +
+        '    reality-opts:\n' +
+        '      public-key: test-public-key\n' +
+        '      short-id: abcd\n' +
+        '      spider-x: /bot\n' +
+        '      mldsa65-verify: test-mldsa65-verify\n' +
         '  - {name: clash-ss, type: ss, server: ss.example.com, port: 8388, cipher: aes-128-gcm, password: secret}\n';
       const nodes = SubscriptionManager.parseSubscriptionContent(content, 'https://sub.example/clash');
-      expect(nodes.length).assertEqual(2);
+      expect(nodes.length).assertEqual(3);
       expect(nodes[0].name).assertEqual('clash-vmess');
       expect(nodes[0].outboundJson).assertContain('"wsSettings"');
       expect(nodes[0].outboundJson).assertContain('"serverName": "cdn.example"');
-      expect(nodes[1].outboundJson).assertContain('"protocol": "shadowsocks"');
+      expect(nodes[1].outboundJson).assertContain('"realitySettings"');
+      expect(nodes[1].outboundJson).assertContain('"mldsa65Verify": "test-mldsa65-verify"');
+      expect(nodes[2].outboundJson).assertContain('"protocol": "shadowsocks"');
     });
 
     it('parses sip008 shadowsocks json subscription content into selectable nodes', 0, () => {

@@ -34,6 +34,7 @@ interface XrayTlsSettings {
   publicKey?: string;
   shortId?: string;
   spiderX?: string;
+  mldsa65Verify?: string;
   show?: boolean;
 }
 
@@ -1029,6 +1030,10 @@ function buildTlsSettings(query: Map<string, string>, security: string, derivedS
   if (spiderX.length > 0) {
     settings.spiderX = spiderX;
   }
+  const mldsa65Verify = queryValue(query, 'pqv', '');
+  if (mldsa65Verify.length > 0) {
+    settings.mldsa65Verify = mldsa65Verify;
+  }
   if (security === 'reality') {
     settings.show = false;
   }
@@ -1233,6 +1238,9 @@ function appendStreamSettingsToQuery(queryParams: Map<string, string>, stream?: 
       }
       if (tlsSettings.spiderX) {
         queryParams.set('spx', tlsSettings.spiderX);
+      }
+      if (tlsSettings.mldsa65Verify) {
+        queryParams.set('pqv', tlsSettings.mldsa65Verify);
       }
     }
   }
