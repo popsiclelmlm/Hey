@@ -573,7 +573,10 @@ function parseShadowsocksLegacy(input: string): ShareLinkParseResult {
     fragment = safeDecodeURIComponent(body.substring(fragmentIndex + 1));
     body = body.substring(0, fragmentIndex);
   }
-  const decoded = decodeBase64ToUtf8(body);
+  let decoded = decodeBase64ToUtf8(body);
+  if (decoded.endsWith('/')) {
+    decoded = decoded.substring(0, decoded.length - 1);
+  }
   const atIndex = decoded.lastIndexOf('@');
   const splitIndex = decoded.indexOf(':');
   const portIndex = decoded.lastIndexOf(':');

@@ -1689,6 +1689,14 @@ export default function localUnitTest() {
       expect(ssResult.success).assertTrue();
       expect(ssResult.outboundJson).assertContain('"protocol": "shadowsocks"');
       expect(ssResult.outboundJson).assertContain('"method": "aes-128-gcm"');
+
+      const legacySlash = parseShareLinkToOutboundJson('ss://QUVTLTI1Ni1HQ006cGFzczp3b3JkOndpdGg6Y29sb25zQGV4YW1wbGUuY29tOjgzODgv#Legacy%20Slash');
+      expect(legacySlash.success).assertTrue();
+      expect(legacySlash.name).assertEqual('Legacy Slash');
+      expect(legacySlash.outboundJson).assertContain('"method": "aes-256-gcm"');
+      expect(legacySlash.outboundJson).assertContain('"password": "pass:word:with:colons"');
+      expect(legacySlash.outboundJson).assertContain('"address": "example.com"');
+      expect(legacySlash.outboundJson).assertContain('"port": 8388');
     });
 
     it('defaults unnamed url-style share links to v2rayNG none remarks', 0, () => {
