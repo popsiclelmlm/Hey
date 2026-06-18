@@ -121,6 +121,7 @@ const SUPPORTED_PROTOCOLS: Array<string> = ['vless', 'vmess', 'trojan', 'shadows
 
 export const DEFAULT_SOCKS_HOST: string = '127.0.0.1';
 export const LOCAL_HTTP_PROXY_HOST: string = '127.0.0.1';
+export const LOCAL_HTTP_PROXY_LAN_HOST: string = '0.0.0.0';
 export const LOCAL_HTTP_PROXY_PORT: number = 10808;
 export const DELAY_TEST_SOCKS_PORT: number = 10825;
 // Local Xray metrics (expvar) endpoint. The generated VPN config exposes a
@@ -474,9 +475,10 @@ function buildXrayConfigInternal(outboundJson: string, settings: AppSettings | u
 
   if (settings !== undefined && settings.appendHttpProxy) {
     const httpInboundTag = 'http-in';
+    const httpProxyHost = resolveLocalHttpProxyHost(settings);
     const httpInbound: XrayInboundConfig = {
       tag: httpInboundTag,
-      listen: LOCAL_HTTP_PROXY_HOST,
+      listen: httpProxyHost,
       port: LOCAL_HTTP_PROXY_PORT,
       protocol: 'http',
       settings: new HttpInboundSettings()
@@ -518,10 +520,13 @@ function buildXrayConfigInternal(outboundJson: string, settings: AppSettings | u
     policy
   };
 
+  const runtimeHttpProxyHost = settings !== undefined && settings.appendHttpProxy ? resolveLocalHttpProxyHost(settings) : undefined;
+  const runtimeHttpProxyPort = settings !== undefined && settings.appendHttpProxy ? LOCAL_HTTP_PROXY_PORT : undefined;
+
   return {
     configJson: JSON.stringify(config, null, 2),
-    httpProxyHost: settings?.appendHttpProxy ? LOCAL_HTTP_PROXY_HOST : undefined,
-    httpProxyPort: settings?.appendHttpProxy ? LOCAL_HTTP_PROXY_PORT : undefined,
+    httpProxyHost: runtimeHttpProxyHost,
+    httpProxyPort: runtimeHttpProxyPort,
     metricsServer: METRICS_SERVER_URL
   };
 }
@@ -610,6 +615,10 @@ function ensureOutboundSockopt(outbound: XrayOutbound): Record<string, Object | 
   streamSettings['sockopt'] = sockopt;
   outbound.streamSettings = streamSettings;
   return sockopt;
+}
+
+function resolveLocalHttpProxyHost(settings: AppSettings): string {
+  return settings.proxySharingEnabled ? LOCAL_HTTP_PROXY_LAN_HOST : LOCAL_HTTP_PROXY_HOST;
 }
 
 function buildRoutingRules(settings: AppSettings | undefined): Array<XrayRoutingRule> {

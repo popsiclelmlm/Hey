@@ -12,7 +12,7 @@
 | 原生 TUN 数据通路 | ✅ 93% | 代码就位且**真机闭环验证通过（2026-06-15）**——TUN→Xray→出站→可上网；IPv6 地址/路由与 outbound Happy Eyeballs 已按设置生成，待真机回归 |
 | 分享链接解析 | ✅ 88% | vless/vmess/trojan/ss/socks/http/wireguard/hy2 已覆盖，WireGuard `.conf` 整段导入已支持；**缺 TUIC** |
 | 订阅管理 | 🟡 91% | 多分组 + 旧版迁移 + 编辑/重排/批量更新全部 + 订阅级不安全 URL 开关 + 当前分组删除全部 + 自动更新设置/前台到期刷新 + 本地 HTTP 代理经由更新；**缺后台调度** |
-| Xray 配置生成 | 🟡 72% | 普通节点生成 TUN/metrics/DNS/routing/HTTP 代理配置；完整自定义 Xray config 可校验后原样运行；高级出站目标仍待补 |
+| Xray 配置生成 | 🟡 73% | 普通节点生成 TUN/metrics/DNS/routing/HTTP 代理配置，HTTP 代理支持局域网共享监听；完整自定义 Xray config 可校验后原样运行；高级出站目标仍待补 |
 | 节点延迟测速 / 排序 | ✅ 80% | `CGoPing` 真测速 + 排序，需真机验证 |
 | 路由设置页 | ✅ 80% | 广告拦截、自定义规则、预设规则集导入/导出均已生效；高级出站目标与真机规则回归待补 |
 | Geo 资产管理 | ✅ 85% | 下载 / 自定义 URL / 备份还原已实现 |
@@ -116,3 +116,4 @@
 | 2026-06-18 | 阶段 4 | ✅ 系统分享面板完成；Export 批量文本和节点详情单节点链接走 Harmony `sendData` 分享，失败回退剪贴板 |
 | 2026-06-18 | 阶段 0 | ✅ TUN IPv6 设置接线完成；`preferIpv6` 持久化后生成 IPv6 TUN 地址与 `::/0` 默认路由 |
 | 2026-06-18 | 阶段 0 | ✅ Xray IPv6 优先解析接线完成；`preferIpv6` 开启时生成 outbound `sockopt.happyEyeballs` |
+| 2026-06-18 | 阶段 4 | ✅ 本地 HTTP 代理共享监听完成；`proxySharingEnabled` 开启时 `http-in` 监听 `0.0.0.0:10808` |

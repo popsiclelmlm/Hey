@@ -1,7 +1,7 @@
 import { describe, it, expect } from '@ohos/hypium';
 import { formatTranslation, missingTranslationKeys, normalizeLanguage, translate } from '../main/ets/core/I18n';
 import { AppSettings, ProxyNode, RoutingRule, SubscriptionGroup } from '../main/ets/core/Profile';
-import { LOCAL_HTTP_PROXY_PORT, buildRuntimeXrayConfig, buildXrayConfig, buildXrayConfigWithSettings, normalizeOutboundInput, validateFullConfigJson, validateOutboundJson } from '../main/ets/core/XrayConfig';
+import { LOCAL_HTTP_PROXY_LAN_HOST, LOCAL_HTTP_PROXY_PORT, buildRuntimeXrayConfig, buildXrayConfig, buildXrayConfigWithSettings, normalizeOutboundInput, validateFullConfigJson, validateOutboundJson } from '../main/ets/core/XrayConfig';
 import { parseShareLinkToOutboundJson } from '../main/ets/core/ShareLinkParser';
 import { exportRoutingRulesJson, importRoutingRulesJson, resetRoutingRulesFromPreset } from '../main/ets/core/RoutingRules';
 import {
@@ -197,11 +197,17 @@ export default function localUnitTest() {
       settings.appendHttpProxy = true;
       result = buildXrayConfigWithSettings(VLESS_REALITY_OUTBOUND, settings);
       expect(result.configJson).assertContain('"tag": "http-in"');
+      expect(result.configJson).assertContain('"listen": "127.0.0.1"');
       expect(result.configJson).assertContain('"protocol": "http"');
       expect(result.configJson).assertContain(`"port": ${LOCAL_HTTP_PROXY_PORT}`);
       expect(result.configJson).assertContain('"inboundTag"');
       expect(result.configJson).assertContain('"outboundTag": "proxy"');
       expect(result.httpProxyPort).assertEqual(LOCAL_HTTP_PROXY_PORT);
+
+      settings.proxySharingEnabled = true;
+      result = buildXrayConfigWithSettings(VLESS_REALITY_OUTBOUND, settings);
+      expect(result.configJson).assertContain(`"listen": "${LOCAL_HTTP_PROXY_LAN_HOST}"`);
+      expect(result.httpProxyHost).assertEqual(LOCAL_HTTP_PROXY_LAN_HOST);
     });
 
     it('applies prefer ipv6 to outbound happy eyeballs', 0, () => {
