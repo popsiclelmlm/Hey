@@ -1287,6 +1287,10 @@ function formatQueryParams(params: Map<string, string>): string {
   return `?${parts.join('&')}`;
 }
 
+function formatUserInfo(value: string): string {
+  return encodeURIComponent(value);
+}
+
 function normalizeHysteria2PortHoppingInterval(value: string | undefined): string {
   const rawInterval = value === undefined ? '' : value.trim();
   if (rawInterval.length === 0) {
@@ -1524,7 +1528,7 @@ function formatVless(outbound: XrayOutbound, name: string): string {
 
   const queryStr = formatQueryParams(queryParams);
   const hashStr = name.length > 0 ? `#${encodeURIComponent(name)}` : '';
-  return `vless://${user.id}@${formatHostPort(server.address, server.port)}${queryStr}${hashStr}`;
+  return `vless://${formatUserInfo(user.id)}@${formatHostPort(server.address, server.port)}${queryStr}${hashStr}`;
 }
 
 function formatTrojan(outbound: XrayOutbound, name: string): string {
@@ -1543,7 +1547,7 @@ function formatTrojan(outbound: XrayOutbound, name: string): string {
 
   const queryStr = formatQueryParams(queryParams);
   const hashStr = name.length > 0 ? `#${encodeURIComponent(name)}` : '';
-  return `trojan://${server.password}@${formatHostPort(server.address, server.port)}${queryStr}${hashStr}`;
+  return `trojan://${formatUserInfo(server.password)}@${formatHostPort(server.address, server.port)}${queryStr}${hashStr}`;
 }
 
 function formatShadowsocks(outbound: XrayOutbound, name: string): string {
@@ -1596,7 +1600,7 @@ function formatHttp(outbound: XrayOutbound, name: string): string {
 
   let userInfo = '';
   if (server.users && server.users.length > 0) {
-    userInfo = `${server.users[0].user}:${server.users[0].pass}@`;
+    userInfo = `${formatUserInfo(`${server.users[0].user}:${server.users[0].pass}`)}@`;
   }
   const hashStr = name.length > 0 ? `#${encodeURIComponent(name)}` : '';
   return `http://${userInfo}${formatHostPort(server.address, server.port)}${hashStr}`;
@@ -1630,7 +1634,7 @@ function formatWireguard(outbound: XrayOutbound, name: string): string {
   const endpoint = peer.endpoint;
   const queryStr = formatQueryParams(queryParams);
   const hashStr = name.length > 0 ? `#${encodeURIComponent(name)}` : '';
-  return `wireguard://${settings.secretKey}@${endpoint}${queryStr}${hashStr}`;
+  return `wireguard://${formatUserInfo(settings.secretKey)}@${endpoint}${queryStr}${hashStr}`;
 }
 
 function formatHysteria2(outbound: XrayOutbound, name: string): string {
@@ -1667,7 +1671,7 @@ function formatHysteria2(outbound: XrayOutbound, name: string): string {
 
   const queryStr = formatQueryParams(queryParams);
   const hashStr = name.length > 0 ? `#${encodeURIComponent(name)}` : '';
-  return `hysteria2://${server.password}@${formatHostPort(server.address, server.port)}${queryStr}${hashStr}`;
+  return `hysteria2://${formatUserInfo(server.password)}@${formatHostPort(server.address, server.port)}${queryStr}${hashStr}`;
 }
 
 export function formatOutboundJsonToShareLink(outboundJson: string, name: string): string {

@@ -1575,6 +1575,15 @@ export default function localUnitTest() {
       expect(mixedAliasImported.success).assertTrue();
       expect(mixedAliasImported.outboundJson).assertContain('"allowInsecure": true');
 
+      const specialPassword = parseShareLinkToOutboundJson('trojan://sec%40ret%2Fp%3Fx@example.com:443?security=tls&sni=trojan.example&type=tcp#trojan-special');
+      expect(specialPassword.success).assertTrue();
+      expect(specialPassword.outboundJson).assertContain('"password": "sec@ret/p?x"');
+      const exportedSpecialPassword = formatOutboundJsonToShareLink(specialPassword.outboundJson, 'trojan-special');
+      expect(exportedSpecialPassword).assertContain('trojan://sec%40ret%2Fp%3Fx@example.com:443');
+      const roundTripSpecialPassword = parseShareLinkToOutboundJson(exportedSpecialPassword);
+      expect(roundTripSpecialPassword.success).assertTrue();
+      expect(roundTripSpecialPassword.outboundJson).assertContain('"password": "sec@ret/p?x"');
+
       const secureVless = parseShareLinkToOutboundJson('vless://00000000-0000-0000-0000-000000000000@example.com:443?encryption=none&security=tls&sni=vless.example&insecure=0&type=tcp#vless-secure');
       expect(secureVless.success).assertTrue();
       const exportedSecureVless = formatOutboundJsonToShareLink(secureVless.outboundJson, 'vless-secure');
@@ -1620,23 +1629,42 @@ export default function localUnitTest() {
       expect(http.success).assertTrue();
       expect(http.outboundJson).assertContain('"protocol": "http"');
       expect(http.outboundJson).assertContain('"pass": "pass"');
+      const specialHttp = parseShareLinkToOutboundJson('http://user%40name:p%40ss%2Fword@example.com:8080#http-special');
+      expect(specialHttp.success).assertTrue();
+      const exportedSpecialHttp = formatOutboundJsonToShareLink(specialHttp.outboundJson, 'http-special');
+      expect(exportedSpecialHttp).assertContain('http://user%40name%3Ap%40ss%2Fword@example.com:8080');
+      const roundTripSpecialHttp = parseShareLinkToOutboundJson(exportedSpecialHttp);
+      expect(roundTripSpecialHttp.success).assertTrue();
+      expect(roundTripSpecialHttp.outboundJson).assertContain('"user": "user@name"');
+      expect(roundTripSpecialHttp.outboundJson).assertContain('"pass": "p@ss/word"');
 
-      const wireguard = parseShareLinkToOutboundJson('wireguard://private-key@example.com:51820?publickey=peer-key&address=172.16.0.2%2F32&mtu=1420&reserved=1%2C2%2C3#wg-demo');
+      const wireguard = parseShareLinkToOutboundJson('wireguard://private%2Bkey%2Fwith%3D@example.com:51820?publickey=peer-key&address=172.16.0.2%2F32&mtu=1420&reserved=1%2C2%2C3#wg-demo');
       expect(wireguard.success).assertTrue();
       expect(wireguard.outboundJson).assertContain('"protocol": "wireguard"');
+      expect(wireguard.outboundJson).assertContain('"secretKey": "private+key/with="');
       expect(wireguard.outboundJson).assertContain('"endpoint": "example.com:51820"');
+      const exportedWireguard = formatOutboundJsonToShareLink(wireguard.outboundJson, 'wg-demo');
+      expect(exportedWireguard).assertContain('wireguard://private%2Bkey%2Fwith%3D@example.com:51820');
+      const roundTripWireguard = parseShareLinkToOutboundJson(exportedWireguard);
+      expect(roundTripWireguard.success).assertTrue();
+      expect(roundTripWireguard.outboundJson).assertContain('"secretKey": "private+key/with="');
 
-      const hysteria2 = parseShareLinkToOutboundJson('hysteria2://auth@example.com:443?sni=hy.example&insecure=1&obfs-password=obfs&mport=20000-50000&mportHopInt=10-60&pinSHA256=hy2-pinned-sha256#hy2-demo');
+      const hysteria2 = parseShareLinkToOutboundJson('hysteria2://auth%40word%2Fwith%3F@example.com:443?sni=hy.example&insecure=1&obfs-password=obfs&mport=20000-50000&mportHopInt=10-60&pinSHA256=hy2-pinned-sha256#hy2-demo');
       expect(hysteria2.success).assertTrue();
       expect(hysteria2.outboundJson).assertContain('"protocol": "hysteria2"');
+      expect(hysteria2.outboundJson).assertContain('"password": "auth@word/with?"');
       expect(hysteria2.outboundJson).assertContain('"obfsPassword": "obfs"');
       expect(hysteria2.outboundJson).assertContain('"portHopping": "20000-50000"');
       expect(hysteria2.outboundJson).assertContain('"portHoppingInterval": "10-60"');
       expect(hysteria2.outboundJson).assertContain('"pinSHA256": "hy2-pinned-sha256"');
       const exportedHy2 = formatOutboundJsonToShareLink(hysteria2.outboundJson, 'hy2-demo');
+      expect(exportedHy2).assertContain('hysteria2://auth%40word%2Fwith%3F@example.com:443');
       expect(exportedHy2).assertContain('mport=20000-50000');
       expect(exportedHy2).assertContain('mportHopInt=35');
       expect(exportedHy2).assertContain('pinSHA256=hy2-pinned-sha256');
+      const roundTripHy2 = parseShareLinkToOutboundJson(exportedHy2);
+      expect(roundTripHy2.success).assertTrue();
+      expect(roundTripHy2.outboundJson).assertContain('"password": "auth@word/with?"');
     });
 
     it('parses base64 subscription content into selectable nodes', 0, () => {
