@@ -27,7 +27,7 @@
 | Native 桥接 | M1 已接通 7 个（含 `CGoQueryStats`/`CGoTestXray`/`CGoXrayVersion`），代码完成 | **待 `libxray.so` 重建（导出符号已加）+ 真机复测**；`CGoReadGeoFiles`/`CGoConvertShareLinks` 仍未接线 |
 | 路由规则 | ✅ 广告拦截、自定义规则、预设规则集导入/导出均已写入 `routing.rules` | 仍待真机验证规则实效；高级出站目标（策略组/负载均衡）归入 M5 |
 | 订阅 | 多分组 + 手动/批量更新 + 前台到期刷新 + 本地 HTTP 代理经由更新 | 后台定时调度仍待补齐 |
-| 分享导出 | 仅文本 | **无二维码生成** |
+| 分享导出 | 文本/文件导出 + 节点二维码 | 系统分享面板尚未接入 |
 | 深链导入 | 无 | **URL Scheme / Want 导入未实现** |
 | 高级路由 | 无 | 负载均衡 / 策略组 / 代理链均无 |
 | 云备份 | 仅本地 ZIP | **无 WebDAV** |
@@ -178,9 +178,15 @@ VPN 接口 `dnsAddresses` 改为读 `vpnDns` 设置（当前写死 `1.1.1.1/8.8.
 - 运行：完整 config 启动时直接传给 VPN 扩展，不再套用 Hey 生成的 TUN/routing/DNS/HTTP 代理配置
 - 导出/清理：完整 config 节点可作为 JSON 文本导出，删除无效节点和去重不会误判为无效 outbound
 
+**进展（2026-06-18 续）**：节点配置文件导出已落地：
+- Export 页可将当前分组导出内容复制到剪贴板或通过系统文件选择器保存为 `.txt`
+- 导出内容复用节点导出模型，分享链接节点输出 share link，完整自定义配置输出 JSON 文本
+- 系统分享面板仍待按 Harmony 能力补齐
+
 **任务**
 - ✅ **完整自定义配置导入**：对应 v2rayNG `ServerCustomConfigActivity` 的粘贴导入与运行路径
   （2026-06-18 已完成；文件选择导入已补齐，高级编辑待补）
+- ✅ **文件导出**：Export 页保存当前分组节点到 `.txt` 文件（2026-06-18 已完成；系统分享面板待补）
 - **URL Scheme / Want 深链导入**：对应 v2rayNG `v2rayng://install-config` 与
   `install-sub`，在 `EntryAbility.onCreate/onNewWant` 解析 Want 并导入
 - **二维码生成**：节点分享生成 QR（鸿蒙 `@ohos.graphics` 或二维码库），
