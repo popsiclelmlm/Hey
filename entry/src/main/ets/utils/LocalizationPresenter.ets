@@ -96,6 +96,18 @@ export function localizeCoreMessage(language: AppLanguage, message: string): str
   if (message === '代理链配置校验通过。') {
     return translate(language, 'core.validProxyChainConfig');
   }
+  if (message === '请先粘贴策略组 JSON。') {
+    return translate(language, 'core.emptyPolicyGroupConfig');
+  }
+  if (message === '策略组配置缺少 outbounds 数组。') {
+    return translate(language, 'core.missingPolicyGroupOutbounds');
+  }
+  if (message === '策略组至少需要一个 outbound。') {
+    return translate(language, 'core.emptyPolicyGroupOutbounds');
+  }
+  if (message === '策略组配置校验通过。') {
+    return translate(language, 'core.validPolicyGroupConfig');
+  }
   if (message === '暂只支持 vless://、vmess://、trojan://、ss://、socks://、http://、wireguard:// 和 hysteria2:// 分享链接。') {
     return translate(language, 'core.unsupportedShareLink');
   }
@@ -165,6 +177,15 @@ export function localizeCoreMessage(language: AppLanguage, message: string): str
     const index = message.substring(proxyChainHopPrefix.length, proxyChainHopMiddleIndex);
     const error = message.substring(proxyChainHopMiddleIndex + proxyChainHopMiddle.length);
     return formatTwo(language, 'core.invalidProxyChainHop', 'index', index, 'error', localizeCoreMessage(language, error));
+  }
+
+  const policyGroupMemberPrefix = '策略组第 ';
+  const policyGroupMemberMiddle = ' 个成员无效：';
+  const policyGroupMemberMiddleIndex = message.indexOf(policyGroupMemberMiddle);
+  if (message.startsWith(policyGroupMemberPrefix) && policyGroupMemberMiddleIndex > policyGroupMemberPrefix.length) {
+    const index = message.substring(policyGroupMemberPrefix.length, policyGroupMemberMiddleIndex);
+    const error = message.substring(policyGroupMemberMiddleIndex + policyGroupMemberMiddle.length);
+    return formatTwo(language, 'core.invalidPolicyGroupMember', 'index', index, 'error', localizeCoreMessage(language, error));
   }
 
   const shareSuffix = ' 分享链接导入成功。';

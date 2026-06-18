@@ -177,10 +177,13 @@ export class NodesController {
     if (validation.configType === 'proxy-chain') {
       return 'proxy-chain';
     }
+    if (validation.configType === 'policy-group') {
+      return 'policy-group';
+    }
     if (validation.configType === 'outbound') {
       return 'outbound';
     }
-    if (fallback === 'full' || fallback === 'proxy-chain') {
+    if (fallback === 'full' || fallback === 'proxy-chain' || fallback === 'policy-group') {
       return fallback;
     }
     return 'outbound';

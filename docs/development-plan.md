@@ -29,7 +29,7 @@
 | 订阅 | 多分组 + 手动/批量更新 + 前台到期刷新 + 本地 HTTP 代理经由更新 | 后台定时调度仍待补齐 |
 | 分享导出 | 文本/文件导出 + 节点二维码 + 系统分享面板 | 仍待真机回归不同分享目标兼容性 |
 | 深链导入 | ✅ Harmony Want / `hey://install-sub` / `hey://install-config` 已接入 EntryAbility 与首页解析 | 仍待真机回归外部应用触发路径 |
-| 高级路由 | 无 | 负载均衡 / 策略组 / 代理链均无 |
+| 高级路由 | 代理链、策略组/负载均衡运行核心已可通过 JSON 导入生成 | 专门编辑器、订阅正则动态成员、路由规则高级出站目标 UI 仍待补 |
 | 云备份 | 仅本地 ZIP | **无 WebDAV** |
 
 ---
@@ -226,9 +226,10 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 **目标**：面向中高级用户的差异化能力。
 
 **任务**
-- **负载均衡（Balancer）**：`leastPing/leastLoad/random/roundRobin` +
-  `observatory` 探测，生成 `routing.balancers`
-- **策略组（PolicyGroup）**：从订阅按正则动态选成员
+- 🟡 **负载均衡（Balancer）**：运行核心已完成，`policy-group` JSON 可生成
+  `routing.balancers`，支持 `leastPing/leastLoad/random/roundRobin` 与对应
+  `observatory` / `burstObservatory`；专门编辑器待补
+- 🟡 **策略组（PolicyGroup）**：静态成员 JSON 运行核心已完成；从订阅按正则动态选成员待补
 - 🟡 **代理链（ProxyChain）**：运行核心已完成，`proxy-chain` JSON 导入后可生成多段 outbounds 并用 `sockopt.dialerProxy` 串联；专门编辑器/成员选择待补
 - **WebDAV 云备份/恢复**：BASIC 认证 + `MKCOL` 建目录 + 上传/下载 ZIP
 
@@ -282,8 +283,8 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 - [x] 二维码生成：节点详情页用 `@kit.ScanKit` `generateBarcode.createBarcode` 渲染分享链接 QR + 复制链接（2026-06-15）
 - [x] URL Scheme / Want 深链导入：`hey://install-sub` / `hey://install-config?url=` 注册 scheme + `EntryAbility.onCreate/onNewWant` 暂存 + Index `onPageShow` 解析导入（2026-06-15）
 
-> ✅ 2026-06-15 批 backlog 全部完成。后续可补充项：负载均衡/策略组/代理链（M5）、
-> WebDAV 云备份、VPN MTU/接口地址可配、常驻速度通知（依赖 M1 重建后的真实流量）。
+> ✅ 2026-06-15 批 backlog 全部完成。后续可补充项：负载均衡/策略组/代理链编辑器（M5）、
+> WebDAV 云备份、常驻速度通知（依赖 M1 重建后的真实流量）。
 
 ### 本会话代码自查清单（/loop 继续后续修复）
 
@@ -343,5 +344,6 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-18 | M4 | ✅ 本地 SOCKS 代理设置完成（`localSocksEnabled`/端口/UDP/用户名/密码 + `socks-in` 生成 + LAN 共享监听 + 单测） |
 | 2026-06-18 | M4 | ✅ 本地 SOCKS 动态端口完成（`localSocksDynamicPort` 设置 + 启动前 `CGoGetFreePorts` 选择运行端口 + 设置/端口选择单测）；待重建 `.so` + 真机复测 |
 | 2026-06-18 | M5 | 🟡 代理链运行核心完成（`proxy-chain` configType + JSON 导入识别 + 多跳 outbounds `dialerProxy` 串联 + 单测）；专门编辑器/成员选择待补 |
+| 2026-06-18 | M5 | 🟡 策略组/负载均衡运行核心完成（`policy-group` configType + JSON 导入识别 + `routing.balancers` + leastPing/leastLoad 观测配置 + 单测）；专门编辑器/订阅筛选待补 |
 | 2026-06-15 | 自查 | ✅ 字段一致性总扫：AppSettings/SettingsDraft 5 个构造点字段完整一致，SubscriptionGroup.filter 贯通，无需修改 |
 | 2026-06-15 | 自查 | ✅ 深链/metrics 配置形状核对 Xray 官方一致；自查清单收尾（净修复：预检非阻断 + 清理未用导入） |

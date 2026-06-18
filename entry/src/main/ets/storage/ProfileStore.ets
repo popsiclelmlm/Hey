@@ -62,6 +62,9 @@ export class ProfileStore {
     if (configType === 'proxy-chain') {
       return 'proxy-chain';
     }
+    if (configType === 'policy-group') {
+      return 'policy-group';
+    }
     if (configType === 'outbound') {
       return 'outbound';
     }
@@ -77,6 +80,12 @@ export class ProfileStore {
         parsed['routing'] === undefined &&
         parsed['dns'] === undefined &&
         parsed['log'] === undefined)) {
+        const type = typeof parsed['type'] === 'string' ? (parsed['type'] as string).toLowerCase() : '';
+        const configType = typeof parsed['configType'] === 'string' ? (parsed['configType'] as string).toLowerCase() : '';
+        if (type === 'policy-group' || configType === 'policy-group' ||
+          parsed['strategy'] !== undefined || parsed['policyGroupType'] !== undefined) {
+          return 'policy-group';
+        }
         return 'proxy-chain';
       }
       return parsed['inbounds'] !== undefined || parsed['outbounds'] !== undefined ? 'full' : null;

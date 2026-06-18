@@ -241,14 +241,16 @@ struct JsonImportPage {
 
       const normalizedJson = validation.normalizedJson;
       // 提取 JSON 中 tag 字段作为节点名，若无则使用默认名称
-      let nodeName = validation.configType === 'full' ? '完整配置导入' : validation.configType === 'proxy-chain' ? '代理链导入' : 'JSON导入';
+      let nodeName = validation.configType === 'full' ? '完整配置导入' :
+        validation.configType === 'proxy-chain' ? '代理链导入' :
+        validation.configType === 'policy-group' ? '策略组导入' : 'JSON导入';
       try {
         const obj = JSON.parse(normalizedJson) as Record<string, Object>;
         if (obj.tag && typeof obj.tag === 'string' && obj.tag.trim().length > 0) {
           nodeName = obj.tag.trim();
-        } else if ((validation.configType === 'full' || validation.configType === 'proxy-chain') && obj.remarks && typeof obj.remarks === 'string' && obj.remarks.trim().length > 0) {
+        } else if ((validation.configType === 'full' || validation.configType === 'proxy-chain' || validation.configType === 'policy-group') && obj.remarks && typeof obj.remarks === 'string' && obj.remarks.trim().length > 0) {
           nodeName = obj.remarks.trim();
-        } else if ((validation.configType === 'full' || validation.configType === 'proxy-chain') && obj.name && typeof obj.name === 'string' && obj.name.trim().length > 0) {
+        } else if ((validation.configType === 'full' || validation.configType === 'proxy-chain' || validation.configType === 'policy-group') && obj.name && typeof obj.name === 'string' && obj.name.trim().length > 0) {
           nodeName = obj.name.trim();
         }
       } catch (err) {

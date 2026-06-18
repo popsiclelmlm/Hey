@@ -62,7 +62,8 @@ interface XrayDnsConfig {
 
 interface XrayRoutingRule {
   type: string;
-  outboundTag: string;
+  outboundTag?: string;
+  balancerTag?: string;
   inboundTag?: Array<string>;
   ip?: Array<string>;
   domain?: Array<string>;
@@ -75,6 +76,7 @@ interface XrayRoutingRule {
 interface XrayRoutingConfig {
   domainStrategy: string;
   rules: Array<XrayRoutingRule>;
+  balancers?: Array<XrayBalancerConfig>;
 }
 
 interface XrayMetricsConfig {
@@ -92,6 +94,35 @@ interface XrayPolicyConfig {
   system: XrayPolicySystem;
 }
 
+interface XrayBalancerStrategyConfig {
+  type: string;
+}
+
+interface XrayBalancerConfig {
+  tag: string;
+  selector: Array<string>;
+  strategy: XrayBalancerStrategyConfig;
+}
+
+interface XrayObservatoryConfig {
+  subjectSelector: Array<string>;
+  probeUrl: string;
+  probeInterval: string;
+  enableConcurrency: boolean;
+}
+
+interface XrayBurstPingConfig {
+  destination: string;
+  interval: string;
+  sampling: number;
+  timeout: string;
+}
+
+interface XrayBurstObservatoryConfig {
+  subjectSelector: Array<string>;
+  pingConfig: XrayBurstPingConfig;
+}
+
 interface XrayFullConfig {
   log: XrayLogConfig;
   dns?: XrayDnsConfig;
@@ -102,12 +133,35 @@ interface XrayFullConfig {
   fakedns?: Array<Object>;
   metrics?: XrayMetricsConfig;
   policy?: XrayPolicyConfig;
+  observatory?: XrayObservatoryConfig;
+  burstObservatory?: XrayBurstObservatoryConfig;
 }
 
 interface XrayProxyChainConfig {
   outbounds: Array<XrayOutbound>;
   remarks?: string;
   name?: string;
+}
+
+interface XrayPolicyGroupConfig {
+  outbounds: Array<XrayOutbound>;
+  strategy?: string;
+  policyGroupType?: string;
+  remarks?: string;
+  name?: string;
+  type?: string;
+}
+
+interface XrayPolicyGroupRuntime {
+  outbounds: Array<XrayOutbound>;
+  balancer: XrayBalancerConfig;
+  observatory?: XrayObservatoryConfig;
+  burstObservatory?: XrayBurstObservatoryConfig;
+}
+
+interface XrayRoutingTarget {
+  outboundTag?: string;
+  balancerTag?: string;
 }
 
 class SocksInboundSettings {
@@ -262,6 +316,32 @@ export function validateProxyChainConfigJson(configJson: string): ValidationResu
   }
 }
 
+export function validatePolicyGroupConfigJson(configJson: string): ValidationResult {
+  const trimmed = configJson.trim();
+  if (trimmed.length === 0) {
+    return {
+      valid: false,
+      message: '请先粘贴策略组 JSON。',
+      protocol: 'policy-group',
+      normalizedJson: '',
+      configType: 'policy-group'
+    };
+  }
+
+  try {
+    const config = parsePolicyGroupConfig(trimmed);
+    return validatePolicyGroupConfigObject(config);
+  } catch (error) {
+    return {
+      valid: false,
+      message: `JSON 解析失败：${JSON.stringify(error)}`,
+      protocol: 'policy-group',
+      normalizedJson: '',
+      configType: 'policy-group'
+    };
+  }
+}
+
 export function normalizeConfigInput(input: string, preferredType?: XrayConfigType): ValidationResult {
   const trimmed = input.trim();
   if (preferredType === 'full') {
@@ -269,6 +349,9 @@ export function normalizeConfigInput(input: string, preferredType?: XrayConfigTy
   }
   if (preferredType === 'proxy-chain') {
     return validateProxyChainConfigJson(trimmed);
+  }
+  if (preferredType === 'policy-group') {
+    return validatePolicyGroupConfigJson(trimmed);
   }
 
   if (isWireguardConfigFile(trimmed)) {
@@ -339,6 +422,12 @@ function validateJsonConfigInput(input: string, preferredType?: XrayConfigType):
 
   try {
     const parsed = JSON.parse(input) as Object;
+    if (isPolicyGroupCandidate(parsed)) {
+      const policyGroup = normalizePolicyGroupConfigObject(parsed);
+      if (policyGroup !== null) {
+        return validatePolicyGroupConfigObject(policyGroup);
+      }
+    }
     if (isProxyChainCandidate(parsed)) {
       const proxyChain = normalizeProxyChainConfigObject(parsed);
       if (proxyChain !== null) {
@@ -358,6 +447,120 @@ function validateJsonConfigInput(input: string, preferredType?: XrayConfigType):
       configType: preferredType ?? 'outbound'
     };
   }
+}
+
+function validatePolicyGroupConfigObject(config: XrayPolicyGroupConfig): ValidationResult {
+  if (!Array.isArray(config.outbounds)) {
+    return {
+      valid: false,
+      message: '策略组配置缺少 outbounds 数组。',
+      protocol: 'policy-group',
+      normalizedJson: '',
+      configType: 'policy-group'
+    };
+  }
+
+  if (config.outbounds.length === 0) {
+    return {
+      valid: false,
+      message: '策略组至少需要一个 outbound。',
+      protocol: 'policy-group',
+      normalizedJson: '',
+      configType: 'policy-group'
+    };
+  }
+
+  for (let index = 0; index < config.outbounds.length; index++) {
+    const validation = validateOutboundObject(config.outbounds[index]);
+    if (!validation.valid) {
+      return {
+        valid: false,
+        message: `策略组第 ${index + 1} 个成员无效：${validation.message}`,
+        protocol: 'policy-group',
+        normalizedJson: '',
+        configType: 'policy-group'
+      };
+    }
+  }
+
+  return {
+    valid: true,
+    message: '策略组配置校验通过。',
+    protocol: 'policy-group',
+    normalizedJson: JSON.stringify(normalizePolicyGroupConfigForStorage(config), null, 2),
+    configType: 'policy-group'
+  };
+}
+
+function parsePolicyGroupConfig(configJson: string): XrayPolicyGroupConfig {
+  const parsed = JSON.parse(configJson) as Object;
+  const config = normalizePolicyGroupConfigObject(parsed);
+  if (config === null) {
+    return {
+      outbounds: []
+    };
+  }
+  return config;
+}
+
+function normalizePolicyGroupConfigObject(value: Object): XrayPolicyGroupConfig | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return null;
+  }
+  const record = value as Record<string, Object>;
+  if (!Array.isArray(record['outbounds'])) {
+    return null;
+  }
+  const config: XrayPolicyGroupConfig = {
+    outbounds: record['outbounds'] as Array<XrayOutbound>
+  };
+  if (typeof record['strategy'] === 'string') {
+    config.strategy = record['strategy'] as string;
+  }
+  if (typeof record['policyGroupType'] === 'string') {
+    config.policyGroupType = record['policyGroupType'] as string;
+  }
+  if (typeof record['remarks'] === 'string') {
+    config.remarks = record['remarks'] as string;
+  }
+  if (typeof record['name'] === 'string') {
+    config.name = record['name'] as string;
+  }
+  if (typeof record['type'] === 'string') {
+    config.type = record['type'] as string;
+  }
+  return config;
+}
+
+function normalizePolicyGroupConfigForStorage(config: XrayPolicyGroupConfig): XrayPolicyGroupConfig {
+  const normalized: XrayPolicyGroupConfig = {
+    outbounds: config.outbounds,
+    strategy: normalizePolicyGroupStrategy(config.strategy ?? config.policyGroupType)
+  };
+  if (config.remarks !== undefined) {
+    normalized.remarks = config.remarks;
+  }
+  if (config.name !== undefined) {
+    normalized.name = config.name;
+  }
+  normalized.type = 'policy-group';
+  return normalized;
+}
+
+function isPolicyGroupCandidate(value: Object): boolean {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return false;
+  }
+  const record = value as Record<string, Object>;
+  if (!Array.isArray(record['outbounds'])) {
+    return false;
+  }
+  const type = typeof record['type'] === 'string' ? (record['type'] as string).toLowerCase() : '';
+  const configType = typeof record['configType'] === 'string' ? (record['configType'] as string).toLowerCase() : '';
+  return type === 'policy-group' ||
+    configType === 'policy-group' ||
+    record['strategy'] !== undefined ||
+    record['policyGroupType'] !== undefined;
 }
 
 function validateProxyChainConfigObject(config: XrayProxyChainConfig): ValidationResult {
@@ -558,6 +761,9 @@ export function buildRuntimeXrayConfig(configJson: string, settings?: AppSetting
   if (validation.configType === 'proxy-chain') {
     return buildProxyChainXrayConfigInternal(validation.normalizedJson, settings);
   }
+  if (validation.configType === 'policy-group') {
+    return buildPolicyGroupXrayConfigInternal(validation.normalizedJson, settings);
+  }
 
   return buildXrayConfigInternal(validation.normalizedJson, settings);
 }
@@ -598,6 +804,80 @@ function buildProxyChainXrayConfigInternal(chainJson: string, settings: AppSetti
   return buildXrayConfigFromOutbounds(outbounds, settings);
 }
 
+function buildPolicyGroupXrayConfigInternal(groupJson: string, settings: AppSettings | undefined): GeneratedXrayConfig {
+  const validation = validatePolicyGroupConfigJson(groupJson);
+  if (!validation.valid) {
+    throw new Error(validation.message);
+  }
+
+  const config = parsePolicyGroupConfig(validation.normalizedJson);
+  const runtime = buildPolicyGroupRuntime(config, settings);
+  return buildXrayConfigFromOutbounds(runtime.outbounds, settings, runtime.balancer, runtime.observatory, runtime.burstObservatory);
+}
+
+function buildPolicyGroupRuntime(config: XrayPolicyGroupConfig, settings: AppSettings | undefined): XrayPolicyGroupRuntime {
+  const memberTagPrefix = 'proxy-policy-group-';
+  const outbounds = new Array<XrayOutbound>();
+  for (let index = 0; index < config.outbounds.length; index++) {
+    const outbound = cloneOutbound(config.outbounds[index]);
+    outbound.tag = `${memberTagPrefix}${index + 1}`;
+    applyOutboundRuntimeSettings(outbound, settings);
+    outbounds.push(outbound);
+  }
+
+  const strategy = normalizePolicyGroupStrategy(config.strategy ?? config.policyGroupType);
+  const balancer: XrayBalancerConfig = {
+    tag: 'balancer',
+    selector: [memberTagPrefix],
+    strategy: {
+      type: strategy
+    }
+  };
+  const runtime: XrayPolicyGroupRuntime = {
+    outbounds,
+    balancer
+  };
+  const probeUrl = resolvePolicyGroupProbeUrl(settings);
+  if (strategy === 'leastPing') {
+    runtime.observatory = {
+      subjectSelector: [memberTagPrefix],
+      probeUrl,
+      probeInterval: '3m',
+      enableConcurrency: true
+    };
+  } else if (strategy === 'leastLoad') {
+    runtime.burstObservatory = {
+      subjectSelector: [memberTagPrefix],
+      pingConfig: {
+        destination: probeUrl,
+        interval: '5m',
+        sampling: 2,
+        timeout: '30s'
+      }
+    };
+  }
+  return runtime;
+}
+
+function resolvePolicyGroupProbeUrl(settings: AppSettings | undefined): string {
+  const url = settings === undefined ? '' : settings.delayTestUrl.trim();
+  return url.length > 0 ? url : 'https://www.gstatic.com/generate_204';
+}
+
+function normalizePolicyGroupStrategy(value: string | undefined): string {
+  const normalized = (value ?? '').trim();
+  if (normalized === '1' || normalized === 'leastLoad') {
+    return 'leastLoad';
+  }
+  if (normalized === '2' || normalized === 'random') {
+    return 'random';
+  }
+  if (normalized === '3' || normalized === 'roundRobin') {
+    return 'roundRobin';
+  }
+  return 'leastPing';
+}
+
 function cloneOutbound(outbound: XrayOutbound): XrayOutbound {
   return JSON.parse(JSON.stringify(outbound)) as XrayOutbound;
 }
@@ -632,7 +912,13 @@ function applyOutboundRuntimeSettings(outbound: XrayOutbound, settings: AppSetti
   }
 }
 
-function buildXrayConfigFromOutbounds(proxyOutbounds: Array<XrayOutbound>, settings: AppSettings | undefined): GeneratedXrayConfig {
+function buildXrayConfigFromOutbounds(
+  proxyOutbounds: Array<XrayOutbound>,
+  settings: AppSettings | undefined,
+  balancer?: XrayBalancerConfig,
+  observatory?: XrayObservatoryConfig,
+  burstObservatory?: XrayBurstObservatoryConfig
+): GeneratedXrayConfig {
   const tunInbound: XrayInboundConfig = {
     tag: 'tun-in',
     protocol: 'tun',
@@ -666,7 +952,8 @@ function buildXrayConfigFromOutbounds(proxyOutbounds: Array<XrayOutbound>, setti
 
   // Route the metrics inbound to the metrics handler ahead of any user/traffic
   // rule so the local /debug/vars probe is never proxied or blocked.
-  const routingRules = buildRoutingRules(settings);
+  const proxyTarget = buildProxyRoutingTarget(balancer?.tag);
+  const routingRules = buildRoutingRules(settings, balancer?.tag);
   const metricsRule: XrayRoutingRule = {
     type: 'field',
     inboundTag: [METRICS_IN_TAG],
@@ -685,9 +972,9 @@ function buildXrayConfigFromOutbounds(proxyOutbounds: Array<XrayOutbound>, setti
     };
     const httpProxyRule: XrayRoutingRule = {
       type: 'field',
-      inboundTag: [httpInboundTag],
-      outboundTag: 'proxy'
+      inboundTag: [httpInboundTag]
     };
+    applyRoutingTarget(httpProxyRule, proxyTarget);
     inbounds.push(httpInbound);
     routingRules.unshift(httpProxyRule);
   }
@@ -706,9 +993,9 @@ function buildXrayConfigFromOutbounds(proxyOutbounds: Array<XrayOutbound>, setti
     };
     const socksProxyRule: XrayRoutingRule = {
       type: 'field',
-      inboundTag: [socksInboundTag],
-      outboundTag: 'proxy'
+      inboundTag: [socksInboundTag]
     };
+    applyRoutingTarget(socksProxyRule, proxyTarget);
     inbounds.push(socksInbound);
     routingRules.unshift(socksProxyRule);
   }
@@ -756,6 +1043,15 @@ function buildXrayConfigFromOutbounds(proxyOutbounds: Array<XrayOutbound>, setti
   };
   if (settings !== undefined && settings.localDnsEnabled && settings.fakeDnsEnabled) {
     config.fakedns = [new EmptySettings()];
+  }
+  if (balancer !== undefined) {
+    config.routing.balancers = [balancer];
+  }
+  if (observatory !== undefined) {
+    config.observatory = observatory;
+  }
+  if (burstObservatory !== undefined) {
+    config.burstObservatory = burstObservatory;
   }
 
   const runtimeHttpProxyHost = settings !== undefined && settings.appendHttpProxy ? resolveLocalProxyHost(settings) : undefined;
@@ -900,9 +1196,10 @@ function resolveLocalProxyHost(settings: AppSettings): string {
   return settings.proxySharingEnabled ? LOCAL_HTTP_PROXY_LAN_HOST : LOCAL_HTTP_PROXY_HOST;
 }
 
-function buildRoutingRules(settings: AppSettings | undefined): Array<XrayRoutingRule> {
+function buildRoutingRules(settings: AppSettings | undefined, proxyBalancerTag?: string): Array<XrayRoutingRule> {
   const rules = new Array<XrayRoutingRule>();
   if (settings === undefined) {
+    appendDefaultProxyBalancerRule(rules, proxyBalancerTag);
     return rules;
   }
 
@@ -928,7 +1225,7 @@ function buildRoutingRules(settings: AppSettings | undefined): Array<XrayRouting
     return rules;
   }
 
-  appendCustomRoutingRules(rules, settings.routingRules);
+  appendCustomRoutingRules(rules, settings.routingRules, proxyBalancerTag);
 
   if (settings.trafficMode === 'rules' && settings.routeOnlyEnabled) {
     const rule: XrayRoutingRule = {
@@ -939,27 +1236,28 @@ function buildRoutingRules(settings: AppSettings | undefined): Array<XrayRouting
     };
     rules.push(rule);
   }
+  appendDefaultProxyBalancerRule(rules, proxyBalancerTag);
   return rules;
 }
 
-function appendCustomRoutingRules(rules: Array<XrayRoutingRule>, customRules: Array<RoutingRule>): void {
+function appendCustomRoutingRules(rules: Array<XrayRoutingRule>, customRules: Array<RoutingRule>, proxyBalancerTag?: string): void {
   for (let index = 0; index < customRules.length; index++) {
-    const rule = buildCustomRoutingRule(customRules[index]);
+    const rule = buildCustomRoutingRule(customRules[index], proxyBalancerTag);
     if (rule !== undefined) {
       rules.push(rule);
     }
   }
 }
 
-function buildCustomRoutingRule(item: RoutingRule): XrayRoutingRule | undefined {
+function buildCustomRoutingRule(item: RoutingRule, proxyBalancerTag?: string): XrayRoutingRule | undefined {
   if (!item.enabled) {
     return undefined;
   }
 
   const rule: XrayRoutingRule = {
-    type: 'field',
-    outboundTag: normalizeOutboundTag(item.outboundTag)
+    type: 'field'
   };
+  applyRoutingTarget(rule, normalizeRoutingTarget(item.outboundTag, proxyBalancerTag));
   let hasMatcher = false;
 
   if (item.domain.length > 0) {
@@ -990,12 +1288,55 @@ function buildCustomRoutingRule(item: RoutingRule): XrayRoutingRule | undefined 
   return hasMatcher ? rule : undefined;
 }
 
+function normalizeRoutingTarget(value: string, proxyBalancerTag?: string): XrayRoutingTarget {
+  const outboundTag = normalizeOutboundTag(value);
+  if (outboundTag === 'proxy' && proxyBalancerTag !== undefined) {
+    return {
+      balancerTag: proxyBalancerTag
+    };
+  }
+  return {
+    outboundTag
+  };
+}
+
 function normalizeOutboundTag(value: string): string {
   const tag = value.trim();
   if (tag === 'direct' || tag === 'block' || tag === 'proxy') {
     return tag;
   }
   return 'proxy';
+}
+
+function buildProxyRoutingTarget(proxyBalancerTag?: string): XrayRoutingTarget {
+  if (proxyBalancerTag !== undefined) {
+    return {
+      balancerTag: proxyBalancerTag
+    };
+  }
+  return {
+    outboundTag: 'proxy'
+  };
+}
+
+function applyRoutingTarget(rule: XrayRoutingRule, target: XrayRoutingTarget): void {
+  if (target.balancerTag !== undefined) {
+    rule.balancerTag = target.balancerTag;
+    return;
+  }
+  rule.outboundTag = target.outboundTag ?? 'proxy';
+}
+
+function appendDefaultProxyBalancerRule(rules: Array<XrayRoutingRule>, proxyBalancerTag?: string): void {
+  if (proxyBalancerTag === undefined) {
+    return;
+  }
+  rules.push({
+    type: 'field',
+    inboundTag: ['tun-in'],
+    network: 'tcp,udp',
+    balancerTag: proxyBalancerTag
+  });
 }
 
 function addCsvValues(target: Array<string | XrayDnsServerConfig>, value: string): void {

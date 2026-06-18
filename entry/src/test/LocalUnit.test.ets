@@ -4,7 +4,7 @@ import { selectRuntimeLocalSocksPort, shouldUseDynamicLocalSocksPort, withRuntim
 import { buildManualHysteria2Outbound, buildManualWireguardOutbound } from '../main/ets/core/ManualOutboundBuilder';
 import { AppSettings, ProxyNode, RoutingRule, SubscriptionGroup } from '../main/ets/core/Profile';
 import { formatGeoCountSummary, formatGeoCountUnavailable, geoDataSpecForFile, parseGeoCountData } from '../main/ets/core/GeoAssets';
-import { DELAY_TEST_SOCKS_PORT, LOCAL_HTTP_PROXY_LAN_HOST, LOCAL_HTTP_PROXY_PORT, LOCAL_SOCKS_PROXY_PORT, buildDelayTestConfig, buildRuntimeXrayConfig, buildXrayConfig, buildXrayConfigWithSettings, normalizeOutboundInput, validateFullConfigJson, validateOutboundJson, validateProxyChainConfigJson } from '../main/ets/core/XrayConfig';
+import { DELAY_TEST_SOCKS_PORT, LOCAL_HTTP_PROXY_LAN_HOST, LOCAL_HTTP_PROXY_PORT, LOCAL_SOCKS_PROXY_PORT, buildDelayTestConfig, buildRuntimeXrayConfig, buildXrayConfig, buildXrayConfigWithSettings, normalizeOutboundInput, validateFullConfigJson, validateOutboundJson, validatePolicyGroupConfigJson, validateProxyChainConfigJson } from '../main/ets/core/XrayConfig';
 import { extractOutboundsFromXrayConfig } from '../main/ets/core/XrayOutbounds';
 import { parseShareLinkToOutboundJson } from '../main/ets/core/ShareLinkParser';
 import { exportRoutingRulesJson, importRoutingRulesJson, resetRoutingRulesFromPreset } from '../main/ets/core/RoutingRules';
@@ -28,6 +28,8 @@ const TROJAN_OUTBOUND: string =
   '{"protocol":"trojan","tag":"relay","settings":{"servers":[{"address":"relay.example.com","port":443,"password":"secret"}]}}';
 const PROXY_CHAIN_CONFIG: string =
   `{"remarks":"chain-demo","outbounds":[${VLESS_REALITY_OUTBOUND},${TROJAN_OUTBOUND}]}`;
+const POLICY_GROUP_CONFIG: string =
+  `{"type":"policy-group","remarks":"group-demo","strategy":"roundRobin","outbounds":[${VLESS_REALITY_OUTBOUND},${TROJAN_OUTBOUND}]}`;
 const FULL_XRAY_CONFIG: string =
   '{"remarks":"Custom full config","log":{"loglevel":"info"},"inbounds":[{"tag":"tun-in","protocol":"tun","settings":{"name":"vpn-tun","mtu":1400}}],"outbounds":[{"tag":"direct","protocol":"freedom","settings":{}}],"routing":{"domainStrategy":"AsIs","rules":[]}}';
 const WIREGUARD_CONF: string =
@@ -96,6 +98,38 @@ export default function localUnitTest() {
       expect(result.configJson).assertContain('"protocol": "trojan"');
       expect(result.configJson).assertContain('"tag": "direct"');
       expect(result.metricsServer !== undefined).assertTrue();
+    });
+
+    it('validates and builds policy group balancer config', 0, () => {
+      const validation = validatePolicyGroupConfigJson(POLICY_GROUP_CONFIG);
+      expect(validation.valid).assertTrue();
+      expect(validation.protocol).assertEqual('policy-group');
+      expect(validation.configType).assertEqual('policy-group');
+      expect(validation.normalizedJson).assertContain('"strategy": "roundRobin"');
+
+      const autoValidation = normalizeOutboundInput(POLICY_GROUP_CONFIG);
+      expect(autoValidation.valid).assertTrue();
+      expect(autoValidation.configType).assertEqual('policy-group');
+      expect(validatePolicyGroupConfigJson('{"type":"policy-group","outbounds":[]}').valid).assertFalse();
+      expect(localizeCoreMessage('en', '策略组至少需要一个 outbound。')).assertEqual('Policy group needs at least one outbound.');
+      expect(localizeCoreMessage('en', '策略组第 1 个成员无效：outbound 缺少 protocol 字段。')).assertEqual('Policy group member 1 is invalid: outbound is missing the protocol field.');
+
+      const settings = buildSettingsFixture();
+      settings.appendHttpProxy = true;
+      const result = buildRuntimeXrayConfig(validation.normalizedJson, settings, 'policy-group');
+      expect(result.configJson).assertContain('"tag": "proxy-policy-group-1"');
+      expect(result.configJson).assertContain('"tag": "proxy-policy-group-2"');
+      expect(result.configJson).assertContain('"tag": "balancer"');
+      expect(result.configJson).assertContain('"selector": [');
+      expect(result.configJson).assertContain('"proxy-policy-group-"');
+      expect(result.configJson).assertContain('"type": "roundRobin"');
+      expect(result.configJson).assertContain('"balancerTag": "balancer"');
+      expect(result.configJson).assertContain('"inboundTag": [\n        "http-in"');
+      expect(result.httpProxyPort).assertEqual(LOCAL_HTTP_PROXY_PORT);
+
+      const leastLoad = buildRuntimeXrayConfig(`{"type":"policy-group","policyGroupType":"1","outbounds":[${VLESS_REALITY_OUTBOUND}]}`, settings, 'policy-group');
+      expect(leastLoad.configJson).assertContain('"type": "leastLoad"');
+      expect(leastLoad.configJson).assertContain('"burstObservatory"');
     });
 
     it('extracts importable outbounds from native-converted xray config', 0, () => {

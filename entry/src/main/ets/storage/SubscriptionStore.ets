@@ -581,8 +581,11 @@ export class SubscriptionStore {
     if (node.configType === 'proxy-chain') {
       return 'proxy-chain';
     }
+    if (node.configType === 'policy-group') {
+      return 'policy-group';
+    }
     const validation = normalizeConfigInput(node.outboundJson ?? '');
-    return validation.configType === 'full' || validation.configType === 'proxy-chain' ? validation.configType : 'outbound';
+    return validation.configType === 'full' || validation.configType === 'proxy-chain' || validation.configType === 'policy-group' ? validation.configType : 'outbound';
   }
 
   private static resolveConfigType(detected?: XrayConfigType, fallback?: XrayConfigType): XrayConfigType {
@@ -592,10 +595,13 @@ export class SubscriptionStore {
     if (detected === 'proxy-chain') {
       return 'proxy-chain';
     }
+    if (detected === 'policy-group') {
+      return 'policy-group';
+    }
     if (detected === 'outbound') {
       return 'outbound';
     }
-    if (fallback === 'full' || fallback === 'proxy-chain') {
+    if (fallback === 'full' || fallback === 'proxy-chain' || fallback === 'policy-group') {
       return fallback;
     }
     return 'outbound';
@@ -607,6 +613,9 @@ export class SubscriptionStore {
     }
     if (configType === 'proxy-chain') {
       return 'proxy-chain';
+    }
+    if (configType === 'policy-group') {
+      return 'policy-group';
     }
     return detectedProtocol;
   }
