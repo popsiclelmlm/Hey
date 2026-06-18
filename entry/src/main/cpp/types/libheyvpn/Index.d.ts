@@ -26,3 +26,5 @@ export const pingOutbound: (configJson: string, datDir: string, url: string, tim
 export const queryStats: (server: string) => NativeResult;
 export const testXrayConfig: (configJson: string, workDir: string) => NativeResult;
 export const xrayVersion: () => NativeResult;
+export const countGeoData: (datDir: string, name: string, geoType: string) => NativeResult;
+export const readGeoFiles: (configJson: string) => NativeResult;

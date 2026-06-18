@@ -6,6 +6,8 @@ import { http } from '@kit.NetworkKit';
 import fs from '@ohos.file.fs';
 import { AppLanguage } from '../../core/Profile';
 import { translate } from '../../core/I18n';
+import { formatGeoCountSummary, formatGeoCountUnavailable, geoDataSpecForFile, parseGeoCountData } from '../../core/GeoAssets';
+import { countNativeGeoData } from '../../native/HeyNative';
 import { formatOne, formatTwo } from '../../utils/LocalizationPresenter';
 import { SHARED_RUNTIME_CONTROLLER } from '../runtime/RuntimeController';
 import { AssetStore, CustomAssetUrl } from '../../storage/AssetStore';
@@ -39,10 +41,59 @@ export class AssetsController {
         const sizeMb = (stat.size / (1024 * 1024)).toFixed(2);
         const date = new Date(stat.mtime * 1000);
         const timeStr = `${date.getFullYear()}/${this.pad(date.getMonth() + 1)}/${this.pad(date.getDate())} ${this.pad(date.getHours())}:${this.pad(date.getMinutes())}:${this.pad(date.getSeconds())}`;
-        return formatTwo(language, 'assets.fileStatus', 'size', sizeMb, 'time', timeStr);
+        const status = formatTwo(language, 'assets.fileStatus', 'size', sizeMb, 'time', timeStr);
+        const countStatus = this.getGeoCountStatus(context, fileName, stat.mtime, language);
+        return countStatus.length > 0 ? `${status} / ${countStatus}` : status;
       }
     } catch (e) {}
     return this.t(language, 'assets.notDownloaded');
+  }
+
+  private getGeoCountStatus(context: common.Context, fileName: string, datMtime: number, language: AppLanguage): string {
+    const spec = geoDataSpecForFile(fileName);
+    if (spec === null) {
+      return '';
+    }
+
+    const jsonPath = `${context.filesDir}/${spec.name}.json`;
+    if (this.shouldRefreshGeoCount(jsonPath, datMtime)) {
+      const result = countNativeGeoData(context.filesDir, spec.name, spec.geoType);
+      if (!result.ok) {
+        return formatGeoCountUnavailable(language, this.compactNativeError(result.message));
+      }
+    }
+
+    try {
+      if (!fs.accessSync(jsonPath)) {
+        return '';
+      }
+      const count = parseGeoCountData(fs.readTextSync(jsonPath));
+      return count === null ? '' : formatGeoCountSummary(language, count);
+    } catch (error) {
+      return '';
+    }
+  }
+
+  private shouldRefreshGeoCount(jsonPath: string, datMtime: number): boolean {
+    try {
+      if (!fs.accessSync(jsonPath)) {
+        return true;
+      }
+      const stat = fs.statSync(jsonPath);
+      return stat.mtime < datMtime;
+    } catch (error) {
+      return true;
+    }
+  }
+
+  private compactNativeError(message: string): string {
+    if (message.indexOf('CGoCountGeoData not exported') >= 0) {
+      return 'CGoCountGeoData not exported';
+    }
+    if (message.length > 72) {
+      return `${message.substring(0, 69)}...`;
+    }
+    return message;
   }
 
   // 获取自定义资源的大小

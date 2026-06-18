@@ -24,7 +24,7 @@
 | 领域 | 现状 | 缺口 |
 | --- | --- | --- |
 | 真机 VPN 闭环 | ✅ **已真机验证通过（2026-06-15）**：`TUN fd → CGoSetTunFd → Xray native TUN → 出站` 端到端可上网 | 阻塞项解除，主线推进至 M1 |
-| Native 桥接 | M1 已接通 7 个（含 `CGoQueryStats`/`CGoTestXray`/`CGoXrayVersion`），代码完成 | **待 `libxray.so` 重建（导出符号已加）+ 真机复测**；`CGoReadGeoFiles`/`CGoConvertShareLinks` 仍未接线 |
+| Native 桥接 | M1 已接通 9 个（含 `CGoQueryStats`/`CGoTestXray`/`CGoXrayVersion`/`CGoReadGeoFiles`/`CGoCountGeoData`），代码完成 | **待 `libxray.so` 重建（导出符号已加）+ 真机复测**；`CGoConvertShareLinks` 仍未接线 |
 | 路由规则 | ✅ 广告拦截、自定义规则、预设规则集导入/导出均已写入 `routing.rules` | 仍待真机验证规则实效；高级出站目标（策略组/负载均衡）归入 M5 |
 | 订阅 | 多分组 + 手动/批量更新 + 前台到期刷新 + 本地 HTTP 代理经由更新 | 后台定时调度仍待补齐 |
 | 分享导出 | 文本/文件导出 + 节点二维码 + 系统分享面板 | 仍待真机回归不同分享目标兼容性 |
@@ -77,13 +77,18 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 - 配置：`XrayConfig.ets` 增 `stats/metrics/policy` + `metrics_in` dokodemo inbound（127.0.0.1:10845）+ 路由规则
 - 消费：VPN 扩展 `recordStats()` 查 metrics 端点写真实上下行；启动前 `CGoTestXray` 预检；About 页显示内核版本
 
-**仍需**：用更新后的脚本重建 `libxray.so`（当前 `.so` 未导出这三个符号），真机复测流量/预检/版本，并确认新增 metrics inbound 不影响已验证的连接路径。
+**进展（2026-06-18 续）**：`CGoReadGeoFiles`/`CGoCountGeoData` 接线完成：
+- 构建：version-script 继续导出 `CGoReadGeoFiles`/`CGoCountGeoData`
+- Native：`napi_init.cpp` 新增 `readGeoFiles`/`countGeoData`，符号缺失时优雅降级
+- 消费：Assets 页对 `geosite.dat`/`geoip.dat` 生成 sidecar 计数 JSON，并在文件状态展示分类数/规则数
+
+**仍需**：用更新后的脚本重建 `libxray.so`（当前 `.so` 未导出这些新增符号），真机复测流量/预检/版本/Geo 计数，并确认新增 metrics inbound 不影响已验证的连接路径。
 
 **任务**（按性价比排序）
 1. `CGoQueryStats` → 真实上下行流量统计，替换当前 C++ 侧近似计数
 2. `CGoTestXray` → 连接前配置预检，减少启动失败、提前报错
 3. `CGoXrayVersion` → About 页显示真实内核版本
-4. `CGoReadGeoFiles` → geo 文件校验与计数（Assets 页展示条目数）
+4. ✅ `CGoReadGeoFiles` / `CGoCountGeoData` → geo 文件校验与计数（Assets 页展示条目数，2026-06-18）
 
 **v2rayNG 对照**：`CoreServiceManager.queryAllOutboundTrafficStats()`、配置预检逻辑。
 **验收标准**：运行态面板显示真实流量；非法配置在连接前被拦截并提示。
@@ -319,5 +324,6 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-18 | M0 补点 | ✅ VPN 接口地址方案可配置完成（按 v2rayNG 7 组预设保存 `vpnInterfaceAddressIndex`，Harmony `VpnConfig.addresses` 使用对应 IPv4/IPv6 client 地址） |
 | 2026-06-18 | M0 补点 | ✅ VPN 绕过 LAN 三态设置完成（保存 `vpnBypassLan=0/1/2`，绕过时用 v2rayNG 公网 IPv4 路由表 + IPv6 `2000::/3`/`fc00::/18` 替代默认路由） |
 | 2026-06-18 | M0 补点 | ✅ 本地 DNS / FakeDNS 接线完成（`localDnsEnabled` 生成 TUN 53 → `dns-out` 路由和 DNS outbound；`fakeDnsEnabled` 生成 `fakedns` server、顶层 `fakedns` 与 sniffing `fakedns`，`localDnsPort` 可保存） |
+| 2026-06-18 | M1 | 🟡 Geo 文件校验/计数接线完成（`CGoReadGeoFiles`/`CGoCountGeoData` 导出 + native wrapper + Assets 页显示分类数/规则数）；待重建 `.so` + 真机复测 |
 | 2026-06-15 | 自查 | ✅ 字段一致性总扫：AppSettings/SettingsDraft 5 个构造点字段完整一致，SubscriptionGroup.filter 贯通，无需修改 |
 | 2026-06-15 | 自查 | ✅ 深链/metrics 配置形状核对 Xray 官方一致；自查清单收尾（净修复：预检非阻断 + 清理未用导入） |

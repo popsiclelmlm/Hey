@@ -112,6 +112,8 @@ export struct BuiltinGeoCard {
         Text(status)
           .fontSize(FontSz.footnote)
           .fontColor(AppColor.textTertiary)
+          .maxLines(2)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
       }
       .alignItems(HorizontalAlign.Start)
       .layoutWeight(1)

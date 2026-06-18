@@ -24,7 +24,7 @@ v2rayNG's features and design, see
 | RoutingSettingActivity / RoutingEditActivity | Route | Present for core ruleset management. Traffic mode (global/rules/direct), domain strategy, bypass-LAN/CN, ad-block, custom routing rules, locked rules, predefined ruleset import, clipboard import, and clipboard export persist and feed generated Xray routing. Advanced custom outbound targets remain future work. |
 | SettingsActivity | Config | Core, VPN DNS, IPv6 preference, local HTTP proxy append/sharing, mux, sniffing, log level and routing strategy persist; VPN DNS feeds Harmony `VpnConfig.dnsAddresses`, IPv6 preference feeds the VPN interface address/route and generated Xray outbound Happy Eyeballs, proxy sharing changes local HTTP inbound listen, while remote/domestic DNS feed generated Xray DNS. Dedicated pickers and full advanced options pending. |
 | PerAppProxyActivity | Apps | Partial. Toggle, allowlist/blocklist mode, preset/manual package list, and VPN `blockedApplications`/`trustedApplications` mapping are wired; unrestricted installed-app enumeration is platform-limited. |
-| UserAssetActivity / UserAssetUrlActivity | Assets | Present. geoip/geosite download (Loyalsoldier rules), custom asset URL CRUD, and clipboard backup/restore are implemented. |
+| UserAssetActivity / UserAssetUrlActivity | Assets | Present. geoip/geosite download (Loyalsoldier rules), custom asset URL CRUD, clipboard backup/restore, and native Geo count status are implemented. |
 | LogcatActivity | Logs | Present. App diagnostic logs and native runtime stats are visible. |
 | AboutActivity | About | Present. Harmony-specific about/license note. |
 | TaskerActivity / shortcuts / widgets / QS tile | Platform equivalents | Pending. Android-only entry points need Harmony shortcuts/widgets equivalents. |
@@ -47,26 +47,27 @@ v2rayNG's features and design, see
 | Delete all / duplicate / invalid configs | Present for the active subscription group. Delete-all, duplicate cleanup, and invalid-node cleanup are wired from the Nodes menu. |
 | Export/share configs and QR generation | Present for text-oriented flows. Plain-text share-link/exported JSON output is present, full custom configs export as JSON text, node detail can render QR codes for share-link nodes, Export can save the current group to a `.txt` file, and batch/single-node text can be sent through the Harmony system share sheet with clipboard fallback. |
 | Multi-subscription groups | Present with legacy single-subscription migration. Rename/edit, enable-disable, delete, reorder, batch update all, per-subscription insecure URL opt-in, auto-update opt-in, and update interval are wired. Foreground due refresh is wired, and subscription fetches can prefer the local HTTP proxy when the VPN runtime exposes it. Background refresh remains pending. |
-| Routing rulesets and geo assets | Partial. Geo asset download/management present (Assets page). Routing config emits metrics, ad-block, custom enabled rules, and bypass-LAN/CN rules in order. Predefined ruleset import/export is wired; advanced outbound targets are still pending. |
+| Routing rulesets and geo assets | Partial. Geo asset download/management present (Assets page), with native geosite/geoip count sidecars shown in file status after core rebuild. Routing config emits metrics, ad-block, custom enabled rules, and bypass-LAN/CN rules in order. Predefined ruleset import/export is wired; advanced outbound targets are still pending. |
 | Per-app proxy | Partial. VPN app allow/block mapping is wired from saved package names; unrestricted installed-app enumeration remains platform-limited. |
 | Auto subscription update | Partial. Per-subscription `autoUpdate` and `updateIntervalMinutes` persist with v2rayNG-compatible defaults (1440 minutes, minimum 15), and the home page performs throttled foreground due refresh through the local HTTP proxy when available. Harmony background scheduling remains pending. |
 | Boot/startup automation | Pending and platform-dependent. |
 
 ## Native Bridge Status
 
-`libxray.so` exports 13 CGo functions; `napi_init.cpp` wires 7 (M1, 2026-06-15).
+`libxray.so` exports 13 CGo functions; `napi_init.cpp` wires 9 (M1, refreshed 2026-06-18).
 
 - Wired (runtime): `CGoRunXrayFromJSON`, `CGoStopXray`, `CGoPing`, `CGoSetTunFd`.
 - Wired (M1): `CGoQueryStats` (real per-tag traffic via the Xray metrics
   `/debug/vars` endpoint), `CGoTestXray` (pre-connect config preflight),
-  `CGoXrayVersion` (core version on the About page).
-- Idle: `CGoReadGeoFiles` / `CGoCountGeoData` (geo validation),
-  `CGoConvertShareLinksToXrayJson`, `CGOConvertXrayJsonToShareLinks`,
+  `CGoXrayVersion` (core version on the About page),
+  `CGoReadGeoFiles` / `CGoCountGeoData` (Geo file validation/count status on Assets).
+- Idle: `CGoConvertShareLinksToXrayJson`, `CGOConvertXrayJsonToShareLinks`,
   `CGoGetFreePorts`, `CGoRunXray`.
 
 > M1 note: the prebuilt `libxray.so` version script previously exported only the
 > 4 runtime symbols (`local: *` hid the rest). `scripts/build_libxray_ohos.sh`
-> now also exports `CGoQueryStats`/`CGoTestXray`/`CGoXrayVersion`, so the bridge
-> code is complete but a **`libxray.so` rebuild + device retest** is required
-> before these three take effect. Until then the bridge degrades gracefully
-> (stats fall back, preflight is skipped, version shows the static label).
+> now also exports `CGoQueryStats`/`CGoTestXray`/`CGoXrayVersion` plus the Geo
+> count/read symbols, so the bridge code is complete but a **`libxray.so`
+> rebuild + device retest** is required before these optional paths take effect.
+> Until then the bridge degrades gracefully (stats fall back, preflight is
+> skipped, version shows the static label, Geo count reports unavailable).

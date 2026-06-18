@@ -28,6 +28,8 @@ cat > "${EXPORTS_FILE}" <<'MAP'
     CGoQueryStats;
     CGoTestXray;
     CGoXrayVersion;
+    CGoCountGeoData;
+    CGoReadGeoFiles;
   local: *;
 };
 MAP

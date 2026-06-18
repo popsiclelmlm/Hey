@@ -1,6 +1,7 @@
 import { describe, it, expect } from '@ohos/hypium';
 import { formatTranslation, missingTranslationKeys, normalizeLanguage, translate } from '../main/ets/core/I18n';
 import { AppSettings, ProxyNode, RoutingRule, SubscriptionGroup } from '../main/ets/core/Profile';
+import { formatGeoCountSummary, formatGeoCountUnavailable, geoDataSpecForFile, parseGeoCountData } from '../main/ets/core/GeoAssets';
 import { LOCAL_HTTP_PROXY_LAN_HOST, LOCAL_HTTP_PROXY_PORT, buildRuntimeXrayConfig, buildXrayConfig, buildXrayConfigWithSettings, normalizeOutboundInput, validateFullConfigJson, validateOutboundJson } from '../main/ets/core/XrayConfig';
 import { parseShareLinkToOutboundJson } from '../main/ets/core/ShareLinkParser';
 import { exportRoutingRulesJson, importRoutingRulesJson, resetRoutingRulesFromPreset } from '../main/ets/core/RoutingRules';
@@ -310,6 +311,26 @@ export default function localUnitTest() {
       expect(normalizeLanguage('en')).assertEqual('en');
       expect(normalizeLanguage('zh')).assertEqual('zh');
       expect(normalizeLanguage('fr')).assertEqual('zh');
+    });
+
+    it('formats geo asset count status', 0, () => {
+      const geosite = geoDataSpecForFile('geosite.dat');
+      const geoip = geoDataSpecForFile('geoip.dat');
+      expect(geosite?.name).assertEqual('geosite');
+      expect(geosite?.geoType).assertEqual('domain');
+      expect(geoip?.name).assertEqual('geoip');
+      expect(geoip?.geoType).assertEqual('ip');
+      expect(geoDataSpecForFile('custom.dat') === null).assertTrue();
+
+      const count = parseGeoCountData('{"categoryCount":2,"ruleCount":345,"codes":[{"code":"cn","ruleCount":100}]}');
+      expect(count?.categoryCount).assertEqual(2);
+      expect(count?.ruleCount).assertEqual(345);
+      expect(parseGeoCountData('{"bad":true}') === null).assertTrue();
+      if (count !== null) {
+        expect(formatGeoCountSummary('zh', count)).assertEqual('2 类 / 345 条规则');
+        expect(formatGeoCountSummary('en', count)).assertEqual('2 categories / 345 rules');
+      }
+      expect(formatGeoCountUnavailable('en', 'CGoCountGeoData not exported')).assertContain('CGoCountGeoData not exported');
     });
 
     it('round-trips vpn settings through settings draft', 0, () => {

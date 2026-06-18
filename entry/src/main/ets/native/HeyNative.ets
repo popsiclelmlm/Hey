@@ -19,12 +19,25 @@ export interface NativeTrafficStats {
   message: string;
 }
 
+export interface NativeGeoFilesResult {
+  ok: boolean;
+  domainFiles: Array<string>;
+  ipFiles: Array<string>;
+  message: string;
+}
+
 // libXray wraps every CGo return value in a CallResponse. The native bridge
 // decodes the base64 envelope and hands us the JSON below as the message.
 interface CallResponseString {
   success: boolean;
   data: string;
   err: string;
+}
+
+interface CallResponseAny {
+  success: boolean;
+  data?: Object | string | number;
+  err?: string;
 }
 
 // Shape of the Xray metrics expvar body (/debug/vars). Only the stats branch is
@@ -37,6 +50,11 @@ interface ExpvarRoot {
   stats?: ExpvarStats;
 }
 
+interface GeoFilesData {
+  domain?: Array<string>;
+  ip?: Array<string>;
+}
+
 interface NativeBridge {
   validateConfig(configJson: string): NativeResult;
   setTunFd(tunFd: number): NativeResult;
@@ -47,6 +65,8 @@ interface NativeBridge {
   queryStats(server: string): NativeResult;
   testXrayConfig(configJson: string, workDir: string): NativeResult;
   xrayVersion(): NativeResult;
+  countGeoData(datDir: string, name: string, geoType: string): NativeResult;
+  readGeoFiles(configJson: string): NativeResult;
 }
 
 const bridge = heyNative as NativeBridge;
@@ -95,6 +115,37 @@ export function nativeXrayVersion(): NativeResult {
   return { ok: true, message: extractCallData(result.message) };
 }
 
+// Asks libXray to parse a geosite/geoip .dat file and write {name}.json into
+// the same directory. `geoType` is "domain" for geosite and "ip" for geoip.
+export function countNativeGeoData(datDir: string, name: string, geoType: string): NativeResult {
+  const result = bridge.countGeoData(datDir, name, geoType);
+  if (result.ok) {
+    return { ok: true, message: 'Geo data counted.' };
+  }
+  return { ok: false, message: extractCallError(result.message) };
+}
+
+// Reads the geosite/geoip .dat file names referenced by an Xray config JSON.
+export function readNativeGeoFiles(configJson: string): NativeGeoFilesResult {
+  const result = bridge.readGeoFiles(configJson);
+  if (!result.ok) {
+    return { ok: false, domainFiles: [], ipFiles: [], message: extractCallError(result.message) };
+  }
+
+  try {
+    const envelope = JSON.parse(result.message) as CallResponseAny;
+    const data = normalizeGeoFilesData(envelope.data);
+    return {
+      ok: true,
+      domainFiles: normalizeStringArray(data.domain),
+      ipFiles: normalizeStringArray(data.ip),
+      message: ''
+    };
+  } catch (error) {
+    return { ok: false, domainFiles: [], ipFiles: [], message: `Geo files parse failed: ${JSON.stringify(error)}` };
+  }
+}
+
 // Queries the running Xray metrics endpoint and sums real per-tag outbound
 // traffic. `server` is the expvar URL, e.g. http://127.0.0.1:10845/debug/vars.
 export function queryNativeTraffic(server: string): NativeTrafficStats {
@@ -140,6 +191,35 @@ function parseTrafficResponse(callResponseJson: string): NativeTrafficStats {
   } catch (error) {
     return { ok: false, uploadBytes: 0, downloadBytes: 0, message: `Stats parse failed: ${JSON.stringify(error)}` };
   }
+}
+
+function normalizeGeoFilesData(value: Object | string | number | undefined): GeoFilesData {
+  if (value === undefined) {
+    return {};
+  }
+  if (typeof value === 'string') {
+    if (value.length === 0) {
+      return {};
+    }
+    return JSON.parse(value) as GeoFilesData;
+  }
+  if (typeof value === 'object') {
+    return value as GeoFilesData;
+  }
+  return {};
+}
+
+function normalizeStringArray(value: Array<string> | undefined): Array<string> {
+  if (value === undefined) {
+    return [];
+  }
+  const result = new Array<string>();
+  value.forEach(item => {
+    if (typeof item === 'string' && item.length > 0) {
+      result.push(item);
+    }
+  });
+  return result;
 }
 
 function extractCallError(message: string): string {

@@ -15,23 +15,24 @@
 | Xray 配置生成 | 🟡 73% | 普通节点生成 TUN/metrics/DNS/routing/HTTP 代理配置，HTTP 代理支持局域网共享监听；完整自定义 Xray config 可校验后原样运行；高级出站目标仍待补 |
 | 节点延迟测速 / 排序 | ✅ 80% | `CGoPing` 真测速 + 排序，需真机验证 |
 | 路由设置页 | ✅ 80% | 广告拦截、自定义规则、预设规则集导入/导出均已生效；高级出站目标与真机规则回归待补 |
-| Geo 资产管理 | ✅ 85% | 下载 / 自定义 URL / 备份还原已实现 |
-| 分应用代理 | 🔴 20% | 仅开关持久化，**无真实应用列表枚举** |
+| Geo 资产管理 | ✅ 90% | 下载 / 自定义 URL / 备份还原已实现；Geo 文件 native 计数/校验已接线，待重建 `.so` 真机验证 |
+| 分应用代理 | 🟡 70% | 开关、黑白名单、手动包名、应用枚举和 VPN 应用映射已接线；仍受平台可见性限制，待真机回归 |
 | 设置页 | 🟡 70% | 核心项持久化并生效 |
-| 扫码导入 | 🔴 30% | **仅粘贴，无相机扫码** |
+| 扫码导入 | ✅ 80% | 粘贴导入和 ScanKit 相机扫码已接线，待真机相机权限/机型回归 |
 | 导出 / 分享 | ✅ 82% | 文本/文件导出、节点二维码与系统分享面板已完成；后续主要是真机分享目标兼容回归 |
-| 平台集成 | 🔴 0% | 无快捷方式 / 卡片 / 深链导入 |
+| 平台集成 | 🔴 20% | Want / URL Scheme 深链导入已完成；快捷方式 / 卡片仍待补 |
 
 ### Native 桥接现状
 
-`libxray.so` 导出 13 个 CGo 函数，当前 `napi_init.cpp` 仅接通 4 个：
+`libxray.so` 导出 13 个 CGo 函数，当前 `napi_init.cpp` 已接通 9 个：
 
-- 已接通：`CGoRunXrayFromJSON`、`CGoStopXray`、`CGoPing`、`CGoSetTunFd`
-- **闲置**：`CGoQueryStats`（真实流量统计）、`CGoReadGeoFiles` / `CGoCountGeoData`（geo 校验）、
-  `CGoTestXray`（配置预检）、`CGoXrayVersion`、`CGoConvertShareLinksToXrayJson`、
+- 已接通：`CGoRunXrayFromJSON`、`CGoStopXray`、`CGoPing`、`CGoSetTunFd`、
+  `CGoQueryStats`（真实流量统计）、`CGoTestXray`（配置预检）、`CGoXrayVersion`、
+  `CGoReadGeoFiles` / `CGoCountGeoData`（geo 校验/计数）
+- **闲置**：`CGoConvertShareLinksToXrayJson`、
   `CGOConvertXrayJsonToShareLinks`、`CGoGetFreePorts`、`CGoRunXray`
 
-> 当前 `getStats()` 返回的是 C++ 侧近似计数，非内核真实统计。
+> 当前预构建 `libxray.so` 仍需按更新后的 version-script 重建；重建前新增可选符号会优雅降级。
 
 ## 二、分阶段路线图
 
@@ -50,7 +51,7 @@
 - `CGoQueryStats` → 真实上下行流量统计
 - `CGoTestXray` → 连接前配置预检，减少启动失败
 - `CGoXrayVersion` → About 页显示内核版本
-- `CGoReadGeoFiles` / `CGoCountGeoData` → geo 文件校验与计数
+- ✅ `CGoReadGeoFiles` / `CGoCountGeoData` → geo 文件校验与计数（2026-06-18 代码接线，待重建/真机）
 
 **产出**：统计准确 + 配置可预检。
 
@@ -74,7 +75,7 @@
 
 ### 阶段 4：体验功能补全（多数可并行）
 
-- 相机扫码（`@kit.ScanKit` scanBarcode）替代纯粘贴
+- ✅ 相机扫码（`@kit.ScanKit` scanBarcode）替代纯粘贴
 - 二维码生成（节点分享）
 - TUIC 协议解析 + 运行
 - 完整自定义 Xray config 导入与原样运行（已完成）
@@ -83,7 +84,7 @@
 
 ### 阶段 5：平台集成（鸿蒙特性）
 
-- Want / 深链导入（对应 v2rayNG UrlScheme）
+- ✅ Want / 深链导入（对应 v2rayNG UrlScheme）
 - 桌面快捷方式、服务卡片（widget）
 - 开机自启（受平台权限限制，量力而行）
 
@@ -121,3 +122,4 @@
 | 2026-06-18 | 阶段 0 | ✅ VPN 绕过 LAN 完成；三态设置控制 Harmony VPN 默认路由或公网覆盖路由 |
 | 2026-06-18 | 阶段 0 | ✅ 本地 DNS / FakeDNS 完成；开启后生成 TUN 53 → `dns-out` 路由、DNS outbound 与 FakeDNS 配置 |
 | 2026-06-18 | 阶段 4 | ✅ 本地 HTTP 代理共享监听完成；`proxySharingEnabled` 开启时 `http-in` 监听 `0.0.0.0:10808` |
+| 2026-06-18 | 阶段 1 | 🟡 Geo 文件校验/计数接线完成；`CGoReadGeoFiles`/`CGoCountGeoData` 已导出并在 Assets 页展示分类数/规则数，待重建 `.so` + 真机验证 |

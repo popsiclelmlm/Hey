@@ -46,6 +46,8 @@ CGoSetTunFdFunc g_setTunFd = nullptr;
 CGoStringFunc g_queryStats = nullptr;
 CGoStringFunc g_testXray = nullptr;
 CGoVersionFunc g_xrayVersion = nullptr;
+CGoStringFunc g_countGeoData = nullptr;
+CGoStringFunc g_readGeoFiles = nullptr;
 
 const char* BASE64_TABLE = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
@@ -399,6 +401,22 @@ CGoVersionFunc LoadXrayVersion()
     return g_xrayVersion;
 }
 
+CGoStringFunc LoadCountGeoData()
+{
+    if (g_countGeoData == nullptr) {
+        g_countGeoData = reinterpret_cast<CGoStringFunc>(LoadOptionalSymbol("CGoCountGeoData"));
+    }
+    return g_countGeoData;
+}
+
+CGoStringFunc LoadReadGeoFiles()
+{
+    if (g_readGeoFiles == nullptr) {
+        g_readGeoFiles = reinterpret_cast<CGoStringFunc>(LoadOptionalSymbol("CGoReadGeoFiles"));
+    }
+    return g_readGeoFiles;
+}
+
 bool ParsePingResponse(const std::string& json, int64_t& delay, std::string& message)
 {
     delay = -1;
@@ -608,6 +626,77 @@ napi_value XrayVersion(napi_env env, napi_callback_info info)
     return BuildCallResult(env, raw, "CGoXrayVersion returned null.");
 }
 
+// Counts a geosite/geoip .dat file and lets libXray write the sidecar
+// {name}.json into datDir. Request shape matches libXray CountGeoDataRequest:
+// {"datDir": "...", "name": "geosite|geoip", "geoType": "domain|ip"}.
+napi_value CountGeoData(napi_env env, napi_callback_info info)
+{
+    size_t argc = 3;
+    napi_value args[3] = { nullptr, nullptr, nullptr };
+    napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+    if (argc < 3) {
+        return CreateResultQuiet(env, false, "Missing geo count arguments.");
+    }
+
+    std::string datDir = GetStringArg(env, args[0]);
+    std::string name = GetStringArg(env, args[1]);
+    std::string geoType = GetStringArg(env, args[2]);
+    if (datDir.empty()) {
+        return CreateResultQuiet(env, false, "Geo data directory is empty.");
+    }
+    if (name.empty()) {
+        return CreateResultQuiet(env, false, "Geo data file name is empty.");
+    }
+    if (geoType != "domain" && geoType != "ip") {
+        return CreateResultQuiet(env, false, "Geo data type must be domain or ip.");
+    }
+
+    CGoStringFunc count = LoadCountGeoData();
+    if (count == nullptr) {
+        return CreateResultQuiet(env, false, "Geo count unavailable: CGoCountGeoData not exported by libXray.");
+    }
+
+    std::ostringstream request;
+    request << "{\"datDir\":\"" << JsonEscape(datDir) << "\","
+            << "\"name\":\"" << JsonEscape(name) << "\","
+            << "\"geoType\":\"" << JsonEscape(geoType) << "\"}";
+    std::string encoded = Base64Encode(request.str());
+    std::vector<char> buffer(encoded.begin(), encoded.end());
+    buffer.push_back('\0');
+
+    char* raw = count(buffer.data());
+    return BuildCallResult(env, raw, "CGoCountGeoData returned null.");
+}
+
+// Reads geo resource references from an Xray config JSON. libXray returns a
+// CallResponse whose data is {domain:["geosite.dat"], ip:["geoip.dat"]}.
+napi_value ReadGeoFiles(napi_env env, napi_callback_info info)
+{
+    size_t argc = 1;
+    napi_value args[1] = { nullptr };
+    napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+    if (argc < 1) {
+        return CreateResultQuiet(env, false, "Missing Xray config JSON.");
+    }
+
+    std::string config = GetStringArg(env, args[0]);
+    if (config.empty()) {
+        return CreateResultQuiet(env, false, "Xray config JSON is empty.");
+    }
+
+    CGoStringFunc read = LoadReadGeoFiles();
+    if (read == nullptr) {
+        return CreateResultQuiet(env, false, "Geo file reader unavailable: CGoReadGeoFiles not exported by libXray.");
+    }
+
+    std::string encoded = Base64Encode(config);
+    std::vector<char> buffer(encoded.begin(), encoded.end());
+    buffer.push_back('\0');
+
+    char* raw = read(buffer.data());
+    return BuildCallResult(env, raw, "CGoReadGeoFiles returned null.");
+}
+
 napi_value ValidateConfig(napi_env env, napi_callback_info info)
 {
     size_t argc = 1;
@@ -778,6 +867,8 @@ static napi_value Init(napi_env env, napi_value exports)
         { "queryStats", nullptr, QueryStats, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "testXrayConfig", nullptr, TestXrayConfig, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "xrayVersion", nullptr, XrayVersion, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "countGeoData", nullptr, CountGeoData, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "readGeoFiles", nullptr, ReadGeoFiles, nullptr, nullptr, nullptr, napi_default, nullptr },
     };
     napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc);
     return exports;
