@@ -122,6 +122,11 @@ export class NodesController {
     return this.stateFromSubscription(context, subscription, language, '');
   }
 
+  async clearActiveGroupNodes(context: common.Context, language: AppLanguage): Promise<NodesControllerState> {
+    const subscription = await SubscriptionStore.clearActiveGroupNodes(context);
+    return this.stateFromSubscription(context, subscription, language, '');
+  }
+
   findNode(nodes: Array<ProxyNode>, nodeId: string): ProxyNode | null {
     return this.findNodeInList(nodes, nodeId);
   }

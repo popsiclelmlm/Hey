@@ -132,6 +132,11 @@ VPN 接口 `dnsAddresses` 改为读 `vpnDns` 设置（当前写死 `1.1.1.1/8.8.
 - 更新：保存/更新订阅时默认拒绝 `http://`，开启后允许；`https://` 保持默认可用，重定向同样遵循该开关
 - 测试：新增单测覆盖 `https://`、HTTP 默认拒绝、HTTP 开启允许、非 HTTP(S) 拒绝
 
+**进展（2026-06-18 续）**：节点批量删除全部已落地：
+- Store/Controller：新增清空当前订阅分组节点能力，分组本身保留，选中节点清空
+- UI：Nodes 菜单补「删除配置」，执行前二次确认
+- 日志：删除后记录删除数量，并同步空状态
+
 **任务**
 - **订阅自动更新**：用鸿蒙后台任务/定时（`backgroundTaskManager` 或 `reminderAgent`）
   按 `updateInterval` 周期刷新；最小间隔保护（如 15 分钟）
@@ -140,8 +145,8 @@ VPN 接口 `dnsAddresses` 改为读 `vpnDns` 设置（当前写死 `1.1.1.1/8.8.
 - **订阅分组重排**：上移/下移并持久化顺序（2026-06-18 已完成）
 - **批量更新全部**：订阅页顶部刷新按钮更新全部启用订阅分组（已完成）
 - **代理经由更新**：运行中时通过本地 http 端口拉取订阅（GFW 内更新）
-- **节点批量操作**：删除重复、批量测速后自动排序、测速后自动删除超时节点已完成；
-  全量删除等剩余批处理能力继续对照 v2rayNG 点检
+- **节点批量操作**：删除全部、删除重复、批量测速后自动排序、测速后自动删除超时节点已完成；
+  其他批处理能力继续对照 v2rayNG 点检
 
 **v2rayNG 对照**：`SubscriptionUpdater`（WorkManager）、`AngConfigManager.updateConfigViaSub`、
 `MainViewModel` 的批量操作。
@@ -267,5 +272,6 @@ VPN 接口 `dnsAddresses` 改为读 `vpnDns` 设置（当前写死 `1.1.1.1/8.8.
 | 2026-06-18 | M2 | ✅ 预设规则集导入/导出（5 组内置预设 + 剪贴板 JSON 导入/导出 + locked 规则保留 + 单测）；M2 路由规则主功能闭环，仍待真机验证规则实效 |
 | 2026-06-18 | M3 | ✅ 订阅分组重排（纯排序函数 + Store 持久化 + Subs 页滑动上移/下移 + 单测）；批量更新全部确认已落地 |
 | 2026-06-18 | M3 | ✅ 订阅级不安全 URL 开关（编辑页 `allowInsecureUrl` + 保存/更新 HTTP 校验 + 重定向校验 + 单测）；默认拒绝 `http://` 订阅，开启后允许 |
+| 2026-06-18 | M3 | ✅ 当前分组删除全部配置（Nodes 菜单确认弹窗 + Store/Controller 清空 active group nodes + 删除数量日志）；补齐 v2rayNG `removeAllServer` 的日常批处理路径 |
 | 2026-06-15 | 自查 | ✅ 字段一致性总扫：AppSettings/SettingsDraft 5 个构造点字段完整一致，SubscriptionGroup.filter 贯通，无需修改 |
 | 2026-06-15 | 自查 | ✅ 深链/metrics 配置形状核对 Xray 官方一致；自查清单收尾（净修复：预检非阻断 + 清理未用导入） |

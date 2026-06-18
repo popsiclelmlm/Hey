@@ -43,7 +43,7 @@ v2rayNG's features and design, see
 | SOCKS/HTTP/WireGuard/Hysteria2 parsing | Present for share-link import and subscription discovery. Runtime connection for WireGuard/Hysteria2 still needs core validation. |
 | TUIC parsing | Pending. |
 | Delay test / real ping / sort by delay | Present. Per-node real outbound delay via libXray `CGoPing` (own SOCKS test inbound on port 10825), persisted per node, with sort-by-delay. Falls back to direct URL test when the native core is unavailable (e.g. emulator). Needs real-device validation. |
-| Delete all / duplicate / invalid configs | Partial. Duplicate and invalid-node cleanup are wired; full delete-all parity still needs review. |
+| Delete all / duplicate / invalid configs | Present for the active subscription group. Delete-all, duplicate cleanup, and invalid-node cleanup are wired from the Nodes menu. |
 | Export/share configs and QR generation | Partial. Plain-text share-link export is present, and node detail can render QR codes; system share/file export remains pending. |
 | Multi-subscription groups | Present with legacy single-subscription migration. Rename/edit, enable-disable, delete, reorder, batch update all, and per-subscription insecure URL opt-in are wired. Auto/background refresh and proxy-mediated subscription update remain pending. |
 | Routing rulesets and geo assets | Partial. Geo asset download/management present (Assets page). Routing config emits metrics, ad-block, custom enabled rules, and bypass-LAN/CN rules in order. Predefined ruleset import/export is wired; advanced outbound targets are still pending. |

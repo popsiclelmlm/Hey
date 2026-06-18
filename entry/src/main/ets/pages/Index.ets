@@ -480,6 +480,10 @@ struct Index {
         .onClick(() => {
           this.testVisibleNodeDelay();
         })
+      MenuItem({ content: this.t('menu.deleteConfig') })
+        .onClick(() => {
+          this.confirmClearNodes();
+        })
       MenuItem({ content: this.t('menu.deleteDuplicate') })
         .onClick(() => {
           this.dedupeNodes();
@@ -995,6 +999,43 @@ struct Index {
     const context = getContext(this) as common.Context;
     this.applyNodesState(await NODES_CONTROLLER.removeInvalidNodes(context, this.language));
     SHARED_RUNTIME_CONTROLLER.appendLog(this.f1('log.invalidNodesRemoved', 'count', invalid.toString()));
+  }
+
+  private confirmClearNodes(): void {
+    if (this.nodes.length === 0) {
+      promptAction.showToast({ message: this.t('prompt.noNodesToDelete') });
+      return;
+    }
+    AlertDialog.show({
+      title: this.t('menu.deleteConfig'),
+      message: this.t('node.deleteAllConfirm'),
+      autoCancel: true,
+      alignment: DialogAlignment.Bottom,
+      offset: { dx: 0, dy: -20 },
+      primaryButton: {
+        value: this.t('action.delete'),
+        fontColor: AppColor.onBrand,
+        backgroundColor: AppColor.danger,
+        action: () => {
+          this.clearActiveGroupNodes();
+        }
+      },
+      secondaryButton: {
+        value: this.t('action.cancel'),
+        fontColor: AppColor.textSecondary,
+        backgroundColor: AppColor.bg,
+        action: () => {}
+      }
+    })
+  }
+
+  private async clearActiveGroupNodes(): Promise<void> {
+    const removed = this.nodes.length;
+    const context = getContext(this) as common.Context;
+    this.applyNodesState(await NODES_CONTROLLER.clearActiveGroupNodes(context, this.language));
+    const message = this.f1('log.nodesCleared', 'count', removed.toString());
+    SHARED_RUNTIME_CONTROLLER.appendLog(message);
+    promptAction.showToast({ message });
   }
 
   private async testVisibleNodeDelay(): Promise<void> {

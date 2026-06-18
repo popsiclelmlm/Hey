@@ -149,6 +149,18 @@ export class SubscriptionStore {
     return SubscriptionStore.load(context);
   }
 
+  static async clearActiveGroupNodes(context: common.Context): Promise<SubscriptionProfile> {
+    const profile = await SubscriptionStore.load(context);
+    const group = SubscriptionStore.activeGroup(profile);
+    if (group !== null) {
+      group.nodes = [];
+      group.selectedNodeId = '';
+      group.updatedAt = Date.now();
+      await SubscriptionStore.save(context, SubscriptionStore.normalize(profile));
+    }
+    return SubscriptionStore.load(context);
+  }
+
   static async selectNode(context: common.Context, selectedNodeId: string): Promise<SubscriptionProfile> {
     const profile = await SubscriptionStore.load(context);
     for (let index = 0; index < profile.groups.length; index++) {
