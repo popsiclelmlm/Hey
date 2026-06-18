@@ -3,7 +3,7 @@ import { router, promptAction } from '@kit.ArkUI';
 import { pasteboard } from '@kit.BasicServicesKit';
 import { IconButton } from '../components/IconButton';
 import { DEFAULT_LANGUAGE, translate } from '../core/I18n';
-import { AppLanguage, AppSettings, ConnectionStatus, ProxyNode, RuntimeStats, SubscriptionGroup } from '../core/Profile';
+import { AppLanguage, AppSettings, ConnectionStatus, normalizeRealPingConcurrency, ProxyNode, RuntimeStats, SubscriptionGroup } from '../core/Profile';
 import { LOCAL_HTTP_PROXY_PORT } from '../core/XrayConfig';
 import { DeepLinkIntent, parseDeepLink, subscriptionNameFromDeepLink } from '../core/DeepLink';
 import { DelayTester, DelayTestResult } from '../services/DelayTester';
@@ -28,6 +28,12 @@ const EMPTY_STATS: RuntimeStats = {
   lastMessage: translate(DEFAULT_LANGUAGE, 'runtime.nativeBridgeNotQueried')
 };
 const AUTO_SUBSCRIPTION_CHECK_THROTTLE_MS: number = 60 * 1000;
+
+interface NodeDelayBatchResult {
+  node: ProxyNode;
+  result: DelayTestResult;
+  testedAt: number;
+}
 
 @Entry
 @Component
@@ -1089,25 +1095,34 @@ struct Index {
     SHARED_RUNTIME_CONTROLLER.appendLog(this.t('log.delayQueued'));
     try {
       const context = getContext(this) as common.Context;
-      for (let index = 0; index < targets.length; index++) {
-        const node = targets[index];
-        const startedAt = Date.now();
-        this.markNodeDelay(node.id, -1, 'testing', startedAt);
-        SHARED_RUNTIME_CONTROLLER.appendLog(this.f1('log.delayTestingNode', 'name', node.name));
-        const result: DelayTestResult = await this.measureNodeTcpDelay(node, 8000);
-        const delayMs = result.ok ? result.delayMs : -1;
-        const status = result.ok ? 'ok' : result.status;
-        const subscription = await SubscriptionStore.saveNodeDelay(context, node.id, delayMs, status, Date.now());
-        this.applySubscriptionsState({
-          subscriptionUrl: subscription.url,
-          nodes: subscription.nodes,
-          selectedNodeId: subscription.selectedNodeId,
-          subscriptionMessage: this.subscriptionMessage,
-          subscriptionUpdatedAt: subscription.updatedAt,
-          subscriptionGroups: subscription.groups,
-          selectedGroupId: subscription.selectedGroupId
-        });
-        SHARED_RUNTIME_CONTROLLER.appendLog(this.f2('log.delayResult', 'name', node.name, 'result', this.delayResultText(result)));
+      const concurrency = normalizeRealPingConcurrency(this.currentSettings.realPingConcurrency);
+      for (let start = 0; start < targets.length; start += concurrency) {
+        const batch = targets.slice(start, Math.min(targets.length, start + concurrency));
+        for (let index = 0; index < batch.length; index++) {
+          const node = batch[index];
+          const startedAt = Date.now();
+          this.markNodeDelay(node.id, -1, 'testing', startedAt);
+          SHARED_RUNTIME_CONTROLLER.appendLog(this.f1('log.delayTestingNode', 'name', node.name));
+        }
+
+        const results = await this.measureNodeDelayBatch(batch);
+        for (let index = 0; index < results.length; index++) {
+          const item = results[index];
+          const result = item.result;
+          const delayMs = result.ok ? result.delayMs : -1;
+          const status = result.ok ? 'ok' : result.status;
+          const subscription = await SubscriptionStore.saveNodeDelay(context, item.node.id, delayMs, status, item.testedAt);
+          this.applySubscriptionsState({
+            subscriptionUrl: subscription.url,
+            nodes: subscription.nodes,
+            selectedNodeId: subscription.selectedNodeId,
+            subscriptionMessage: this.subscriptionMessage,
+            subscriptionUpdatedAt: subscription.updatedAt,
+            subscriptionGroups: subscription.groups,
+            selectedGroupId: subscription.selectedGroupId
+          });
+          SHARED_RUNTIME_CONTROLLER.appendLog(this.f2('log.delayResult', 'name', item.node.name, 'result', this.delayResultText(result)));
+        }
       }
       await this.applyPostTestActions(context);
     } catch (error) {
@@ -1150,6 +1165,34 @@ struct Index {
     const portText = this.findJsonNumber(node.outboundJson, 'port');
     const port = Number(portText);
     return DelayTester.measureTcp(address, port, timeoutMs);
+  }
+
+  private async measureNodeDelayBatch(batch: Array<ProxyNode>): Promise<Array<NodeDelayBatchResult>> {
+    const tasks = new Array<Promise<NodeDelayBatchResult>>();
+    for (let index = 0; index < batch.length; index++) {
+      tasks.push(this.measureNodeDelayForBatch(batch[index]));
+    }
+    return Promise.all(tasks);
+  }
+
+  private async measureNodeDelayForBatch(node: ProxyNode): Promise<NodeDelayBatchResult> {
+    try {
+      return {
+        node,
+        result: await this.measureNodeTcpDelay(node, 8000),
+        testedAt: Date.now()
+      };
+    } catch (error) {
+      return {
+        node,
+        result: {
+          ok: false,
+          delayMs: -1,
+          status: JSON.stringify(error)
+        },
+        testedAt: Date.now()
+      };
+    }
   }
 
   private markNodeDelay(nodeId: string, delayMs: number, delayStatus: string, delayTestAt: number): void {

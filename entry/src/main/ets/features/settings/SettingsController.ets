@@ -1,5 +1,5 @@
 import { common } from '@kit.AbilityKit';
-import { AppLanguage, AppSettings, normalizeVpnBypassLanMode, normalizeVpnInterfaceAddressIndex, normalizeVpnMtuValue, RoutingRule } from '../../core/Profile';
+import { AppLanguage, AppSettings, normalizeRealPingConcurrency, normalizeVpnBypassLanMode, normalizeVpnInterfaceAddressIndex, normalizeVpnMtuValue, RoutingRule } from '../../core/Profile';
 import { DEFAULT_APP_SETTINGS, SettingsStore } from '../../storage/SettingsStore';
 
 export interface SettingsDraft {
@@ -39,6 +39,7 @@ export interface SettingsDraft {
   vpnDns: string;
   logLevel: string;
   delayTestUrl: string;
+  realPingConcurrency: string;
   trafficMode: string;
   routingDomainStrategy: string;
   adBlockEnabled: boolean;
@@ -94,6 +95,7 @@ export class SettingsController {
       vpnDns: settings.vpnDns,
       logLevel: settings.logLevel,
       delayTestUrl: settings.delayTestUrl,
+      realPingConcurrency: settings.realPingConcurrency.toString(),
       trafficMode: settings.trafficMode,
       routingDomainStrategy: settings.routingDomainStrategy,
       adBlockEnabled: settings.adBlockEnabled,
@@ -140,6 +142,7 @@ export class SettingsController {
       domesticDns: draft.domesticDns.trim(),
       dnsHosts: draft.dnsHosts.trim(),
       delayTestUrl: draft.delayTestUrl.trim(),
+      realPingConcurrency: this.realPingConcurrencyValue(draft.realPingConcurrency, DEFAULT_APP_SETTINGS.realPingConcurrency),
       logLevel: this.logLevelValue(draft.logLevel, DEFAULT_APP_SETTINGS.logLevel),
       mode: DEFAULT_APP_SETTINGS.mode,
       trafficMode: draft.trafficMode,
@@ -214,6 +217,18 @@ export class SettingsController {
       return fallback;
     }
     return result;
+  }
+
+  private realPingConcurrencyValue(value: string, fallback: number): number {
+    const normalized = value.trim();
+    if (normalized.length === 0) {
+      return fallback;
+    }
+    const parsed = Number(normalized);
+    if (Number.isNaN(parsed)) {
+      return fallback;
+    }
+    return normalizeRealPingConcurrency(parsed, fallback);
   }
 
   private nonEmptyString(value: string, fallback: string): string {

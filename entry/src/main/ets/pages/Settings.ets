@@ -59,6 +59,7 @@ struct SettingsPage {
   @State private settingVpnMtu: string = '1400';
   @State private settingLogLevel: string = 'warning';
   @State private settingDelayTestUrl: string = 'https://www.gstatic.com/generate_204';
+  @State private settingRealPingConcurrency: string = '16';
   @State private settingAutoSortAfterTest: boolean = false;
   @State private settingAutoRemoveAfterTest: boolean = false;
   @State private trafficMode: string = 'rules';
@@ -204,6 +205,8 @@ struct SettingsPage {
           // 节点测速
           SectionHeader({ title: this.t('settings.testing') })
           Column() {
+            this.SettingInput(this.t('settings.realPingConcurrency'), this.settingRealPingConcurrency, 'realPingConcurrency')
+            this.RowDivider()
             this.SettingToggle(this.t('settings.autoSortAfterTest'), this.settingAutoSortAfterTest, 'autoSortAfterTest')
             this.RowDivider()
             this.SettingToggle(this.t('settings.autoRemoveAfterTest'), this.settingAutoRemoveAfterTest, 'autoRemoveAfterTest')
@@ -421,6 +424,9 @@ struct SettingsPage {
       case 'delayTestUrl':
         this.settingDelayTestUrl = value;
         break;
+      case 'realPingConcurrency':
+        this.settingRealPingConcurrency = value;
+        break;
       case 'muxConcurrency':
         this.settingMuxConcurrency = value;
         break;
@@ -504,6 +510,7 @@ struct SettingsPage {
       vpnDns: this.settingVpnDns,
       logLevel: this.settingLogLevel,
       delayTestUrl: this.settingDelayTestUrl,
+      realPingConcurrency: this.settingRealPingConcurrency,
       trafficMode: this.trafficMode,
       routingDomainStrategy: this.routingStrategy,
       adBlockEnabled: this.adBlockEnabled,
@@ -550,6 +557,7 @@ struct SettingsPage {
     this.settingVpnDns = draft.vpnDns;
     this.settingLogLevel = draft.logLevel;
     this.settingDelayTestUrl = draft.delayTestUrl;
+    this.settingRealPingConcurrency = draft.realPingConcurrency;
     this.trafficMode = draft.trafficMode;
     this.routingStrategy = draft.routingDomainStrategy;
     this.adBlockEnabled = draft.adBlockEnabled;

@@ -5,7 +5,7 @@ import { formatTranslation, missingTranslationKeys, normalizeLanguage, translate
 import { defaultJsonConfigNodeName, resolveJsonConfigNodeName } from '../main/ets/core/JsonConfigNames';
 import { selectRuntimeLocalSocksPort, shouldUseDynamicLocalSocksPort, withRuntimeLocalSocksPort } from '../main/ets/core/LocalProxy';
 import { buildManualHysteria2Outbound, buildManualWireguardOutbound } from '../main/ets/core/ManualOutboundBuilder';
-import { AppSettings, ProxyNode, RoutingRule, SubscriptionGroup } from '../main/ets/core/Profile';
+import { AppSettings, normalizeRealPingConcurrency, ProxyNode, RoutingRule, SubscriptionGroup } from '../main/ets/core/Profile';
 import { formatGeoCountSummary, formatGeoCountUnavailable, geoDataSpecForFile, parseGeoCountData } from '../main/ets/core/GeoAssets';
 import { DELAY_TEST_SOCKS_PORT, LOCAL_HTTP_PROXY_LAN_HOST, LOCAL_HTTP_PROXY_PORT, LOCAL_SOCKS_PROXY_PORT, buildDelayTestConfig, buildRuntimeXrayConfig, buildXrayConfig, buildXrayConfigWithSettings, normalizeOutboundInput, validateFullConfigJson, validateOutboundJson, validatePolicyGroupConfigJson, validateProxyChainConfigJson } from '../main/ets/core/XrayConfig';
 import { extractOutboundsFromXrayConfig } from '../main/ets/core/XrayOutbounds';
@@ -380,6 +380,7 @@ export default function localUnitTest() {
         domesticDns: '223.5.5.5',
         dnsHosts: '',
         delayTestUrl: 'https://www.gstatic.com/generate_204',
+        realPingConcurrency: 16,
         logLevel: 'debug',
         mode: 'VPN',
         trafficMode: 'rules',
@@ -714,6 +715,7 @@ export default function localUnitTest() {
       settings.fragmentInterval = '5-8';
       settings.logLevel = 'error';
       settings.dnsHosts = 'dns.google:8.8.8.8,cloudflare-dns.com:1.1.1.1';
+      settings.realPingConcurrency = 32;
       const draft = SETTINGS_CONTROLLER.toDraft(settings);
       expect(draft.preferIpv6).assertTrue();
       expect(draft.localDnsPort).assertEqual('1053');
@@ -736,6 +738,7 @@ export default function localUnitTest() {
       expect(draft.fragmentInterval).assertEqual('5-8');
       expect(draft.logLevel).assertEqual('error');
       expect(draft.dnsHosts).assertEqual('dns.google:8.8.8.8,cloudflare-dns.com:1.1.1.1');
+      expect(draft.realPingConcurrency).assertEqual('32');
       const rebuilt = SETTINGS_CONTROLLER.buildSettings(draft);
       expect(rebuilt.preferIpv6).assertTrue();
       expect(rebuilt.localDnsPort).assertEqual(1053);
@@ -758,6 +761,7 @@ export default function localUnitTest() {
       expect(rebuilt.fragmentInterval).assertEqual('5-8');
       expect(rebuilt.logLevel).assertEqual('error');
       expect(rebuilt.dnsHosts).assertEqual('dns.google:8.8.8.8,cloudflare-dns.com:1.1.1.1');
+      expect(rebuilt.realPingConcurrency).assertEqual(32);
 
       draft.vpnInterfaceAddressIndex = 99;
       expect(SETTINGS_CONTROLLER.buildSettings(draft).vpnInterfaceAddressIndex).assertEqual(0);
@@ -785,6 +789,19 @@ export default function localUnitTest() {
       expect(SETTINGS_CONTROLLER.buildSettings(draft).logLevel).assertEqual('warning');
       draft.dnsHosts = '  ';
       expect(SETTINGS_CONTROLLER.buildSettings(draft).dnsHosts).assertEqual('');
+      draft.realPingConcurrency = '0';
+      expect(SETTINGS_CONTROLLER.buildSettings(draft).realPingConcurrency).assertEqual(1);
+      draft.realPingConcurrency = '256';
+      expect(SETTINGS_CONTROLLER.buildSettings(draft).realPingConcurrency).assertEqual(128);
+      draft.realPingConcurrency = 'bad';
+      expect(SETTINGS_CONTROLLER.buildSettings(draft).realPingConcurrency).assertEqual(16);
+    });
+
+    it('normalizes real ping concurrency like v2rayNG', 0, () => {
+      expect(normalizeRealPingConcurrency(undefined)).assertEqual(16);
+      expect(normalizeRealPingConcurrency(0)).assertEqual(1);
+      expect(normalizeRealPingConcurrency(5.8)).assertEqual(5);
+      expect(normalizeRealPingConcurrency(256)).assertEqual(128);
     });
 
     it('formats runtime values through shared helpers', 0, () => {
@@ -1129,6 +1146,7 @@ function buildSettingsFixture(): AppSettings {
     domesticDns: '223.5.5.5',
     dnsHosts: '',
     delayTestUrl: 'https://www.gstatic.com/generate_204',
+    realPingConcurrency: 16,
     logLevel: 'warning',
     mode: 'VPN',
     trafficMode: 'rules',

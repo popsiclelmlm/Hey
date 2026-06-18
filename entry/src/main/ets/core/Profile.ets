@@ -107,6 +107,9 @@ export const DEFAULT_VPN_BYPASS_LAN: string = VPN_BYPASS_LAN_BYPASS;
 export const DEFAULT_VPN_MTU: number = 1400;
 export const MIN_VPN_MTU: number = 1280;
 export const MAX_VPN_MTU: number = 9000;
+export const DEFAULT_REAL_PING_CONCURRENCY: number = 16;
+export const MIN_REAL_PING_CONCURRENCY: number = 1;
+export const MAX_REAL_PING_CONCURRENCY: number = 128;
 
 export function normalizeVpnInterfaceAddressIndex(value: number | undefined, fallback: number = DEFAULT_VPN_INTERFACE_ADDRESS_INDEX): number {
   const safeFallback = fallback >= 0 && fallback < VPN_INTERFACE_ADDRESS_CONFIGS.length ? fallback : DEFAULT_VPN_INTERFACE_ADDRESS_INDEX;
@@ -145,6 +148,32 @@ export function normalizeVpnMtuValue(value: number | undefined, fallback: number
   return mtu;
 }
 
+export function normalizeRealPingConcurrency(value: number | undefined, fallback: number = DEFAULT_REAL_PING_CONCURRENCY): number {
+  const safeFallback = normalizeRealPingConcurrencyFallback(fallback);
+  if (value === undefined || Number.isNaN(value)) {
+    return safeFallback;
+  }
+  const concurrency = Math.floor(value);
+  if (concurrency < MIN_REAL_PING_CONCURRENCY) {
+    return MIN_REAL_PING_CONCURRENCY;
+  }
+  if (concurrency > MAX_REAL_PING_CONCURRENCY) {
+    return MAX_REAL_PING_CONCURRENCY;
+  }
+  return concurrency;
+}
+
+function normalizeRealPingConcurrencyFallback(value: number): number {
+  if (Number.isNaN(value)) {
+    return DEFAULT_REAL_PING_CONCURRENCY;
+  }
+  const concurrency = Math.floor(value);
+  if (concurrency < MIN_REAL_PING_CONCURRENCY || concurrency > MAX_REAL_PING_CONCURRENCY) {
+    return DEFAULT_REAL_PING_CONCURRENCY;
+  }
+  return concurrency;
+}
+
 export interface AppSettings {
   language: AppLanguage;
   sniffingEnabled: boolean;
@@ -181,6 +210,7 @@ export interface AppSettings {
   domesticDns: string;
   dnsHosts: string;
   delayTestUrl: string;
+  realPingConcurrency: number;
   logLevel: string;
   mode: string;
   trafficMode: string;
