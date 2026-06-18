@@ -20,7 +20,7 @@
 | 设置页 | 🟡 89% | 核心项持久化并生效，`pref_mode` 已支持 VPN / Proxy only，本地 SOCKS 代理静态/动态端口、UDP、认证已写入运行配置；IPv6 启用与 IPv6 优先已按 v2rayNG 拆分；mux/XUDP/fragment 高级参数、DNS hosts、速度显示、当前连接信息测试网址、UI 模式、显示所有分组、双列显示、删除配置确认、立即启动扫码与日志级别选择器已接线 |
 | 扫码导入 | ✅ 82% | 粘贴导入和 ScanKit 相机扫码已接线；`startScanImmediate` 开启时进入扫码页自动拉起相机，待真机相机权限/机型回归 |
 | 导出 / 分享 | ✅ 82% | 文本/文件导出、节点二维码与系统分享面板已完成；后续主要是真机分享目标兼容回归 |
-| 平台集成 | 🔴 20% | Want / URL Scheme 深链导入已完成；快捷方式 / 卡片仍待补 |
+| 平台集成 | 🟡 35% | Want / URL Scheme 深链导入已完成；控制深链支持 start/stop/toggle/scan，可作为 Tasker/快捷方式入口；桌面快捷方式 / 服务卡片仍待补 |
 
 ### Native 桥接现状
 
@@ -86,6 +86,7 @@
 ### 阶段 5：平台集成（鸿蒙特性）
 
 - ✅ Want / 深链导入（对应 v2rayNG UrlScheme）
+- ✅ 控制深链入口：`hey://control?action=start|stop|toggle|scan` 与短 URI `hey://start`/`stop`/`toggle`/`scan`
 - 桌面快捷方式、服务卡片（widget）
 - 开机自启（受平台权限限制，量力而行）
 
@@ -154,3 +155,4 @@
 | 2026-06-18 | 阶段 5 | ✅ 策略组订阅动态成员完成；创建策略组可选择全部/指定订阅分组与节点名正则过滤，保存 `policyGroupSubscriptionId`/`policyGroupFilter` 快照并在启动时按最新订阅重新展开 |
 | 2026-06-18 | 阶段 5 | ✅ WebDAV 云备份/还原基础完成；Assets 页可保存 WebDAV 配置并上传/下载 Hey JSON 备份包，支持 Basic Auth 与 best-effort MKCOL |
 | 2026-06-18 | 阶段 5 | ✅ WebDAV ZIP 备份格式完成；默认 `backups/backup_ng.zip`，ZIP 内含 `hey_backup.json`，上传/下载走二进制并兼容旧 JSON 恢复 |
+| 2026-06-18 | 阶段 5 | ✅ 控制深链入口完成；注册 `hey://control?action=start|stop|toggle|scan` 与短 URI，首页可通过外部 Want 启停/切换连接或打开扫码页，对齐 v2rayNG Tasker/shortcuts/QS tile 的基础控制能力 |

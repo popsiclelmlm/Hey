@@ -47,6 +47,30 @@
               {
                 "scheme": "hey",
                 "host": "install-config"
+              },
+              {
+                "scheme": "hey",
+                "host": "control"
+              },
+              {
+                "scheme": "hey",
+                "host": "start"
+              },
+              {
+                "scheme": "hey",
+                "host": "stop"
+              },
+              {
+                "scheme": "hey",
+                "host": "toggle"
+              },
+              {
+                "scheme": "hey",
+                "host": "switch"
+              },
+              {
+                "scheme": "hey",
+                "host": "scan"
               }
             ]
           }

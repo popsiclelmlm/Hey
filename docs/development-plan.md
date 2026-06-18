@@ -216,6 +216,9 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 - ✅ **文件导出**：Export 页保存当前分组节点到 `.txt` 文件（2026-06-18 已完成；系统分享面板已补齐）
 - ✅ **URL Scheme / Want 深链导入**：对应 v2rayNG `v2rayng://install-config` 与
   `install-sub`，在 `EntryAbility.onCreate/onNewWant` 解析 Want 并导入
+- ✅ **控制深链入口**：对应 v2rayNG Tasker/shortcuts/QS tile 的基础控制动作，
+  支持 `hey://control?action=start|stop|toggle|scan` 和短 URI
+  `hey://start` / `hey://stop` / `hey://toggle` / `hey://scan`
 - **二维码生成**：节点分享生成 QR（鸿蒙 `@ohos.graphics` 或二维码库），
   补齐"显示二维码 / 单行链接 / 完整 JSON"三种分享形态
 - **桌面服务卡片 / 快捷方式**：一键启停、扫码（对应 QSTile/Widget/Shortcuts）
@@ -382,5 +385,6 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-18 | M5 | ✅ 策略组订阅动态成员完成（创建策略组可启用动态成员、选择全部/指定订阅分组、输入节点名正则过滤，保存快照并在连接启动前按最新订阅重新展开） |
 | 2026-06-18 | M5 | ✅ WebDAV 云备份/还原基础完成（Assets 页保存 WebDAV 配置，JSON 备份包上传/下载，Basic Auth + best-effort MKCOL + 单测） |
 | 2026-06-18 | M5 | ✅ WebDAV ZIP 备份格式完成（默认 `backups/backup_ng.zip`，ZIP stored 条目内含 `hey_backup.json`，上传/下载走二进制，恢复兼容旧 JSON 备份 + 单测） |
+| 2026-06-18 | M4 | ✅ 控制深链入口完成（manifest 注册 `hey://control`/`start`/`stop`/`toggle`/`switch`/`scan`，Index 处理 start/stop/toggle/scan，补解析单测）；桌面卡片/快捷方式 UI 仍待补 |
 | 2026-06-15 | 自查 | ✅ 字段一致性总扫：AppSettings/SettingsDraft 5 个构造点字段完整一致，SubscriptionGroup.filter 贯通，无需修改 |
 | 2026-06-15 | 自查 | ✅ 深链/metrics 配置形状核对 Xray 官方一致；自查清单收尾（净修复：预检非阻断 + 清理未用导入） |

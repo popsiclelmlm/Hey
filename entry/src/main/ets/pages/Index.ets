@@ -5,7 +5,7 @@ import { IconButton } from '../components/IconButton';
 import { DEFAULT_LANGUAGE, translate } from '../core/I18n';
 import { AppLanguage, AppSettings, ConnectionStatus, normalizeRealPingConcurrency, ProxyNode, RuntimeStats, SubscriptionGroup } from '../core/Profile';
 import { LOCAL_HTTP_PROXY_PORT } from '../core/XrayConfig';
-import { DeepLinkIntent, parseDeepLink, subscriptionNameFromDeepLink } from '../core/DeepLink';
+import { DeepLinkControlAction, DeepLinkIntent, parseDeepLink, subscriptionNameFromDeepLink } from '../core/DeepLink';
 import { DelayTester, DelayTestResult } from '../services/DelayTester';
 import { SubscriptionBackgroundScheduler } from '../services/SubscriptionBackgroundScheduler';
 import { SubscriptionManager } from '../services/SubscriptionManager';
@@ -114,6 +114,10 @@ struct Index {
     if (intent.kind === 'none') {
       return;
     }
+    if (intent.kind === 'control') {
+      await this.handleControlDeepLink(intent.action ?? '');
+      return;
+    }
     const context = getContext(this) as common.Context;
     try {
       if (intent.kind === 'sub') {
@@ -143,6 +147,48 @@ struct Index {
     } catch (error) {
       this.lastError = this.f1('error.deepLinkImport', 'error', JSON.stringify(error));
       SHARED_RUNTIME_CONTROLLER.appendLog(this.lastError);
+    }
+  }
+
+  private async handleControlDeepLink(action: DeepLinkControlAction): Promise<void> {
+    if (action === 'scan') {
+      router.pushUrl({ url: AppRoute.SCANNER });
+      SHARED_RUNTIME_CONTROLLER.appendLog(this.f1('log.deepLinkControl', 'action', action));
+      return;
+    }
+
+    if (this.isBusy()) {
+      SHARED_RUNTIME_CONTROLLER.appendLog(this.f1('log.deepLinkControlBusy', 'action', action));
+      return;
+    }
+
+    if (action === 'start') {
+      if (this.isRunning()) {
+        SHARED_RUNTIME_CONTROLLER.appendLog(this.f1('log.deepLinkControlNoop', 'action', action));
+        return;
+      }
+      await this.startConnection();
+      SHARED_RUNTIME_CONTROLLER.appendLog(this.f1('log.deepLinkControl', 'action', action));
+      return;
+    }
+
+    if (action === 'stop') {
+      if (!this.isRunning()) {
+        SHARED_RUNTIME_CONTROLLER.appendLog(this.f1('log.deepLinkControlNoop', 'action', action));
+        return;
+      }
+      await this.stopConnection();
+      SHARED_RUNTIME_CONTROLLER.appendLog(this.f1('log.deepLinkControl', 'action', action));
+      return;
+    }
+
+    if (action === 'toggle') {
+      if (this.isRunning()) {
+        await this.stopConnection();
+      } else {
+        await this.startConnection();
+      }
+      SHARED_RUNTIME_CONTROLLER.appendLog(this.f1('log.deepLinkControl', 'action', action));
     }
   }
 

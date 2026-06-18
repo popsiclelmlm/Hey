@@ -8,6 +8,7 @@ import { buildManualHysteria2Outbound, buildManualWireguardOutbound } from '../m
 import { APP_MODE_PROXY_ONLY, APP_MODE_VPN, AppSettings, DEFAULT_IP_API_URL, normalizeAppRuntimeMode, normalizeRealPingConcurrency, normalizeUiModeNight, ProxyNode, RoutingRule, SubscriptionGroup } from '../main/ets/core/Profile';
 import { formatGeoCountSummary, formatGeoCountUnavailable, geoDataSpecForFile, parseGeoCountData } from '../main/ets/core/GeoAssets';
 import { DELAY_TEST_SOCKS_PORT, LOCAL_HTTP_PROXY_LAN_HOST, LOCAL_HTTP_PROXY_PORT, LOCAL_SOCKS_PROXY_PORT, buildDelayTestConfig, buildRuntimeXrayConfig, buildXrayConfig, buildXrayConfigWithSettings, normalizeOutboundInput, validateFullConfigJson, validateOutboundJson, validatePolicyGroupConfigJson, validateProxyChainConfigJson } from '../main/ets/core/XrayConfig';
+import { parseDeepLink } from '../main/ets/core/DeepLink';
 import { extractOutboundsFromXrayConfig } from '../main/ets/core/XrayOutbounds';
 import { formatOutboundJsonToShareLink, parseShareLinkToOutboundJson } from '../main/ets/core/ShareLinkParser';
 import { exportRoutingRulesJson, importRoutingRulesJson, resetRoutingRulesFromPreset } from '../main/ets/core/RoutingRules';
@@ -1287,6 +1288,30 @@ export default function localUnitTest() {
       group.enabled = true;
       group.url = '';
       expect(isSubscriptionAutoUpdateDue(group, 2000)).assertFalse();
+    });
+
+    it('parses control deep links for shortcut actions', 0, () => {
+      const start = parseDeepLink('hey://control?action=start');
+      expect(start.kind).assertEqual('control');
+      expect(start.action).assertEqual('start');
+      expect(start.payload).assertEqual('start');
+
+      const stop = parseDeepLink('hey://stop');
+      expect(stop.kind).assertEqual('control');
+      expect(stop.action).assertEqual('stop');
+
+      const toggle = parseDeepLink('hey://switch');
+      expect(toggle.kind).assertEqual('control');
+      expect(toggle.action).assertEqual('toggle');
+
+      const scan = parseDeepLink('hey://control/scan');
+      expect(scan.kind).assertEqual('control');
+      expect(scan.action).assertEqual('scan');
+
+      const invalid = parseDeepLink('hey://control?action=restart');
+      expect(invalid.kind).assertEqual('none');
+      const wrongHost = parseDeepLink('hey://controlx?action=start');
+      expect(wrongHost.kind).assertEqual('none');
     });
 
     it('builds subscription background auto update schedule plan', 0, () => {
