@@ -309,6 +309,7 @@ struct SettingsPage {
   private LanguageToggle() {
     LanguageToggleRow({
       title: this.t('settings.language.title'),
+      autoLabel: this.t('settings.language.auto'),
       zhLabel: this.t('settings.language.zh'),
       enLabel: this.t('settings.language.en'),
       language: this.language,
@@ -539,8 +540,18 @@ struct SettingsPage {
     }
     this.language = language;
     await this.persistSettings(false);
-    const label = this.language === 'zh' ? this.t('settings.language.zh') : this.t('settings.language.en');
+    const label = this.languageLabel(this.language);
     SHARED_RUNTIME_CONTROLLER.appendLog(this.f1('log.languageChanged', 'language', label));
+  }
+
+  private languageLabel(language: AppLanguage): string {
+    if (language === 'zh') {
+      return this.t('settings.language.zh');
+    }
+    if (language === 'en') {
+      return this.t('settings.language.en');
+    }
+    return this.t('settings.language.auto');
   }
 
   private buildDraft(): SettingsDraft {

@@ -306,6 +306,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 - [x] 删除配置确认：Settings 保存 `confirmRemove`，默认关闭；开启后单节点删除与订阅分组删除弹二次确认（2026-06-18）
 - [x] 立即启动扫码：Settings 保存 `startScanImmediate`，默认关闭；开启后进入 Scanner 页自动拉起 ScanKit 相机扫码（2026-06-18）
 - [x] 速度显示：Settings 保存 `speedEnabled`，默认关闭；开启后生成 metrics/stats/policy 并显示上传/下载，关闭时不启动 VPN stats 轮询（2026-06-18）
+- [x] 语言跟随系统：Settings 保存 v2rayNG `pref_language=auto/en/zh`，默认 `auto`；`auto` 通过 Harmony 系统语言解析为中/英显示，设置页三段切换并补单测（2026-06-19）
 - [x] UI 模式：Settings 保存 v2rayNG `uiModeNight=0/1/2`，应用启动/回前台/保存设置后切换 Harmony 跟随系统/浅色/深色 colorMode（2026-06-18）
 - [x] 显示所有分组：Settings 保存 `groupAllDisplay`，节点页开启 All 虚拟分组并聚合所有订阅分组节点，搜索/测速/导出按聚合可见节点执行（2026-06-18）
 - [x] 双列显示：Settings 保存 `doubleColumnDisplay`，默认关闭；开启后节点页以双列列表展示配置并保留选择/滑动操作（2026-06-18）
@@ -406,5 +407,6 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-18 | M4 | 🟡 桌面服务卡片动态状态刷新代码完成（保存卡片 formId 与最近运行态，首页运行态变化同步状态文案、详情、主按钮动作并按 3 秒节流通过 `formProvider.updateForm` 刷新）；待真机添加卡片、点击调起与系统刷新回归 |
 | 2026-06-18 | M4 | ✅ 关于页更新检查完成（About 页通过 GitHub latest release API 解析 tag/assets，比较当前版本 `1.1.0`，发现新版本时打开下载页/Release 页，失败写运行日志；补版本比较与 release 解析单测） |
 | 2026-06-18 | M4 | ✅ 关于页预发布更新检查开关完成（保存 `pref_check_update_pre_release` 等价设置，开启后检查 GitHub releases 列表并允许 pre-release 版本命中；补 release 列表选择与 Settings 往返单测） |
+| 2026-06-19 | M4 | ✅ 语言跟随系统完成（`pref_language=auto/en/zh` 三态、默认 `auto`，通过 Harmony `i18n.System.getSystemLanguage()` 解析系统语言，设置页三段切换，补语言归一化与解析单测） |
 | 2026-06-15 | 自查 | ✅ 字段一致性总扫：AppSettings/SettingsDraft 5 个构造点字段完整一致，SubscriptionGroup.filter 贯通，无需修改 |
 | 2026-06-15 | 自查 | ✅ 深链/metrics 配置形状核对 Xray 官方一致；自查清单收尾（净修复：预检非阻断 + 清理未用导入） |

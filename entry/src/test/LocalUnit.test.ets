@@ -2,7 +2,7 @@ import { describe, it, expect } from '@ohos/hypium';
 import { buildPolicyGroupConfigFromNodes, buildPolicyGroupConfigFromSubscription, buildProxyChainConfigFromNodes, isAdvancedOutboundBuildableNode, normalizePolicyGroupBuilderStrategy, resolveDynamicPolicyGroupConfigJson } from '../main/ets/core/AdvancedOutboundBuilder';
 import { buildAppBackupPayload, buildAppBackupZipFromPayload, parseAppBackupData, parseAppBackupPayload } from '../main/ets/core/AppBackup';
 import { CONTROL_CARD_FORM_NAME, CONTROL_CARD_SCAN_URI, CONTROL_CARD_START_URI, CONTROL_CARD_STOP_URI, CONTROL_CARD_TOGGLE_URI, buildControlCardFormData } from '../main/ets/core/ControlCard';
-import { formatTranslation, missingTranslationKeys, normalizeLanguage, translate } from '../main/ets/core/I18n';
+import { formatTranslation, missingTranslationKeys, normalizeLanguage, resolveLanguage, resolveSystemLanguage, translate } from '../main/ets/core/I18n';
 import { defaultJsonConfigNodeName, resolveJsonConfigNodeName } from '../main/ets/core/JsonConfigNames';
 import { selectRuntimeLocalSocksPort, shouldUseDynamicLocalSocksPort, withRuntimeLocalSocksPort } from '../main/ets/core/LocalProxy';
 import { buildManualHysteria2Outbound, buildManualWireguardOutbound } from '../main/ets/core/ManualOutboundBuilder';
@@ -832,9 +832,18 @@ export default function localUnitTest() {
       expect(formatOne('zh', 'subscription.updateComplete', 'count', '3')).assertContain('3');
       expect(localizedProfileSavedText('en', 0)).assertEqual('Not saved');
       expect(localizeCoreMessage('en', '请先粘贴 Xray outbound JSON。')).assertEqual('Paste Xray outbound JSON first.');
+      expect(normalizeLanguage('auto')).assertEqual('auto');
       expect(normalizeLanguage('en')).assertEqual('en');
+      expect(normalizeLanguage('en-US')).assertEqual('en');
       expect(normalizeLanguage('zh')).assertEqual('zh');
-      expect(normalizeLanguage('fr')).assertEqual('zh');
+      expect(normalizeLanguage('zh-Hans')).assertEqual('zh');
+      expect(normalizeLanguage('fr')).assertEqual('auto');
+      expect(resolveSystemLanguage('en-US')).assertEqual('en');
+      expect(resolveSystemLanguage('zh-Hans')).assertEqual('zh');
+      expect(resolveSystemLanguage('fr-FR')).assertEqual('zh');
+      expect(resolveLanguage('auto', 'en-US')).assertEqual('en');
+      expect(resolveLanguage('auto', 'zh-Hans')).assertEqual('zh');
+      expect(resolveLanguage('fr', 'en-US')).assertEqual('en');
     });
 
     it('formats geo asset count status', 0, () => {

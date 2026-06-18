@@ -1,6 +1,8 @@
-import { AppLanguage } from './Profile';
+import { i18n } from '@kit.LocalizationKit';
+import { APP_LANGUAGE_AUTO, AppLanguage, ResolvedAppLanguage } from './Profile';
 
-export const DEFAULT_LANGUAGE: AppLanguage = 'zh';
+export const DEFAULT_RESOLVED_LANGUAGE: ResolvedAppLanguage = 'zh';
+export const DEFAULT_LANGUAGE: AppLanguage = APP_LANGUAGE_AUTO;
 export const TRANSLATION_KEYS: Array<string> = [
   'runtime.nativeBridgeNotQueried',
   'runtime.vpnOwnsBridge',
@@ -220,6 +222,7 @@ export const TRANSLATION_KEYS: Array<string> = [
   'settings.language.detail',
   'settings.language.title',
   'settings.language.key',
+  'settings.language.auto',
   'settings.language.zh',
   'settings.language.en',
   'settings.uiModeNight',
@@ -444,6 +447,7 @@ export const TRANSLATION_KEYS: Array<string> = [
   'error.removeSubscriptionGroup',
   'error.moveSubscriptionGroup',
   'error.selectNode',
+  'error.editManualNodeUnsupported',
   'error.emptyImport',
   'error.emptySubscriptionUrl',
   'error.importSubscriptionNotAllowed',
@@ -765,6 +769,7 @@ const ZH_TRANSLATIONS: Record<string, string> = {
   'settings.language.detail': '语言',
   'settings.language.title': '语言',
   'settings.language.key': 'pref_language',
+  'settings.language.auto': '跟随系统',
   'settings.language.zh': '中文简体',
   'settings.language.en': 'English',
   'settings.uiModeNight': 'UI 模式设置',
@@ -1019,6 +1024,7 @@ const ZH_TRANSLATIONS: Record<string, string> = {
   'error.removeSubscriptionGroup': '删除订阅组失败：{error}',
   'error.moveSubscriptionGroup': '移动订阅组失败：{error}',
   'error.selectNode': '选择节点失败：{error}',
+  'error.editManualNodeUnsupported': '此节点不能作为手动 JSON 配置编辑。',
   'error.emptyImport': '导入内容为空。',
   'error.emptySubscriptionUrl': '订阅链接为空。',
   'error.importSubscriptionNotAllowed': '此处仅支持手动导入/添加单个节点，订阅链接请在“订阅分组”中添加。',
@@ -1310,6 +1316,7 @@ const EN_TRANSLATIONS: Record<string, string> = {
   'settings.language.detail': 'Language',
   'settings.language.title': 'Language',
   'settings.language.key': 'pref_language',
+  'settings.language.auto': 'Follow system',
   'settings.language.zh': '中文简体',
   'settings.language.en': 'English',
   'settings.uiModeNight': 'UI mode settings',
@@ -1564,6 +1571,7 @@ const EN_TRANSLATIONS: Record<string, string> = {
   'error.removeSubscriptionGroup': 'Failed to remove subscription group: {error}',
   'error.moveSubscriptionGroup': 'Failed to move subscription group: {error}',
   'error.selectNode': 'Failed to select node: {error}',
+  'error.editManualNodeUnsupported': 'This node cannot be edited as a manual JSON config.',
   'error.emptyImport': 'Import content is empty.',
   'error.emptySubscriptionUrl': 'Subscription URL is empty.',
   'error.importSubscriptionNotAllowed': 'Only single node import is supported here. Please add subscription links in "Subscription Groups".',
@@ -1637,11 +1645,48 @@ const EN_TRANSLATIONS: Record<string, string> = {
 };
 
 export function normalizeLanguage(value: string | undefined): AppLanguage {
-  return value === 'en' ? 'en' : DEFAULT_LANGUAGE;
+  const normalized = value === undefined ? '' : value.trim().toLowerCase();
+  if (normalized === APP_LANGUAGE_AUTO || normalized === 'system') {
+    return APP_LANGUAGE_AUTO;
+  }
+  if (normalized === 'en' || normalized.indexOf('en-') === 0) {
+    return 'en';
+  }
+  if (normalized === 'zh' || normalized.indexOf('zh-') === 0) {
+    return 'zh';
+  }
+  return DEFAULT_LANGUAGE;
+}
+
+export function resolveSystemLanguage(systemLanguage: string | undefined): ResolvedAppLanguage {
+  const normalized = systemLanguage === undefined ? '' : systemLanguage.trim().toLowerCase();
+  if (normalized.indexOf('en') === 0) {
+    return 'en';
+  }
+  if (normalized.indexOf('zh') === 0) {
+    return 'zh';
+  }
+  return DEFAULT_RESOLVED_LANGUAGE;
+}
+
+export function currentSystemLanguage(): string {
+  try {
+    return i18n.System.getSystemLanguage();
+  } catch (error) {
+    return '';
+  }
+}
+
+export function resolveLanguage(language: AppLanguage | string | undefined, systemLanguage?: string): ResolvedAppLanguage {
+  const normalized = normalizeLanguage(language);
+  if (normalized === APP_LANGUAGE_AUTO) {
+    return resolveSystemLanguage(systemLanguage === undefined ? currentSystemLanguage() : systemLanguage);
+  }
+  return normalized;
 }
 
 export function translate(language: AppLanguage, key: string): string {
-  const bundle = language === 'en' ? EN_TRANSLATIONS : ZH_TRANSLATIONS;
+  const bundle = resolveLanguage(language) === 'en' ? EN_TRANSLATIONS : ZH_TRANSLATIONS;
   return bundle[key] ?? EN_TRANSLATIONS[key] ?? key;
 }
 

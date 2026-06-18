@@ -1,5 +1,9 @@
 export const DEFAULT_PROFILE_ID: string = 'default-profile';
 
+export type ResolvedAppLanguage = 'zh' | 'en';
+export type AppLanguage = 'auto' | ResolvedAppLanguage;
+export const APP_LANGUAGE_AUTO: AppLanguage = 'auto';
+
 export type XrayConfigType = 'outbound' | 'full' | 'proxy-chain' | 'policy-group';
 
 export interface ProxyProfile {
@@ -64,8 +68,6 @@ export interface GeneratedXrayConfig {
   httpProxyPort?: number;
   metricsServer?: string;
 }
-
-export type AppLanguage = 'zh' | 'en';
 
 export interface RoutingRule {
   id: string;

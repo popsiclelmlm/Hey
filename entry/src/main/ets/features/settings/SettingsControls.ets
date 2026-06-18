@@ -53,6 +53,7 @@ export struct SettingToggleRow {
 export struct LanguageToggleRow {
   title: string = '';
   settingKey: string = '';
+  autoLabel: string = '';
   zhLabel: string = '';
   enLabel: string = '';
   language: AppLanguage = DEFAULT_LANGUAGE;
@@ -66,6 +67,9 @@ export struct LanguageToggleRow {
         .layoutWeight(1)
 
       Row() {
+        this.SegItem(this.autoLabel, this.language === 'auto', () => {
+          this.onChange('auto');
+        })
         this.SegItem(this.zhLabel, this.language === 'zh', () => {
           this.onChange('zh');
         })
@@ -91,7 +95,7 @@ export struct LanguageToggleRow {
       .fontColor(selected ? AppColor.onBrand : AppColor.textSecondary)
       .textAlign(TextAlign.Center)
       .height(28)
-      .width(72)
+      .width(64)
       .borderRadius(Radius.sm)
       .backgroundColor(selected ? AppColor.brand : Color.Transparent)
       .onClick(() => {

@@ -1,4 +1,5 @@
 import { common } from '@kit.AbilityKit';
+import { translate } from '../../core/I18n';
 import { AppLanguage, ProxyNode, ProxyProfile, SubscriptionGroup, SubscriptionProfile, ValidationResult, XrayConfigType } from '../../core/Profile';
 import { normalizeConfigInput } from '../../core/XrayConfig';
 import { ProfileStore } from '../../storage/ProfileStore';
@@ -148,7 +149,7 @@ export class NodesController {
     try {
       const result = await SubscriptionStore.updateManualNode(context, nodeId, name, validation.normalizedJson, resolvedConfigType);
       if (!result.updated || result.node === null) {
-        const lastError = language === 'en' ? 'This node cannot be edited as a manual JSON config.' : '此节点不能作为手动 JSON 配置编辑。';
+        const lastError = translate(language, 'error.editManualNodeUnsupported');
         return {
           success: false,
           message,
