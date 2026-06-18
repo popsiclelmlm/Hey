@@ -1154,13 +1154,38 @@ function buildDnsConfig(settings: AppSettings | undefined): XrayDnsConfig {
     });
   }
   if (settings.dnsHosts.length > 0) {
-    try {
-      dns.hosts = JSON.parse(settings.dnsHosts) as Object;
-    } catch (error) {
-      dns.hosts = new EmptySettings();
-    }
+    dns.hosts = parseDnsHosts(settings.dnsHosts);
   }
   return dns;
+}
+
+function parseDnsHosts(value: string): Object {
+  const normalized = value.trim();
+  try {
+    return JSON.parse(normalized) as Object;
+  } catch (error) {
+    const hosts: Record<string, string> = {};
+    const items = normalized.split(',');
+    let count = 0;
+    for (let index = 0; index < items.length; index++) {
+      const item = items[index].trim();
+      const separatorIndex = item.indexOf(':');
+      if (separatorIndex <= 0 || separatorIndex >= item.length - 1) {
+        continue;
+      }
+      const domain = item.substring(0, separatorIndex).trim();
+      const address = item.substring(separatorIndex + 1).trim();
+      if (domain.length === 0 || address.length === 0) {
+        continue;
+      }
+      hosts[domain] = address;
+      count++;
+    }
+    if (count > 0) {
+      return hosts as Object;
+    }
+    return new EmptySettings();
+  }
 }
 
 function buildTunSniffing(settings: AppSettings | undefined): XraySniffingConfig | undefined {

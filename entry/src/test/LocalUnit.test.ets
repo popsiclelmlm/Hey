@@ -389,7 +389,7 @@ export default function localUnitTest() {
         autoSortAfterTest: false,
         autoRemoveInvalidAfterTest: false
       };
-      const result = buildXrayConfigWithSettings(VLESS_REALITY_OUTBOUND, settings);
+      let result = buildXrayConfigWithSettings(VLESS_REALITY_OUTBOUND, settings);
       expect(result.configJson).assertContain('"loglevel": "debug"');
       expect(result.configJson).assertContain('"domainStrategy": "IPIfNonMatch"');
       expect(result.configJson).assertContain('"geosite:cn"');
@@ -403,6 +403,7 @@ export default function localUnitTest() {
       settings.localDnsEnabled = true;
       settings.fakeDnsEnabled = true;
       settings.sniffingEnabled = false;
+      settings.dnsHosts = 'dns.google:8.8.8.8,cloudflare-dns.com:1.1.1.1';
       settings.routingRules = [
         {
           id: 'proxy-domain',
@@ -423,9 +424,15 @@ export default function localUnitTest() {
       expect(result.configJson).assertContain('"protocol": "dns"');
       expect(result.configJson).assertContain('"port": "53"');
       expect(result.configJson).assertContain('"fakedns"');
+      expect(result.configJson).assertContain('"dns.google": "8.8.8.8"');
+      expect(result.configJson).assertContain('"cloudflare-dns.com": "1.1.1.1"');
       expect(result.configJson).assertContain('"geosite:cn"');
       expect(result.configJson).assertContain('"domain:proxy.example"');
       expect(result.configJson).assertContain('"destOverride"');
+
+      settings.dnsHosts = '{"example.com":"127.0.0.1"}';
+      result = buildXrayConfigWithSettings(VLESS_REALITY_OUTBOUND, settings);
+      expect(result.configJson).assertContain('"example.com": "127.0.0.1"');
     });
 
     it('applies vpn mtu to generated tun inbound', 0, () => {
@@ -706,6 +713,7 @@ export default function localUnitTest() {
       settings.fragmentLength = '100-200';
       settings.fragmentInterval = '5-8';
       settings.logLevel = 'error';
+      settings.dnsHosts = 'dns.google:8.8.8.8,cloudflare-dns.com:1.1.1.1';
       const draft = SETTINGS_CONTROLLER.toDraft(settings);
       expect(draft.preferIpv6).assertTrue();
       expect(draft.localDnsPort).assertEqual('1053');
@@ -727,6 +735,7 @@ export default function localUnitTest() {
       expect(draft.fragmentLength).assertEqual('100-200');
       expect(draft.fragmentInterval).assertEqual('5-8');
       expect(draft.logLevel).assertEqual('error');
+      expect(draft.dnsHosts).assertEqual('dns.google:8.8.8.8,cloudflare-dns.com:1.1.1.1');
       const rebuilt = SETTINGS_CONTROLLER.buildSettings(draft);
       expect(rebuilt.preferIpv6).assertTrue();
       expect(rebuilt.localDnsPort).assertEqual(1053);
@@ -748,6 +757,7 @@ export default function localUnitTest() {
       expect(rebuilt.fragmentLength).assertEqual('100-200');
       expect(rebuilt.fragmentInterval).assertEqual('5-8');
       expect(rebuilt.logLevel).assertEqual('error');
+      expect(rebuilt.dnsHosts).assertEqual('dns.google:8.8.8.8,cloudflare-dns.com:1.1.1.1');
 
       draft.vpnInterfaceAddressIndex = 99;
       expect(SETTINGS_CONTROLLER.buildSettings(draft).vpnInterfaceAddressIndex).assertEqual(0);
@@ -773,6 +783,8 @@ export default function localUnitTest() {
       expect(SETTINGS_CONTROLLER.buildSettings(draft).fragmentPackets).assertEqual('tlshello');
       draft.logLevel = 'verbose';
       expect(SETTINGS_CONTROLLER.buildSettings(draft).logLevel).assertEqual('warning');
+      draft.dnsHosts = '  ';
+      expect(SETTINGS_CONTROLLER.buildSettings(draft).dnsHosts).assertEqual('');
     });
 
     it('formats runtime values through shared helpers', 0, () => {

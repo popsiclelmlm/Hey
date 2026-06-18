@@ -31,6 +31,7 @@ export interface SettingsDraft {
   allowInsecure: boolean;
   remoteDns: string;
   domesticDns: string;
+  dnsHosts: string;
   localDnsPort: string;
   vpnInterfaceAddressIndex: number;
   vpnBypassLan: string;
@@ -85,6 +86,7 @@ export class SettingsController {
       allowInsecure: settings.allowInsecure,
       remoteDns: settings.remoteDns,
       domesticDns: settings.domesticDns,
+      dnsHosts: settings.dnsHosts,
       localDnsPort: settings.localDnsPort.toString(),
       vpnInterfaceAddressIndex: settings.vpnInterfaceAddressIndex,
       vpnBypassLan: settings.vpnBypassLan,
@@ -136,7 +138,7 @@ export class SettingsController {
       vpnDns: draft.vpnDns.trim(),
       remoteDns: draft.remoteDns.trim(),
       domesticDns: draft.domesticDns.trim(),
-      dnsHosts: DEFAULT_APP_SETTINGS.dnsHosts,
+      dnsHosts: draft.dnsHosts.trim(),
       delayTestUrl: draft.delayTestUrl.trim(),
       logLevel: this.logLevelValue(draft.logLevel, DEFAULT_APP_SETTINGS.logLevel),
       mode: DEFAULT_APP_SETTINGS.mode,

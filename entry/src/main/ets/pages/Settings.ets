@@ -51,6 +51,7 @@ struct SettingsPage {
   @State private settingPerAppProxy: boolean = false;
   @State private settingRemoteDns: string = '1.1.1.1';
   @State private settingDomesticDns: string = '223.5.5.5';
+  @State private settingDnsHosts: string = '';
   @State private settingVpnDns: string = '1.1.1.1';
   @State private settingLocalDnsPort: string = '10853';
   @State private settingVpnInterfaceAddressIndex: number = 0;
@@ -187,6 +188,8 @@ struct SettingsPage {
             this.SettingInput(this.t('settings.remoteDns'), this.settingRemoteDns, 'remoteDns')
             this.RowDivider()
             this.SettingInput(this.t('settings.domesticDns'), this.settingDomesticDns, 'domesticDns')
+            this.RowDivider()
+            this.SettingInput(this.t('settings.dnsHosts'), this.settingDnsHosts, 'dnsHosts')
             this.RowDivider()
             this.SettingInput(this.t('settings.delayTestUrl'), this.settingDelayTestUrl, 'delayTestUrl')
             this.RowDivider()
@@ -412,6 +415,9 @@ struct SettingsPage {
       case 'domesticDns':
         this.settingDomesticDns = value;
         break;
+      case 'dnsHosts':
+        this.settingDnsHosts = value;
+        break;
       case 'delayTestUrl':
         this.settingDelayTestUrl = value;
         break;
@@ -490,6 +496,7 @@ struct SettingsPage {
       allowInsecure: this.settingAllowInsecure,
       remoteDns: this.settingRemoteDns,
       domesticDns: this.settingDomesticDns,
+      dnsHosts: this.settingDnsHosts,
       localDnsPort: this.settingLocalDnsPort,
       vpnInterfaceAddressIndex: this.settingVpnInterfaceAddressIndex,
       vpnBypassLan: this.settingVpnBypassLan,
@@ -535,6 +542,7 @@ struct SettingsPage {
     this.settingAllowInsecure = draft.allowInsecure;
     this.settingRemoteDns = draft.remoteDns;
     this.settingDomesticDns = draft.domesticDns;
+    this.settingDnsHosts = draft.dnsHosts;
     this.settingLocalDnsPort = draft.localDnsPort;
     this.settingVpnInterfaceAddressIndex = draft.vpnInterfaceAddressIndex;
     this.settingVpnBypassLan = draft.vpnBypassLan;
