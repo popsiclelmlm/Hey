@@ -11,6 +11,50 @@
     {
       "name": "EntryAbility_label",
       "value": "Hey"
+    },
+    {
+      "name": "ControlCardAbility_label",
+      "value": "Hey 控制"
+    },
+    {
+      "name": "ControlCardAbility_desc",
+      "value": "Hey 桌面快捷控制卡片"
+    },
+    {
+      "name": "control_card_display_name",
+      "value": "Hey 控制"
+    },
+    {
+      "name": "control_card_desc",
+      "value": "切换 Hey 代理并打开扫码"
+    },
+    {
+      "name": "control_card_badge",
+      "value": "控制"
+    },
+    {
+      "name": "control_card_title",
+      "value": "桌面快捷开关"
+    },
+    {
+      "name": "control_card_hint",
+      "value": "切换当前节点，直接启动/停止，或扫码导入新配置。"
+    },
+    {
+      "name": "control_card_toggle",
+      "value": "切换"
+    },
+    {
+      "name": "control_card_start",
+      "value": "启动"
+    },
+    {
+      "name": "control_card_stop",
+      "value": "停止"
+    },
+    {
+      "name": "control_card_scan",
+      "value": "扫码"
     }
   ]
 }

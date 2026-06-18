@@ -11,6 +11,50 @@
     {
       "name": "EntryAbility_label",
       "value": "Hey"
+    },
+    {
+      "name": "ControlCardAbility_label",
+      "value": "Hey Control"
+    },
+    {
+      "name": "ControlCardAbility_desc",
+      "value": "Hey quick control card"
+    },
+    {
+      "name": "control_card_display_name",
+      "value": "Hey Control"
+    },
+    {
+      "name": "control_card_desc",
+      "value": "Toggle Hey proxy and open scanner"
+    },
+    {
+      "name": "control_card_badge",
+      "value": "Control"
+    },
+    {
+      "name": "control_card_title",
+      "value": "Desktop quick switch"
+    },
+    {
+      "name": "control_card_hint",
+      "value": "Toggle the current node, start/stop directly, or scan a new QR code."
+    },
+    {
+      "name": "control_card_toggle",
+      "value": "Toggle"
+    },
+    {
+      "name": "control_card_start",
+      "value": "Start"
+    },
+    {
+      "name": "control_card_stop",
+      "value": "Stop"
+    },
+    {
+      "name": "control_card_scan",
+      "value": "Scan"
     }
   ]
 }

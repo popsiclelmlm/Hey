@@ -1,6 +1,7 @@
 import { describe, it, expect } from '@ohos/hypium';
 import { buildPolicyGroupConfigFromNodes, buildPolicyGroupConfigFromSubscription, buildProxyChainConfigFromNodes, isAdvancedOutboundBuildableNode, normalizePolicyGroupBuilderStrategy, resolveDynamicPolicyGroupConfigJson } from '../main/ets/core/AdvancedOutboundBuilder';
 import { buildAppBackupPayload, buildAppBackupZipFromPayload, parseAppBackupData, parseAppBackupPayload } from '../main/ets/core/AppBackup';
+import { CONTROL_CARD_FORM_NAME, CONTROL_CARD_SCAN_URI, CONTROL_CARD_START_URI, CONTROL_CARD_STOP_URI, CONTROL_CARD_TOGGLE_URI, buildControlCardFormData } from '../main/ets/core/ControlCard';
 import { formatTranslation, missingTranslationKeys, normalizeLanguage, translate } from '../main/ets/core/I18n';
 import { defaultJsonConfigNodeName, resolveJsonConfigNodeName } from '../main/ets/core/JsonConfigNames';
 import { selectRuntimeLocalSocksPort, shouldUseDynamicLocalSocksPort, withRuntimeLocalSocksPort } from '../main/ets/core/LocalProxy';
@@ -1343,6 +1344,19 @@ export default function localUnitTest() {
       expect(invalid.kind).assertEqual('none');
       const wrongHost = parseDeepLink('hey://controlx?action=start');
       expect(wrongHost.kind).assertEqual('none');
+    });
+
+    it('builds desktop control card data from supported deep links', 0, () => {
+      const data = buildControlCardFormData();
+      expect(CONTROL_CARD_FORM_NAME).assertEqual('HeyControlCard');
+      expect(data.toggleUri).assertEqual(CONTROL_CARD_TOGGLE_URI);
+      expect(data.startUri).assertEqual(CONTROL_CARD_START_URI);
+      expect(data.stopUri).assertEqual(CONTROL_CARD_STOP_URI);
+      expect(data.scanUri).assertEqual(CONTROL_CARD_SCAN_URI);
+      expect(parseDeepLink(data.toggleUri).action).assertEqual('toggle');
+      expect(parseDeepLink(data.startUri).action).assertEqual('start');
+      expect(parseDeepLink(data.stopUri).action).assertEqual('stop');
+      expect(parseDeepLink(data.scanUri).action).assertEqual('scan');
     });
 
     it('builds subscription background auto update schedule plan', 0, () => {

@@ -1,0 +1,21 @@
+{
+  "forms": [
+    {
+      "name": "HeyControlCard",
+      "displayName": "$string:control_card_display_name",
+      "description": "$string:control_card_desc",
+      "src": "./ets/widget/pages/HeyControlCard.ets",
+      "uiSyntax": "arkts",
+      "isDefault": true,
+      "updateEnabled": false,
+      "defaultDimension": "2*2",
+      "supportDimensions": [
+        "2*2"
+      ],
+      "formConfigAbility": "ability://EntryAbility",
+      "isDynamic": false,
+      "renderingMode": "fullColor",
+      "metadata": []
+    }
+  ]
+}

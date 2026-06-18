@@ -88,6 +88,19 @@
         "exported": false
       },
       {
+        "name": "ControlCardAbility",
+        "srcEntry": "./ets/controlcardability/ControlCardAbility.ets",
+        "label": "$string:ControlCardAbility_label",
+        "description": "$string:ControlCardAbility_desc",
+        "type": "form",
+        "metadata": [
+          {
+            "name": "ohos.extension.form",
+            "resource": "$profile:form_config"
+          }
+        ]
+      },
+      {
         "name": "SubscriptionUpdateWorkAbility",
         "srcEntry": "./ets/work/SubscriptionUpdateWorkAbility.ets",
         "type": "workScheduler",
