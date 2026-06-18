@@ -10,6 +10,7 @@ import { SubscriptionStore } from '../storage/SubscriptionStore';
 import { createStopCommandVpnWant, createStopVpnWant, createVpnWant } from '../vpn/VpnConstants';
 import { getNativeFreePorts, getNativeStats, startNativeXray, stopNativeXray, testNativeXrayConfig } from '../native/HeyNative';
 import { DiagnosticEvent, DiagnosticLog } from './DiagnosticLog';
+import { OUTBOUND_DOMAIN_RESOLVER } from './OutboundDomainResolver';
 
 const LOG_DOMAIN: number = 0x0001;
 const LOG_TAG: string = 'HeyVpn';
@@ -83,8 +84,9 @@ export class ConnectionController {
     this.lastError = '';
     const runtimeSettings = validation.configType === 'full' ? settings : this.resolveRuntimeSettings(settings);
     const runtimeConfigJson = await this.resolveRuntimeConfigJson(context, validation.normalizedJson, validation.configType);
-    this.generatedConfig = buildRuntimeXrayConfig(runtimeConfigJson, runtimeSettings, validation.configType);
-    this.runtimeMode = normalizeAppRuntimeMode(runtimeSettings?.mode ?? settings?.mode, APP_MODE_VPN);
+    const resolvedRuntimeSettings = await OUTBOUND_DOMAIN_RESOLVER.resolve(context, runtimeConfigJson, runtimeSettings, validation.configType);
+    this.generatedConfig = buildRuntimeXrayConfig(runtimeConfigJson, resolvedRuntimeSettings, validation.configType);
+    this.runtimeMode = normalizeAppRuntimeMode(resolvedRuntimeSettings?.mode ?? settings?.mode, APP_MODE_VPN);
     const requestedAt = Date.now();
 
     try {

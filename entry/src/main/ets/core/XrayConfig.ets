@@ -793,6 +793,53 @@ export function buildRuntimeXrayConfig(configJson: string, settings?: AppSetting
   return buildXrayConfigInternal(validation.normalizedJson, settings);
 }
 
+export function collectOutboundDomainPreResolveHosts(configJson: string, settings?: AppSettings, configType?: XrayConfigType): Array<string> {
+  if (settings === undefined || settings.outboundDomainResolveMethod === OUTBOUND_DOMAIN_RESOLVE_NONE) {
+    return [];
+  }
+  const validation = normalizeConfigInput(configJson, configType);
+  if (!validation.valid || validation.configType === 'full') {
+    return [];
+  }
+  return collectOutboundDomainHosts(preResolveOutbounds(validation.normalizedJson, validation.configType), settings);
+}
+
+export function withOutboundDomainResolvedHosts(
+  settings: AppSettings | undefined,
+  resolvedHosts: Record<string, Array<string>>
+): AppSettings | undefined {
+  if (settings === undefined) {
+    return settings;
+  }
+  const resolvedKeys = Object.keys(resolvedHosts);
+  if (resolvedKeys.length === 0) {
+    return settings;
+  }
+
+  const parsedHosts = parseDnsHostsValue(settings.dnsHosts);
+  const mergedHosts = JSON.parse(JSON.stringify(parsedHosts.hosts)) as Record<string, string | Array<string>>;
+  let changed = false;
+  for (let index = 0; index < resolvedKeys.length; index++) {
+    const host = normalizePreResolveHost(resolvedKeys[index]);
+    if (host.length === 0 || resolveStaticHost(host, mergedHosts, settings.preferIpv6).length > 0) {
+      continue;
+    }
+    const addresses = normalizeResolvedDnsAddresses(resolvedHosts[resolvedKeys[index]]);
+    if (addresses.length === 0) {
+      continue;
+    }
+    mergedHosts[host.toLowerCase()] = addresses;
+    changed = true;
+  }
+  if (!changed) {
+    return settings;
+  }
+
+  const runtimeSettings = JSON.parse(JSON.stringify(settings)) as AppSettings;
+  runtimeSettings.dnsHosts = JSON.stringify(mergedHosts);
+  return runtimeSettings;
+}
+
 function buildXrayConfigInternal(outboundJson: string, settings: AppSettings | undefined): GeneratedXrayConfig {
   const validation = validateOutboundJson(outboundJson);
   if (!validation.valid) {
@@ -1306,6 +1353,57 @@ function mergeDnsHosts(dns: XrayDnsConfig, hosts: Record<string, string | Array<
     next[keys[index]] = hosts[keys[index]];
   }
   dns.hosts = next as Object;
+}
+
+function preResolveOutbounds(configJson: string, configType?: XrayConfigType): Array<XrayOutbound> {
+  if (configType === 'proxy-chain') {
+    return parseProxyChainConfig(configJson).outbounds;
+  }
+  if (configType === 'policy-group') {
+    return parsePolicyGroupConfig(configJson).outbounds;
+  }
+  return [parseOutbound(configJson)];
+}
+
+function collectOutboundDomainHosts(outbounds: Array<XrayOutbound>, settings: AppSettings): Array<string> {
+  const parsedHosts = parseDnsHostsValue(settings.dnsHosts);
+  const seen: Record<string, boolean> = {};
+  const hosts = new Array<string>();
+  for (let index = 0; index < outbounds.length; index++) {
+    const host = normalizePreResolveHost(outboundServerHost(outbounds[index]));
+    if (host.length === 0) {
+      continue;
+    }
+    const key = host.toLowerCase();
+    if (seen[key] || resolveStaticHost(host, parsedHosts.hosts, settings.preferIpv6).length > 0) {
+      continue;
+    }
+    seen[key] = true;
+    hosts.push(key);
+  }
+  return hosts;
+}
+
+function normalizePreResolveHost(host: string): string {
+  const normalized = stripHostBrackets(host.trim());
+  if (normalized.length === 0 || isIpLiteral(normalized)) {
+    return '';
+  }
+  return normalized;
+}
+
+function normalizeResolvedDnsAddresses(values: Array<string>): Array<string> {
+  const seen: Record<string, boolean> = {};
+  const addresses = new Array<string>();
+  for (let index = 0; index < values.length; index++) {
+    const address = stripHostBrackets(values[index].trim());
+    if (address.length === 0 || seen[address]) {
+      continue;
+    }
+    seen[address] = true;
+    addresses.push(address);
+  }
+  return addresses;
 }
 
 function outboundServerHost(outbound: XrayOutbound): string {

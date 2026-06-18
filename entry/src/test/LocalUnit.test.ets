@@ -6,9 +6,9 @@ import { formatTranslation, missingTranslationKeys, normalizeLanguage, translate
 import { defaultJsonConfigNodeName, resolveJsonConfigNodeName } from '../main/ets/core/JsonConfigNames';
 import { selectRuntimeLocalSocksPort, shouldUseDynamicLocalSocksPort, withRuntimeLocalSocksPort } from '../main/ets/core/LocalProxy';
 import { buildManualHysteria2Outbound, buildManualWireguardOutbound } from '../main/ets/core/ManualOutboundBuilder';
-import { APP_MODE_PROXY_ONLY, APP_MODE_VPN, AppSettings, DEFAULT_IP_API_URL, OUTBOUND_DOMAIN_RESOLVE_DNS_HOSTS, OUTBOUND_DOMAIN_RESOLVE_NONE, OUTBOUND_DOMAIN_RESOLVE_REPLACE, OutboundDomainResolveMethod, normalizeAppRuntimeMode, normalizeRealPingConcurrency, normalizeUiModeNight, ProxyNode, RoutingRule, RuntimeStats, SubscriptionGroup } from '../main/ets/core/Profile';
+import { APP_MODE_PROXY_ONLY, APP_MODE_VPN, AppSettings, ConnectionStatus, DEFAULT_IP_API_URL, OUTBOUND_DOMAIN_RESOLVE_DNS_HOSTS, OUTBOUND_DOMAIN_RESOLVE_NONE, OUTBOUND_DOMAIN_RESOLVE_REPLACE, OutboundDomainResolveMethod, normalizeAppRuntimeMode, normalizeRealPingConcurrency, normalizeUiModeNight, ProxyNode, RoutingRule, RuntimeStats, SubscriptionGroup } from '../main/ets/core/Profile';
 import { formatGeoCountSummary, formatGeoCountUnavailable, geoDataSpecForFile, parseGeoCountData } from '../main/ets/core/GeoAssets';
-import { DELAY_TEST_SOCKS_PORT, LOCAL_HTTP_PROXY_LAN_HOST, LOCAL_HTTP_PROXY_PORT, LOCAL_SOCKS_PROXY_PORT, buildDelayTestConfig, buildRuntimeXrayConfig, buildXrayConfig, buildXrayConfigWithSettings, normalizeOutboundInput, validateFullConfigJson, validateOutboundJson, validatePolicyGroupConfigJson, validateProxyChainConfigJson } from '../main/ets/core/XrayConfig';
+import { DELAY_TEST_SOCKS_PORT, LOCAL_HTTP_PROXY_LAN_HOST, LOCAL_HTTP_PROXY_PORT, LOCAL_SOCKS_PROXY_PORT, buildDelayTestConfig, buildRuntimeXrayConfig, buildXrayConfig, buildXrayConfigWithSettings, collectOutboundDomainPreResolveHosts, normalizeOutboundInput, validateFullConfigJson, validateOutboundJson, validatePolicyGroupConfigJson, validateProxyChainConfigJson, withOutboundDomainResolvedHosts } from '../main/ets/core/XrayConfig';
 import { parseDeepLink } from '../main/ets/core/DeepLink';
 import { extractOutboundsFromXrayConfig } from '../main/ets/core/XrayOutbounds';
 import { formatOutboundJsonToShareLink, parseShareLinkToOutboundJson } from '../main/ets/core/ShareLinkParser';
@@ -456,7 +456,7 @@ export default function localUnitTest() {
           locked: false
         }
       ];
-      const result = buildXrayConfigWithSettings(VLESS_REALITY_OUTBOUND, settings);
+      let result = buildXrayConfigWithSettings(VLESS_REALITY_OUTBOUND, settings);
       expect(result.configJson).assertContain('"tag": "dns-out"');
       expect(result.configJson).assertContain('"protocol": "dns"');
       expect(result.configJson).assertContain('"port": "53"');
@@ -496,6 +496,47 @@ export default function localUnitTest() {
       settings.outboundDomainResolveMethod = OUTBOUND_DOMAIN_RESOLVE_NONE;
       result = buildXrayConfigWithSettings(VLESS_REALITY_OUTBOUND, settings);
       expect(result.configJson).assertContain('"address": "example.com"');
+    });
+
+    it('merges live outbound domain pre-resolve results into runtime settings', 0, () => {
+      const settings = buildSettingsFixture();
+      settings.dnsHosts = '';
+      settings.outboundDomainResolveMethod = OUTBOUND_DOMAIN_RESOLVE_DNS_HOSTS;
+      let hosts = collectOutboundDomainPreResolveHosts(VLESS_REALITY_OUTBOUND, settings);
+      expect(hosts.length).assertEqual(1);
+      expect(hosts[0]).assertEqual('example.com');
+
+      hosts = collectOutboundDomainPreResolveHosts(PROXY_CHAIN_CONFIG, settings, 'proxy-chain');
+      expect(hosts.length).assertEqual(2);
+      expect(hosts[0]).assertEqual('example.com');
+      expect(hosts[1]).assertEqual('relay.example.com');
+
+      const fullHosts = collectOutboundDomainPreResolveHosts(FULL_XRAY_CONFIG, settings, 'full');
+      expect(fullHosts.length).assertEqual(0);
+
+      const runtimeSettings = withOutboundDomainResolvedHosts(settings, {
+        'example.com': ['203.0.113.9', '2001:db8::9', '203.0.113.9']
+      }) as AppSettings;
+      expect(settings.dnsHosts).assertEqual('');
+      expect(runtimeSettings.dnsHosts).assertContain('example.com');
+      expect(runtimeSettings.dnsHosts).assertContain('203.0.113.9');
+      expect(runtimeSettings.dnsHosts).assertContain('2001:db8::9');
+      let result = buildXrayConfigWithSettings(VLESS_REALITY_OUTBOUND, runtimeSettings);
+      expect(result.configJson).assertContain('"domainStrategy": "UseIP"');
+      expect(result.configJson).assertContain('"address": "example.com"');
+
+      settings.dnsHosts = 'example.com:203.0.113.8';
+      hosts = collectOutboundDomainPreResolveHosts(VLESS_REALITY_OUTBOUND, settings);
+      expect(hosts.length).assertEqual(0);
+
+      settings.dnsHosts = '';
+      settings.outboundDomainResolveMethod = OUTBOUND_DOMAIN_RESOLVE_REPLACE;
+      const replaceSettings = withOutboundDomainResolvedHosts(settings, {
+        'example.com': ['203.0.113.10']
+      }) as AppSettings;
+      result = buildXrayConfigWithSettings(VLESS_REALITY_OUTBOUND, replaceSettings);
+      expect(result.configJson).assertContain('"address": "203.0.113.10"');
+      expect(result.configJson.indexOf('"address": "example.com"')).assertEqual(-1);
     });
 
     it('applies vpn mtu to generated tun inbound', 0, () => {
