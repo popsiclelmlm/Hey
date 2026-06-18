@@ -3,7 +3,7 @@ import { router, promptAction } from '@kit.ArkUI';
 import { DEFAULT_LANGUAGE, translate } from '../core/I18n';
 import { buildManualHysteria2Outbound, buildManualWireguardOutbound } from '../core/ManualOutboundBuilder';
 import { AppLanguage } from '../core/Profile';
-import { V2RAYNG_FLOW_OPTIONS, V2RAYNG_UTLS_FINGERPRINT_OPTIONS } from '../core/V2rayNgOptions';
+import { V2RAYNG_FLOW_OPTIONS, V2RAYNG_SUPPORTED_TRANSPORT_OPTIONS, V2RAYNG_UTLS_FINGERPRINT_OPTIONS, V2RAYNG_XHTTP_MODE_OPTIONS } from '../core/V2rayNgOptions';
 import { NODES_CONTROLLER } from '../features/nodes/NodesController';
 import { SETTINGS_CONTROLLER } from '../features/settings/SettingsController';
 import { SHARED_RUNTIME_CONTROLLER } from '../features/runtime/RuntimeController';
@@ -270,6 +270,11 @@ interface FormWsSettings {
   headers: FormWsHeaders;
 }
 
+interface FormHttpUpgradeSettings {
+  path: string;
+  host: string;
+}
+
 interface FormGrpcSettings {
   serviceName: string;
   authority: string;
@@ -285,6 +290,7 @@ interface FormXhttpSettings {
   path: string;
   host: string;
   mode?: string;
+  extra?: Object;
 }
 
 interface FormTlsSettings {
@@ -306,6 +312,7 @@ interface FormStreamSettings {
   security?: string;
   tcpSettings?: FormTcpSettings;
   wsSettings?: FormWsSettings;
+  httpupgradeSettings?: FormHttpUpgradeSettings;
   grpcSettings?: FormGrpcSettings;
   httpSettings?: FormHttpSettings;
   xhttpSettings?: FormXhttpSettings;
@@ -343,6 +350,8 @@ struct NodeEditPage {
   @State private transportHost: string = '';
   @State private transportPath: string = '';
   @State private transportFinalMask: string = '';
+  @State private transportXhttpMode: string = 'auto';
+  @State private transportXhttpExtra: string = '';
   
   // 安全传输层设置 (TLS / Reality)
   @State private tlsSecurity: string = 'none';
@@ -557,10 +566,10 @@ struct NodeEditPage {
             if (this.protocol === 'vless' || this.protocol === 'vmess' || this.protocol === 'trojan' || this.protocol === 'ss') {
               SectionHeader({ title: '传输与伪装设置' })
               Column({ space: Space.md }) {
-                SegmentedControl({
+                PickerRow({
                   label: '传输协议 (network)',
-                  options: ['tcp', 'ws', 'grpc', 'h2', 'xhttp'],
-                  selected: $transportType
+                  options: V2RAYNG_SUPPORTED_TRANSPORT_OPTIONS,
+                  selectedValue: $transportType
                 })
                 this.EditorRow('伪装域名 (Host)', this.transportHost, 'Host 字段或权威域名', (value: string) => {
                   this.transportHost = value;
@@ -568,6 +577,16 @@ struct NodeEditPage {
                 this.EditorRow('伪装路径 (Path / ServiceName)', this.transportPath, '请求路径或 gRPC 服务名', (value: string) => {
                   this.transportPath = value;
                 })
+                if (this.transportType === 'xhttp') {
+                  PickerRow({
+                    label: 'XHTTP 模式 (mode)',
+                    options: V2RAYNG_XHTTP_MODE_OPTIONS,
+                    selectedValue: $transportXhttpMode
+                  })
+                  this.EditorRow('XHTTP Extra JSON (可选)', this.transportXhttpExtra, '{ "headers": {} }', (value: string) => {
+                    this.transportXhttpExtra = value;
+                  })
+                }
                 this.EditorRow('FinalMask JSON (fm - 可选)', this.transportFinalMask, '{ "tcp": [], "udp": [] }', (value: string) => {
                   this.transportFinalMask = value;
                 })
@@ -917,6 +936,13 @@ struct NodeEditPage {
           };
           streamSettings.wsSettings = wsSettings;
         } 
+        else if (network === 'httpupgrade') {
+          const httpUpgradeSettings: FormHttpUpgradeSettings = {
+            path: this.valueOr(this.transportPath, '/'),
+            host: this.transportHost.trim()
+          };
+          streamSettings.httpupgradeSettings = httpUpgradeSettings;
+        }
         else if (network === 'grpc') {
           const grpcSettings: FormGrpcSettings = {
             serviceName: this.transportPath.trim(),
@@ -940,8 +966,23 @@ struct NodeEditPage {
         else if (network === 'xhttp') {
           const xhttpSettings: FormXhttpSettings = {
             path: this.valueOr(this.transportPath, '/'),
-            host: this.transportHost.trim()
+            host: this.transportHost.trim(),
+            mode: this.valueOr(this.transportXhttpMode, 'auto')
           };
+          const xhttpExtraText = this.transportXhttpExtra.trim();
+          if (xhttpExtraText.length > 0) {
+            try {
+              const extra = JSON.parse(xhttpExtraText) as Object;
+              if (extra === null || typeof extra !== 'object') {
+                this.lastError = 'XHTTP Extra JSON 必须是对象或数组。';
+                return;
+              }
+              xhttpSettings.extra = extra;
+            } catch (error) {
+              this.lastError = 'XHTTP Extra JSON 解析失败：' + JSON.stringify(error);
+              return;
+            }
+          }
           streamSettings.xhttpSettings = xhttpSettings;
         }
 

@@ -1304,6 +1304,13 @@ function appendStreamSettingsToQuery(queryParams: Map<string, string>, stream?: 
     if (stream.wsSettings.headers?.Host) {
       queryParams.set('host', stream.wsSettings.headers.Host);
     }
+  } else if (network === 'httpupgrade' && stream.httpupgradeSettings) {
+    if (stream.httpupgradeSettings.path) {
+      queryParams.set('path', stream.httpupgradeSettings.path);
+    }
+    if (stream.httpupgradeSettings.host) {
+      queryParams.set('host', stream.httpupgradeSettings.host);
+    }
   } else if (network === 'grpc' && stream.grpcSettings) {
     if (stream.grpcSettings.serviceName) {
       queryParams.set('serviceName', stream.grpcSettings.serviceName);
@@ -1387,6 +1394,9 @@ function formatVmess(outbound: XrayOutbound, name: string): string {
   if (network === 'ws' && stream?.wsSettings) {
     vmessObj.path = stream.wsSettings.path || '/';
     vmessObj.host = stream.wsSettings.headers?.Host || '';
+  } else if (network === 'httpupgrade' && stream?.httpupgradeSettings) {
+    vmessObj.path = stream.httpupgradeSettings.path || '/';
+    vmessObj.host = stream.httpupgradeSettings.host || '';
   } else if (network === 'grpc' && stream?.grpcSettings) {
     vmessObj.path = stream.grpcSettings.serviceName || '';
     vmessObj.host = stream.grpcSettings.authority || '';
