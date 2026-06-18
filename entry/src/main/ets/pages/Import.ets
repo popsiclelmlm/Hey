@@ -37,7 +37,10 @@ struct ImportPage {
           // 模块二：手动协议配置
           this.ManualGridSection()
 
-          // 模块三：自定义 JSON 配置
+          // 模块三：高级出站配置
+          this.AdvancedConfigSection()
+
+          // 模块四：自定义 JSON 配置
           this.JsonImportSection()
 
           if (this.lastError.length > 0) {
@@ -236,7 +239,68 @@ struct ImportPage {
     })
   }
 
-  // 3. 自定义 JSON 导入入口
+  // 3. 代理链 / 策略组配置入口
+  @Builder
+  private AdvancedConfigSection() {
+    SectionHeader({ title: '高级配置' })
+    Column() {
+      this.AdvancedOutboundRow(
+        this.t('advancedOutbound.proxyChain'),
+        this.t('advancedOutbound.proxyChain.detail'),
+        'proxy-chain'
+      )
+      this.RowDivider()
+      this.AdvancedOutboundRow(
+        this.t('advancedOutbound.policyGroup'),
+        this.t('advancedOutbound.policyGroup.detail'),
+        'policy-group'
+      )
+    }
+    .width('100%')
+    .backgroundColor(AppColor.surface)
+    .borderRadius(Radius.lg)
+    .clip(true)
+    .margin({ left: Space.lg, right: Space.lg })
+  }
+
+  @Builder
+  private AdvancedOutboundRow(title: string, detail: string, mode: string) {
+    Row({ space: Space.md }) {
+      Image($r('app.media.ic_route'))
+        .width(20)
+        .height(20)
+        .fillColor(AppColor.brand)
+
+      Column({ space: 3 }) {
+        Text(title)
+          .fontSize(FontSz.callout)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(AppColor.textPrimary)
+        Text(detail)
+          .fontSize(FontSz.footnote)
+          .fontColor(AppColor.textTertiary)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+      }
+      .alignItems(HorizontalAlign.Start)
+      .layoutWeight(1)
+
+      Image($r('app.media.ic_chevron_right'))
+        .width(20)
+        .height(20)
+        .fillColor(AppColor.textTertiary)
+    }
+    .width('100%')
+    .padding(Space.lg)
+    .onClick(() => {
+      router.pushUrl({
+        url: AppRoute.ADVANCED_OUTBOUND,
+        params: { mode: mode }
+      })
+    })
+  }
+
+  // 4. 自定义 JSON 导入入口
   @Builder
   private JsonImportSection() {
     SectionHeader({ title: '自定义配置' })

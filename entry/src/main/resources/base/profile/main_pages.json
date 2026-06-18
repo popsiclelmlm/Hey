@@ -15,6 +15,7 @@
     "pages/About",
     "pages/Export",
     "pages/NodeEdit",
-    "pages/JsonImport"
+    "pages/JsonImport",
+    "pages/AdvancedOutbound"
   ]
 }

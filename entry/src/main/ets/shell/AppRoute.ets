@@ -14,7 +14,8 @@ export enum AppRoute {
   ABOUT = 'pages/About',
   EXPORT = 'pages/Export',
   NODE_EDIT = 'pages/NodeEdit',
-  JSON_IMPORT = 'pages/JsonImport'
+  JSON_IMPORT = 'pages/JsonImport',
+  ADVANCED_OUTBOUND = 'pages/AdvancedOutbound'
 }
 
 export interface RouteEntry {
@@ -50,6 +51,9 @@ export function routeTitleKey(route: AppRoute): string {
   }
   if (route === AppRoute.JSON_IMPORT) {
     return 'screen.jsonImport.title';
+  }
+  if (route === AppRoute.ADVANCED_OUTBOUND) {
+    return 'screen.advancedOutbound.title';
   }
   for (let index = 0; index < HOME_ROUTE_ENTRIES.length; index++) {
     const entry = HOME_ROUTE_ENTRIES[index];
