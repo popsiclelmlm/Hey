@@ -1878,11 +1878,26 @@ export default function localUnitTest() {
       draft.localSocksEnabled = false;
       draft.appendHttpProxy = true;
       expect(SETTINGS_CONTROLLER.buildSettings(draft).localSocksEnabled).assertTrue();
+      expect(SETTINGS_CONTROLLER.buildSettings(draft).appendHttpProxy).assertTrue();
       draft.useHevTun = false;
       draft.localSocksEnabled = false;
       draft.appendHttpProxy = true;
       expect(SETTINGS_CONTROLLER.buildSettings(draft).localSocksEnabled).assertFalse();
       expect(SETTINGS_CONTROLLER.buildSettings(draft).appendHttpProxy).assertFalse();
+      draft.localDnsEnabled = false;
+      draft.fakeDnsEnabled = true;
+      expect(SETTINGS_CONTROLLER.buildSettings(draft).fakeDnsEnabled).assertFalse();
+      draft.localDnsEnabled = true;
+      expect(SETTINGS_CONTROLLER.buildSettings(draft).fakeDnsEnabled).assertTrue();
+      draft.useHevTun = false;
+      draft.localSocksEnabled = false;
+      draft.proxySharingEnabled = true;
+      expect(SETTINGS_CONTROLLER.buildSettings(draft).proxySharingEnabled).assertFalse();
+      draft.localSocksEnabled = true;
+      expect(SETTINGS_CONTROLLER.buildSettings(draft).proxySharingEnabled).assertTrue();
+      draft.useHevTun = true;
+      draft.localSocksEnabled = false;
+      expect(SETTINGS_CONTROLLER.buildSettings(draft).proxySharingEnabled).assertTrue();
     });
 
     it('normalizes real ping concurrency like v2rayNG', 0, () => {

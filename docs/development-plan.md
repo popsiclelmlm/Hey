@@ -326,6 +326,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 - ✅ WireGuard/Hysteria2 手动编辑器：NodeEdit 已生成可校验 outbound，WG 支持 secret/public/pre-shared/reserved/MTU/IPv6 endpoint，HY2 支持 SNI/insecure/obfs/mport/mportHopInt/pinSHA256/bandwidth，且 HY2 runtime ALPN 固定为 v2rayNG 默认 `h3`，bandwidth/obfs/port-hop 会在启动配置中转为 v2rayNG 风格 `finalmask`（2026-06-19）
 - ✅ SOCKS 端口/UDP/认证/动态端口：Settings 已可配置本地 SOCKS inbound，`localSocksEnabled` 按 v2rayNG `pref_enable_local_proxy` 默认开启，默认端口按 v2rayNG 为 `10808`，写入 `socks-in` 端口、UDP 与用户名/密码认证，并随代理共享监听 LAN；动态端口开启时连接前通过 `CGoGetFreePorts` 选择运行端口，失败回退用户设置端口（2026-06-19 补默认端口/开启语义）
 - ✅ Hev TUN 设置偏好：Settings/存储/控制器补齐 v2rayNG `pref_use_hev_tunnel_v2`、`pref_hev_tunnel_loglevel`、`pref_hev_tunnel_rw_timeout_v2`，默认开启、日志级别限定 `error/warn/info/debug`、读写超时保存 `tcp,udp` 秒数；开启 Hev 时保持本地 SOCKS 开启，Harmony 运行时仍使用 Xray TUN（2026-06-20）
+- ✅ Settings 依赖门禁：Settings 页面、控制器和旧数据读取按 v2rayNG `SettingsActivity` 联动本地 DNS/FakeDNS、本地代理/追加 HTTP/代理共享与 Hev 强制本地代理关系，关闭上游开关时清理下游无效状态（2026-06-20）
 - ✅ Mux 协议适用范围：全局 Mux 只应用到 v2rayNG 允许的 VMess/VLESS 等出站，自动跳过 Shadowsocks/SOCKS/HTTP/Trojan/WireGuard/Hysteria2 与 XHTTP，并对 VLESS flow 节点写入 `concurrency=-1`（2026-06-19）
 - ✅ Mux XUDP UDP/443 策略枚举：Settings 按 v2rayNG `mux_xudp_quic_value` 固定为 `reject/allow/skip`，保存、存储归一化和运行配置均对旧非法值兜底到 `reject`（2026-06-19）
 - ✅ Fragment 运行配置：全局 Fragment 按 v2rayNG 只在 TLS/Reality 且无 `dialerProxy`/既有 `finalmask` 时生成 `streamSettings.finalmask.tcp/udp`，Reality 默认 packets 从 `tlshello` 改为 `1-3`，TLS 强制使用 `tlshello`（2026-06-19）
@@ -464,6 +465,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-19 | M4 | ✅ 本地 SOCKS 默认开启与端口对齐 v2rayNG（`pref_enable_local_proxy` 默认 true；默认 SOCKS 端口 10808；默认设置生成 `socks-in`，关闭时不生成；补配置生成单测） |
 | 2026-06-19 | M4 | ✅ 本地代理总开关对齐 v2rayNG（关闭本地代理时同步清理/忽略追加 HTTP 代理，旧设置归一化后不再生成 `http-in`；补 SettingsController 与配置生成单测） |
 | 2026-06-20 | M4 | ✅ Hev TUN 设置偏好对齐 v2rayNG（`pref_use_hev_tunnel_v2` 默认 true，日志级别限定 `error/warn/info/debug`，读写超时规范化为 `tcp,udp` 秒数；开启 Hev 时保持本地 SOCKS 开启；Harmony 运行时仍使用 Xray TUN） |
+| 2026-06-20 | M4 | ✅ Settings 依赖门禁对齐 v2rayNG（关闭本地 DNS 清理 FakeDNS，关闭本地代理清理追加 HTTP 与代理共享；Hev 强制本地代理时保留可用下游开关；补 Settings 归一化单测） |
 | 2026-06-18 | M4 | ✅ 本地 SOCKS 动态端口完成（`localSocksDynamicPort` 设置 + 启动前 `CGoGetFreePorts` 选择运行端口 + 设置/端口选择单测）；`.so` 已重建，待真机复测 |
 | 2026-06-18 | M4 | ✅ 传输高级设置完成（Settings 展开 mux 并发、XUDP 并发、UDP/443 策略、fragment packets/length/interval，日志级别改为 picker，并补 Settings draft 往返单测） |
 | 2026-06-19 | M4 | ✅ Mux 并发范围对齐 v2rayNG（`muxConcurrency` 与 `muxXudpConcurrency` 保存范围改为 `-1..1024`，运行配置保留 `-1/0`，XUDP 为负时隐藏 UDP/443 策略入口；补 Settings 与配置生成单测） |

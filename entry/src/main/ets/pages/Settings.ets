@@ -436,9 +436,12 @@ struct SettingsPage {
         break;
       case 'localDns':
         this.settingLocalDns = !this.settingLocalDns;
+        if (!this.settingLocalDns) {
+          this.settingFakeDns = false;
+        }
         break;
       case 'fakeDns':
-        this.settingFakeDns = !this.settingFakeDns;
+        this.settingFakeDns = this.settingLocalDns ? !this.settingFakeDns : false;
         break;
       case 'mux':
         this.settingMux = !this.settingMux;
@@ -453,15 +456,16 @@ struct SettingsPage {
         this.settingPreferIpv6 = !this.settingPreferIpv6;
         break;
       case 'proxySharing':
-        this.settingProxySharing = !this.settingProxySharing;
+        this.settingProxySharing = this.isLocalProxyEnabled() ? !this.settingProxySharing : false;
         break;
       case 'appendHttpProxy':
-        this.settingAppendHttpProxy = this.settingLocalSocks ? !this.settingAppendHttpProxy : false;
+        this.settingAppendHttpProxy = this.isLocalProxyEnabled() ? !this.settingAppendHttpProxy : false;
         break;
       case 'localSocks':
         this.settingLocalSocks = this.settingUseHevTun ? true : !this.settingLocalSocks;
         if (!this.settingLocalSocks) {
           this.settingAppendHttpProxy = false;
+          this.settingProxySharing = false;
         }
         break;
       case 'useHevTun':
@@ -493,6 +497,10 @@ struct SettingsPage {
     }
     SHARED_RUNTIME_CONTROLLER.appendLog(this.f1('log.settingsChanged', 'action', action));
     this.persistSettings(false);
+  }
+
+  private isLocalProxyEnabled(): boolean {
+    return this.settingLocalSocks || this.settingUseHevTun;
   }
 
   private updateSettingInput(action: string, value: string): void {

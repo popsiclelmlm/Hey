@@ -125,6 +125,7 @@ export class SettingsStore {
     const base = SettingsStore.copy(DEFAULT_APP_SETTINGS);
     const useHevTun = SettingsStore.boolValue(raw.useHevTun, base.useHevTun);
     const localSocksEnabled = SettingsStore.boolValue(raw.localSocksEnabled, base.localSocksEnabled) || useHevTun;
+    const localDnsEnabled = SettingsStore.boolValue(raw.localDnsEnabled, base.localDnsEnabled);
     return {
       language: normalizeLanguage(raw.language),
       uiModeNight: normalizeUiModeNight(raw.uiModeNight, base.uiModeNight),
@@ -140,8 +141,8 @@ export class SettingsStore {
       perAppProxyEnabled: SettingsStore.boolValue(raw.perAppProxyEnabled, base.perAppProxyEnabled),
       perAppProxyList: SettingsStore.arrayValue(raw.perAppProxyList, base.perAppProxyList),
       perAppProxyBypass: SettingsStore.boolValue(raw.perAppProxyBypass, base.perAppProxyBypass),
-      localDnsEnabled: SettingsStore.boolValue(raw.localDnsEnabled, base.localDnsEnabled),
-      fakeDnsEnabled: SettingsStore.boolValue(raw.fakeDnsEnabled, base.fakeDnsEnabled),
+      localDnsEnabled,
+      fakeDnsEnabled: SettingsStore.boolValue(raw.fakeDnsEnabled, base.fakeDnsEnabled) && localDnsEnabled,
       appendHttpProxy: SettingsStore.boolValue(raw.appendHttpProxy, base.appendHttpProxy) && localSocksEnabled,
       localSocksEnabled,
       localSocksPort: SettingsStore.portValue(raw.localSocksPort, base.localSocksPort),
@@ -162,7 +163,7 @@ export class SettingsStore {
       fragmentInterval: SettingsStore.stringValue(raw.fragmentInterval, base.fragmentInterval),
       ipv6Enabled: SettingsStore.boolValue(raw.ipv6Enabled, base.ipv6Enabled),
       preferIpv6: SettingsStore.boolValue(raw.preferIpv6, base.preferIpv6),
-      proxySharingEnabled: SettingsStore.boolValue(raw.proxySharingEnabled, base.proxySharingEnabled),
+      proxySharingEnabled: SettingsStore.boolValue(raw.proxySharingEnabled, base.proxySharingEnabled) && localSocksEnabled,
       allowInsecure: SettingsStore.boolValue(raw.allowInsecure, base.allowInsecure),
       localDnsPort: SettingsStore.portValue(raw.localDnsPort, base.localDnsPort),
       vpnInterfaceAddressIndex: normalizeVpnInterfaceAddressIndex(raw.vpnInterfaceAddressIndex, base.vpnInterfaceAddressIndex),

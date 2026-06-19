@@ -139,6 +139,7 @@ export class SettingsController {
   buildSettings(draft: SettingsDraft): AppSettings {
     const useHevTun = draft.useHevTun;
     const localSocksEnabled = draft.localSocksEnabled || useHevTun;
+    const localDnsEnabled = draft.localDnsEnabled;
     return {
       language: draft.language,
       uiModeNight: normalizeUiModeNight(draft.uiModeNight, DEFAULT_APP_SETTINGS.uiModeNight),
@@ -154,8 +155,8 @@ export class SettingsController {
       perAppProxyEnabled: draft.perAppProxyEnabled,
       perAppProxyList: draft.perAppProxyList,
       perAppProxyBypass: draft.perAppProxyBypass,
-      localDnsEnabled: draft.localDnsEnabled,
-      fakeDnsEnabled: draft.fakeDnsEnabled,
+      localDnsEnabled,
+      fakeDnsEnabled: draft.fakeDnsEnabled && localDnsEnabled,
       appendHttpProxy: draft.appendHttpProxy && localSocksEnabled,
       localSocksEnabled,
       localSocksPort: this.portValue(draft.localSocksPort, DEFAULT_APP_SETTINGS.localSocksPort),
@@ -176,7 +177,7 @@ export class SettingsController {
       fragmentInterval: this.nonEmptyString(draft.fragmentInterval, DEFAULT_APP_SETTINGS.fragmentInterval),
       ipv6Enabled: draft.ipv6Enabled,
       preferIpv6: draft.preferIpv6,
-      proxySharingEnabled: draft.proxySharingEnabled,
+      proxySharingEnabled: draft.proxySharingEnabled && localSocksEnabled,
       allowInsecure: draft.allowInsecure,
       localDnsPort: this.portValue(draft.localDnsPort, DEFAULT_APP_SETTINGS.localDnsPort),
       vpnInterfaceAddressIndex: normalizeVpnInterfaceAddressIndex(draft.vpnInterfaceAddressIndex, DEFAULT_APP_SETTINGS.vpnInterfaceAddressIndex),
