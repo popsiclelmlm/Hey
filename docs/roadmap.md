@@ -208,6 +208,7 @@
 | 2026-06-19 | 协议点检 | ✅ TCP 默认 query 导出完成；无 `streamSettings` 的 VLESS/Trojan 分享导出按 v2rayNG 普通 TCP 节点补齐 `security/type/headerType`，Trojan 补 `insecure=0`/`allowInsecure=0` |
 | 2026-06-19 | 协议点检 | ✅ HTTPUpgrade/XHTTP 传输参数完成；`type=httpupgrade` host/path 导出保留，NodeEdit 可选择 httpupgrade，XHTTP `mode/extra` 可手动填写并 round-trip 保留 |
 | 2026-06-19 | 协议点检 | ✅ XHTTP mode 枚举完成；导入、导出、NodeEdit 保存和运行配置均按 v2rayNG `auto/packet-up/stream-up/stream-one` 归一化，非法值兜底 `auto` |
+| 2026-06-20 | 协议点检 | ✅ H2 传输 Host 列表完成；手动 `h2` 节点保存时 Host 按 v2rayNG 逗号拆分为 `httpSettings.host` 数组，空 Path 回退 `/` |
 | 2026-06-19 | 阶段 4 | ✅ 开机自启安装兼容修正；移除受限 `ohos.permission.RECEIVER_STARTUP_COMPLETED` manifest 声明，保留 Harmony `AUTO_STARTUP` 启动原因下的自动连接处理，普通调试签名安装不再被授权 ACL 拦截 |
 | 2026-06-19 | 阶段 3 | ✅ 节点去重 profile 语义完成；普通节点按 v2rayNG `ProfileItem.equals` 近似语义忽略备注、分享链接 fragment 与 runtime tag 差异，full/proxy-chain/policy-group 复杂节点不参与重复删除 |
 | 2026-06-19 | 协议点检 | ✅ gRPC 传输模式完成；NodeEdit 可选择 v2rayNG `gun/multi`，分享链接 `mode=multi` 与 `grpcSettings.multiMode` round-trip 保留 |

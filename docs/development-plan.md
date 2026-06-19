@@ -303,6 +303,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 - ✅ TCP HTTP 头伪装：`type=tcp&headerType=http` 可导入导出，NodeEdit 手动编辑可选择 `none/http` 并写入 `tcpSettings.header.request`（2026-06-19）
 - ✅ URL-style 默认 TCP query：无 `streamSettings` 的 VLESS/Trojan outbound 导出时会按 v2rayNG 手动普通 TCP 节点补齐 `security/type/headerType` 默认值，Trojan 同步写出 `insecure=0`/`allowInsecure=0`（2026-06-19）
 - ✅ HTTPUpgrade / XHTTP 传输参数：`httpupgrade` host/path 导入导出保留，NodeEdit 可选择；XHTTP `mode/extra` 可手动填写并导入导出保留，`mode` 按 v2rayNG `auto/packet-up/stream-up/stream-one` 枚举在导入、导出、保存与运行配置中归一化（2026-06-19）
+- ✅ H2 传输 Host 列表：NodeEdit 手动 `h2` 保存时按 v2rayNG 将 Host 输入按逗号拆分、trim 并过滤空项，写入 Xray `httpSettings.host` 数组；空 Path 继续回退 `/`（2026-06-20）
 - ✅ gRPC 传输模式：`mode=multi` 可导入导出为 `grpcSettings.multiMode`，NodeEdit 手动编辑可在 v2rayNG `gun/multi` 两种模式间选择（2026-06-19）
 - ✅ KCP 传输参数：`type=kcp` 的 `headerType`/`seed`/`mtu`/`tti` 可导入导出，运行 outbound 生成 v2rayNG 风格 `kcpSettings` + `finalmask.udp`，NodeEdit 可选择 KCP header/seed/MTU/TTI（2026-06-19）
 - ✅ 普通手动节点原位编辑：节点详情可按 v2rayNG `ServerActivity` 重新打开手动 VLESS/VMess/Trojan/Shadowsocks/SOCKS/HTTP/WireGuard/Hysteria2 节点，NodeEdit 会从已有 outbound 回填基础、认证、传输、TLS/Reality、WG/HY2 专属字段，保存时原位更新节点；编辑当前节点会标记运行配置待重启（2026-06-19）
@@ -516,6 +517,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-19 | 协议点检 | ✅ URL-style 默认 TCP query 完成（无 `streamSettings` 的 VLESS/Trojan outbound 导出时补齐 v2rayNG 普通 TCP 默认 `security/type/headerType`，Trojan 补 `insecure=0`/`allowInsecure=0`；补 round-trip 单测） |
 | 2026-06-19 | 协议点检 | ✅ HTTPUpgrade/XHTTP 传输参数完成（分享链接 `type=httpupgrade` 的 host/path 导出不再丢失，NodeEdit 可选择 httpupgrade；XHTTP `mode/extra` 可手动填写并 round-trip 保留；补传输选项与参数单测） |
 | 2026-06-19 | 协议点检 | ✅ XHTTP mode 枚举完成（分享链接导入/导出、NodeEdit 保存与运行配置生成均按 v2rayNG `auto/packet-up/stream-up/stream-one` 限定，非法值兜底 `auto`；补归一化单测） |
+| 2026-06-20 | 协议点检 | ✅ H2 传输 Host 列表完成（NodeEdit 手动 `h2` 保存时按 v2rayNG 拆分逗号 Host 列表，空 Path 回退 `/`；补纯函数单测） |
 | 2026-06-19 | M4 | ✅ 开机自启安装兼容修正（移除受限 `ohos.permission.RECEIVER_STARTUP_COMPLETED` manifest 声明，保留 `AUTO_STARTUP` 启动原因下的 `startOnBoot` 处理，避免普通调试签名 HAP 安装被授权 ACL 拦截） |
 | 2026-06-19 | M3 | ✅ 节点去重 profile 语义完成（普通节点去重忽略备注、分享链接 fragment 与 runtime tag 差异；full/proxy-chain/policy-group 复杂节点按 v2rayNG 跳过；订阅保存去重与 Nodes 批量去重共用同一 helper；补单测） |
 | 2026-06-19 | 协议点检 | ✅ gRPC 传输模式完成（NodeEdit 可选择 v2rayNG `gun/multi`，保存时写入 `grpcSettings.multiMode`；分享链接 `mode=multi` round-trip 保留） |

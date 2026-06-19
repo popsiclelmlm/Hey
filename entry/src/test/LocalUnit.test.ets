@@ -4,6 +4,7 @@ import { buildAppBackupPayload, buildAppBackupZipFromPayload, parseAppBackupData
 import { CONTROL_CARD_FORM_NAME, CONTROL_CARD_SCAN_URI, CONTROL_CARD_START_URI, CONTROL_CARD_STOP_URI, CONTROL_CARD_TOGGLE_URI, buildControlCardFormData } from '../main/ets/core/ControlCard';
 import { AssetNameEntry, hasDuplicateAssetName, isEditableCustomAssetUrl, normalizeScannedAssetUrl } from '../main/ets/core/AssetUrls';
 import { decodeBase64ToUtf8 } from '../main/ets/core/Encoding';
+import { buildV2rayNgH2HttpSettings, splitV2rayNgH2Hosts } from '../main/ets/core/H2Transport';
 import { formatTranslation, missingTranslationKeys, normalizeLanguage, resolveLanguage, resolveSystemLanguage, translate } from '../main/ets/core/I18n';
 import { resolveImportedNodeName } from '../main/ets/core/ImportedNodeNames';
 import { defaultJsonConfigNodeName, resolveJsonConfigNodeName } from '../main/ets/core/JsonConfigNames';
@@ -2381,6 +2382,24 @@ export default function localUnitTest() {
       const exported = formatOutboundJsonToShareLink(imported.outboundJson, 'udp443');
       expect(exported).assertContain('flow=xtls-rprx-vision-udp443');
       expect(exported).assertContain('fp=randomized');
+    });
+
+    it('splits h2 transport hosts like v2rayNG manual editor', 0, () => {
+      const hosts = splitV2rayNgH2Hosts(' h2-a.example, h2-b.example ,,h2-c.example ');
+      expect(hosts.length).assertEqual(3);
+      expect(hosts[0]).assertEqual('h2-a.example');
+      expect(hosts[1]).assertEqual('h2-b.example');
+      expect(hosts[2]).assertEqual('h2-c.example');
+
+      const settings = buildV2rayNgH2HttpSettings(' cdn-a.example, cdn-b.example ', ' /h2 ');
+      expect(settings.path).assertEqual('/h2');
+      expect(settings.host.length).assertEqual(2);
+      expect(settings.host[0]).assertEqual('cdn-a.example');
+      expect(settings.host[1]).assertEqual('cdn-b.example');
+
+      const fallback = buildV2rayNgH2HttpSettings('', '');
+      expect(fallback.path).assertEqual('/');
+      expect(fallback.host.length).assertEqual(0);
     });
 
     it('round-trips tcp http header transport parameters', 0, () => {

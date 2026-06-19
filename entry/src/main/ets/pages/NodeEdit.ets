@@ -1,6 +1,7 @@
 import { common } from '@kit.AbilityKit';
 import { router, promptAction } from '@kit.ArkUI';
 import { DEFAULT_LANGUAGE, translate } from '../core/I18n';
+import { buildV2rayNgH2HttpSettings } from '../core/H2Transport';
 import { buildKcpFinalMask } from '../core/KcpTransport';
 import { isManualEditProtocol, ManualOutboundEditState, normalizeManualEditProtocol, parseManualOutboundEditState } from '../core/ManualOutboundEditState';
 import { buildManualHysteria2Outbound, buildManualWireguardOutbound } from '../core/ManualOutboundBuilder';
@@ -1106,14 +1107,10 @@ struct NodeEditPage {
           streamSettings.grpcSettings = grpcSettings;
         } 
         else if (network === 'h2') {
-          const hosts = new Array<string>();
-          const transportHost = this.transportHost.trim();
-          if (transportHost.length > 0) {
-            hosts.push(transportHost);
-          }
+          const h2Settings = buildV2rayNgH2HttpSettings(this.transportHost, this.transportPath);
           const httpSettings: FormHttpSettings = {
-            path: this.valueOr(this.transportPath, '/'),
-            host: hosts
+            path: h2Settings.path,
+            host: h2Settings.host
           };
           streamSettings.httpSettings = httpSettings;
         }
