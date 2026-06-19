@@ -15,6 +15,13 @@ interface XrayWireguardSettings {
 }
 
 interface XrayHysteria2Server {
+  address?: string;
+  port?: number;
+  password?: string;
+  sni?: string;
+  alpn?: string;
+  insecure?: boolean;
+  pinSHA256?: string;
   obfsPassword?: string;
   portHopping?: string;
   portHoppingInterval?: string;
@@ -24,6 +31,24 @@ interface XrayHysteria2Server {
 
 interface XrayHysteria2Settings {
   servers?: Array<XrayHysteria2Server>;
+}
+
+interface XrayHysteriaRuntimeSettings {
+  address?: string;
+  port?: number;
+  version: number;
+}
+
+interface XrayHysteriaRuntimeHysteriaSettings {
+  version: number;
+  auth: string;
+}
+
+interface XrayHysteriaRuntimeTlsSettings {
+  allowInsecure: boolean;
+  serverName?: string;
+  alpn?: Array<string>;
+  pinnedPeerCertSha256?: string;
 }
 
 interface XrayLogConfig {
@@ -1057,6 +1082,7 @@ function applyOutboundRuntimeSettings(outbound: XrayOutbound, settings: AppSetti
   applyPinnedCertificateAllowInsecureParity(outbound);
   applyWireguardIpv6Setting(outbound, settings);
   applyHysteria2FinalMaskSettings(outbound);
+  applyHysteria2RuntimeShape(outbound);
   applyMuxRuntimeSettings(outbound, settings);
   if (settings !== undefined && settings.fragmentEnabled) {
     applyFragmentFinalMaskSettings(outbound, settings);
@@ -1413,6 +1439,73 @@ function applyHysteria2FinalMaskSettings(outbound: XrayOutbound): void {
 
   streamSettings['finalmask'] = finalMask as Object;
   outbound.streamSettings = streamSettings as Object;
+}
+
+function applyHysteria2RuntimeShape(outbound: XrayOutbound): void {
+  if ((outbound.protocol?.toLowerCase() ?? '') !== 'hysteria2' || outbound.settings === undefined) {
+    return;
+  }
+
+  const hysteriaSettings = outbound.settings as XrayHysteria2Settings;
+  const server = hysteriaSettings.servers?.[0];
+  if (server === undefined) {
+    return;
+  }
+
+  const runtimeSettings: XrayHysteriaRuntimeSettings = {
+    version: 2
+  };
+  if (server.address !== undefined) {
+    runtimeSettings.address = server.address;
+  }
+  if (server.port !== undefined) {
+    runtimeSettings.port = server.port;
+  }
+
+  let streamSettings: Record<string, Object | string | number | boolean | undefined>;
+  if (outbound.streamSettings === undefined) {
+    streamSettings = {};
+  } else {
+    streamSettings = outbound.streamSettings as Record<string, Object | string | number | boolean | undefined>;
+  }
+
+  streamSettings['network'] = 'hysteria';
+  const hysteriaRuntimeSettings: XrayHysteriaRuntimeHysteriaSettings = {
+    version: 2,
+    auth: server.password ?? ''
+  };
+  streamSettings['hysteriaSettings'] = hysteriaRuntimeSettings as Object;
+  streamSettings['security'] = 'tls';
+  streamSettings['tlsSettings'] = buildHysteria2TlsSettings(server) as Object;
+
+  outbound.protocol = 'hysteria';
+  outbound.settings = runtimeSettings as Object;
+  outbound.streamSettings = streamSettings as Object;
+}
+
+function buildHysteria2TlsSettings(server: XrayHysteria2Server): XrayHysteriaRuntimeTlsSettings {
+  const tlsSettings: XrayHysteriaRuntimeTlsSettings = {
+    allowInsecure: server.insecure === true
+  };
+
+  const explicitSni = optionalTrim(server.sni);
+  const serverName = explicitSni ?? (isDomainNameCandidate(server.address ?? '') ? stripHostBrackets((server.address ?? '').trim()) : '');
+  if (serverName.length > 0) {
+    tlsSettings.serverName = serverName;
+  }
+
+  const alpn = parseCsvStrings(server.alpn ?? '');
+  if (alpn.length > 0) {
+    tlsSettings.alpn = alpn;
+  }
+
+  const pinnedPeerCertSha256 = optionalTrim(server.pinSHA256);
+  if (pinnedPeerCertSha256 !== undefined) {
+    tlsSettings.pinnedPeerCertSha256 = pinnedPeerCertSha256;
+    tlsSettings.allowInsecure = false;
+  }
+
+  return tlsSettings;
 }
 
 function normalizeHysteria2RuntimeHopInterval(value: string | undefined): string {

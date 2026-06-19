@@ -1092,6 +1092,20 @@ export default function localUnitTest() {
       expect(hysteria2.success).assertTrue();
 
       const result = buildXrayConfigWithSettings(hysteria2.outboundJson, buildSettingsFixture());
+      expect(result.configJson).assertContain('"protocol": "hysteria"');
+      expect(result.configJson.indexOf('"protocol": "hysteria2"')).assertEqual(-1);
+      expect(result.configJson).assertContain('"address": "hy2.example.com"');
+      expect(result.configJson).assertContain('"port": 443');
+      expect(result.configJson).assertContain('"version": 2');
+      expect(result.configJson).assertContain('"network": "hysteria"');
+      expect(result.configJson).assertContain('"hysteriaSettings"');
+      expect(result.configJson).assertContain('"auth": "secret"');
+      expect(result.configJson).assertContain('"security": "tls"');
+      expect(result.configJson).assertContain('"serverName": "cdn.example.com"');
+      expect(result.configJson).assertContain('"alpn"');
+      expect(result.configJson).assertContain('"h3"');
+      expect(result.configJson).assertContain('"allowInsecure": false');
+      expect(result.configJson).assertContain('"pinnedPeerCertSha256": "hy2-pinned-sha256"');
       expect(result.configJson).assertContain('"finalmask"');
       expect(result.configJson).assertContain('"congestion": "brutal"');
       expect(result.configJson).assertContain('"brutalUp": "20 mbps"');
@@ -1101,6 +1115,25 @@ export default function localUnitTest() {
       expect(result.configJson).assertContain('"interval": "10-60"');
       expect(result.configJson).assertContain('"type": "salamander"');
       expect(result.configJson).assertContain('"password": "obfs-secret"');
+
+      const defaultSni = buildManualHysteria2Outbound({
+        tag: 'HY2',
+        host: 'fallback.hy2.example.com',
+        port: '443',
+        password: 'secret',
+        sni: '',
+        alpn: '',
+        allowInsecure: false,
+        obfsPassword: '',
+        portHopping: '',
+        portHoppingInterval: '',
+        pinSHA256: '',
+        bandwidthDown: '',
+        bandwidthUp: ''
+      });
+      expect(defaultSni.success).assertTrue();
+      const defaultSniResult = buildXrayConfigWithSettings(defaultSni.outboundJson, buildSettingsFixture());
+      expect(defaultSniResult.configJson).assertContain('"serverName": "fallback.hy2.example.com"');
     });
 
     it('applies prefer ipv6 to outbound happy eyeballs', 0, () => {
