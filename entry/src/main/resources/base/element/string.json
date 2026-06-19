@@ -55,10 +55,6 @@
     {
       "name": "control_card_scan",
       "value": "Scan"
-    },
-    {
-      "name": "read_pasteboard_reason",
-      "value": "Read clipboard text to import proxy configs, subscriptions, routing rules, app lists, and backup data."
     }
   ]
 }

@@ -55,10 +55,6 @@
     {
       "name": "control_card_scan",
       "value": "扫码"
-    },
-    {
-      "name": "read_pasteboard_reason",
-      "value": "读取剪贴板文本，用于导入代理配置、订阅、路由规则、应用列表和备份数据。"
     }
   ]
 }

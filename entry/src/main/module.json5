@@ -19,16 +19,6 @@
         "name": "ohos.permission.GET_BUNDLE_INFO"
       },
       {
-        "name": "ohos.permission.READ_PASTEBOARD",
-        "reason": "$string:read_pasteboard_reason",
-        "usedScene": {
-          "abilities": [
-            "EntryAbility"
-          ],
-          "when": "inuse"
-        }
-      },
-      {
         "name": "ohos.permission.RECEIVER_STARTUP_COMPLETED"
       }
     ],
