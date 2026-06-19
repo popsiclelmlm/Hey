@@ -1063,6 +1063,15 @@ export default function localUnitTest() {
       expect(result.configJson.indexOf(`"port":${DELAY_TEST_SOCKS_PORT}`)).assertEqual(-1);
     });
 
+    it('removes outbound mux from delay test config like v2rayNG speedtest', 0, () => {
+      const vmessWithMux =
+        '{"protocol":"vmess","tag":"proxy","settings":{"vnext":[{"address":"vmess.example.com","port":443,"users":[{"id":"00000000-0000-0000-0000-000000000000","alterId":0,"security":"auto"}]}]},"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"serverName":"vmess.example.com"}},"mux":{"enabled":true,"concurrency":32,"xudpConcurrency":16,"xudpProxyUDP443":"allow"}}';
+      const result = buildDelayTestConfig(vmessWithMux, 19082);
+      expect(result.configJson.indexOf('"mux"')).assertEqual(-1);
+      expect(result.configJson).assertContain('"tag":"socks-in"');
+      expect(result.configJson).assertContain('"tag":"proxy"');
+    });
+
     it('applies hysteria2 bandwidth and masks to runtime finalmask', 0, () => {
       const hysteria2 = buildManualHysteria2Outbound({
         tag: 'HY2',

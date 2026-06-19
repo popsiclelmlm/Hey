@@ -426,6 +426,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-19 | M4 | ✅ DNS 默认 hosts 完成（内置 v2rayNG `googleapis.cn` 与 Android Private DNS 域名地址映射，用户 `dnsHosts` 后写覆盖默认值；补配置生成单测） |
 | 2026-06-18 | M4 | ✅ 真连接延迟测试并发设置完成（`realPingConcurrency` 按 v2rayNG 默认 16 与 1..128 范围保存，首页批量测速按配置并发测量、串行保存结果，并补 Settings 往返/归一化单测） |
 | 2026-06-19 | M4 | ✅ 首页真连接测速入口接线完成（Nodes 菜单新增“测试配置真连接”，走 `DelayTester.measureNodeOutbound`/native `CGoPing`，使用 Settings `delayTestUrl`；TCP 延迟菜单保留；补默认 URL 与策略组 probe URL 单测） |
+| 2026-06-19 | M4 | ✅ 真实延迟测速配置瘦身对齐 v2rayNG（`buildDelayTestConfig` 移除导入 outbound 自带 mux，保持测速路径不受 mux 影响；补配置生成单测） |
 | 2026-06-18 | M4 | ✅ 删除配置确认设置完成（`confirmRemove` 默认关闭，Settings 开关保存后控制单节点删除和订阅分组删除确认弹窗，并补 Settings 往返单测） |
 | 2026-06-18 | M4 | ✅ 立即启动扫码设置完成（`startScanImmediate` 默认关闭，Settings 开关保存后控制 Scanner 页是否自动拉起 ScanKit，并修正此前无条件自动扫码行为） |
 | 2026-06-18 | M4 | ✅ 速度显示设置完成（`speedEnabled` 默认关闭；开启后普通/代理链/策略组运行配置生成 metrics/stats/policy，首页/日志页显示上传下载并启动 VPN stats 轮询；关闭时隐藏流量显示并不生成统计段） |

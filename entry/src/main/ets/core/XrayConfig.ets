@@ -1657,6 +1657,7 @@ export function buildDelayTestConfig(outboundJson: string, socksPort: number = D
   if (outbound.tag === undefined || outbound.tag.length === 0) {
     outbound.tag = 'proxy';
   }
+  outbound.mux = undefined;
 
   const socksInbound: XrayInboundConfig = {
     tag: 'socks-in',
