@@ -231,6 +231,7 @@
 | 2026-06-19 | 阶段 4 | ✅ 运行配置变更自动重启对齐 v2rayNG；Settings/Route/PerApp 保存、导入/扫码/新增/选择当前节点后标记待重启，首页恢复时运行中自动 stop/start 应用新配置 |
 | 2026-06-19 | 协议点检 | ✅ Hysteria2 端口跳跃间隔完成；`mportHopInt` 可导入导出并在 NodeEdit 手动填写，导出时按 v2rayNG 规则规范化 |
 | 2026-06-19 | 协议点检 | ✅ Hysteria2 TLS/insecure 导出完成；分享链接导出按 v2rayNG 显式写入 `security=tls` 与 `insecure=1/0` |
+| 2026-06-20 | 协议点检 | ✅ Hysteria2 security query 保留完成；分享链接导入时记录 `security`，缺省回退 `tls`，导出时按 v2rayNG 写回原值 |
 | 2026-06-19 | 协议点检 | ✅ Hysteria2 证书 pin 完成；`pinSHA256` 可从分享链接导入导出，并可在 NodeEdit 手动填写写入 outbound |
 | 2026-06-19 | 协议点检 | ✅ Hysteria2 bandwidth/obfs/port-hop 运行配置完成；启动配置生成 `finalmask.quicParams` brutal 带宽、`udpHop` 和 `salamander` mask |
 | 2026-06-19 | 协议点检 | ✅ Hysteria2 runtime core 形状完成；启动配置按 v2rayNG 归一为 Xray `protocol=hysteria`、`hysteriaSettings.auth`、TLS/pin 与 finalmask |

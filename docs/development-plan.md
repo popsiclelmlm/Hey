@@ -534,6 +534,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-19 | 协议点检 | ✅ Shadowsocks 手动 method 选项完成（NodeEdit method picker 按 v2rayNG `ss_securitys` 补齐完整算法列表；补选项防漂移单测） |
 | 2026-06-19 | 协议点检 | ✅ Hysteria2 端口跳跃间隔完成（分享链接 `mportHopInt` 导入为 `portHoppingInterval`，导出时按 v2rayNG 规则规范化，NodeEdit 可填写端口跳跃间隔；补手动 builder 与 share round-trip 单测） |
 | 2026-06-19 | 协议点检 | ✅ Hysteria2 TLS/insecure 导出完成（分享链接导出按 v2rayNG 显式写入 `security=tls` 与 `insecure=1/0`；补 true/false round-trip 单测） |
+| 2026-06-20 | 协议点检 | ✅ Hysteria2 security query 保留完成（分享链接导入时保留 `security` 查询值、缺省回退 `tls`，导出时按 v2rayNG 写回；补非默认 security round-trip 单测） |
 | 2026-06-19 | 协议点检 | ✅ Hysteria2 `pinSHA256` 完成（分享链接导入/导出保留 HY2 专属证书 pin，NodeEdit 手动编辑可填写并写入 outbound；补手动 builder 与 share round-trip 单测） |
 | 2026-06-19 | 协议点检 | ✅ Hysteria2 bandwidth/obfs/port-hop 运行配置完成（手动/订阅 HY2 节点启动前生成 `finalmask.quicParams` brutal 带宽、`udpHop` 和 `salamander` mask；补 runtime config 单测） |
 | 2026-06-19 | 协议点检 | ✅ Hysteria2 runtime core 形状完成（启动配置按 v2rayNG 将 `hysteria2` 节点归一为 Xray `protocol=hysteria`、`settings.address/port/version` 与 `streamSettings.hysteriaSettings.auth`，并保留 TLS/pin/finalmask） |

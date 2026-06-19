@@ -201,6 +201,7 @@ interface XrayHysteria2Server {
   address: string;
   port: number;
   password: string;
+  security?: string;
   sni?: string;
   alpn?: string;
   insecure?: boolean;
@@ -721,7 +722,8 @@ function parseHysteria2Link(input: string): ShareLinkParseResult {
   const server: XrayHysteria2Server = {
     address: parsed.host,
     port: parsed.port,
-    password: parsed.userInfo
+    password: parsed.userInfo,
+    security: queryValue(parsed.query, 'security', 'tls')
   };
   const sni = queryValue(parsed.query, 'sni', '');
   if (sni.length > 0) {
@@ -1680,7 +1682,7 @@ function formatHysteria2(outbound: XrayOutbound, name: string): string {
   }
 
   const queryParams = new Map<string, string>();
-  queryParams.set('security', 'tls');
+  queryParams.set('security', server.security && server.security.length > 0 ? server.security : 'tls');
   if (server.sni) {
     queryParams.set('sni', server.sni);
   }

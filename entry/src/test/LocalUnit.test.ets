@@ -2820,8 +2820,18 @@ export default function localUnitTest() {
       expect(roundTripHy2.success).assertTrue();
       expect(roundTripHy2.outboundJson).assertContain('"password": "auth@word/with?"');
 
+      const customSecurityHy2 = parseShareLinkToOutboundJson('hysteria2://secret@example.com:443?security=none&sni=plain.hy#hy2-none');
+      expect(customSecurityHy2.success).assertTrue();
+      expect(customSecurityHy2.outboundJson).assertContain('"security": "none"');
+      const exportedCustomSecurityHy2 = formatOutboundJsonToShareLink(customSecurityHy2.outboundJson, 'hy2-none');
+      expect(exportedCustomSecurityHy2).assertContain('security=none');
+      const roundTripCustomSecurityHy2 = parseShareLinkToOutboundJson(exportedCustomSecurityHy2);
+      expect(roundTripCustomSecurityHy2.success).assertTrue();
+      expect(roundTripCustomSecurityHy2.outboundJson).assertContain('"security": "none"');
+
       const secureHy2 = parseShareLinkToOutboundJson('hysteria2://secret@example.com:443?sni=secure.hy#hy2-secure');
       expect(secureHy2.success).assertTrue();
+      expect(secureHy2.outboundJson).assertContain('"security": "tls"');
       const exportedSecureHy2 = formatOutboundJsonToShareLink(secureHy2.outboundJson, 'hy2-secure');
       expect(exportedSecureHy2).assertContain('security=tls');
       expect(exportedSecureHy2).assertContain('insecure=0');
