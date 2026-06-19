@@ -199,7 +199,11 @@ function parseNumberCsv(value: string): Array<number> {
   const result = new Array<number>();
   const parts = value.split(',');
   for (let index = 0; index < parts.length; index++) {
-    const parsed = Number(parts[index].trim());
+    const item = parts[index].trim();
+    if (item.length === 0) {
+      continue;
+    }
+    const parsed = Number(item);
     if (!Number.isNaN(parsed)) {
       result.push(Math.floor(parsed));
     }

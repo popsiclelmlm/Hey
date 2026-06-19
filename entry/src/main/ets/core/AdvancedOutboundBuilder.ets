@@ -255,9 +255,9 @@ function matchesPolicyGroupFilter(name: string, filter: string): boolean {
     return true;
   }
   try {
-    return new RegExp(normalized).test(name);
+    return new RegExp(normalized, 'i').test(name);
   } catch (error) {
-    return name.indexOf(normalized) >= 0;
+    return name.toLowerCase().indexOf(normalized.toLowerCase()) >= 0;
   }
 }
 

@@ -31,7 +31,7 @@
 | 速度通知 | 🟡 常驻通知代码完成；连接运行且速度显示开启时每 3 秒刷新上传/下载速率与累计流量，停止或关闭设置时取消 | 待真机通知权限弹窗、通知中心展示与后台留存回归 |
 | 深链导入 | ✅ Harmony Want / `hey://install-sub` / `hey://install-config` 已接入 EntryAbility 与首页解析 | 仍待真机回归外部应用触发路径 |
 | 桌面入口 | 🟡 Harmony 服务卡片基础入口完成；2×2 卡片提供 toggle/start/stop/scan 四个控制深链入口，并通过保存 formId + updateForm 同步运行态 | 待真机添加卡片、点击调起和系统刷新回归 |
-| 高级路由 | 代理链、策略组/负载均衡运行核心已可通过 JSON 导入生成；添加节点页已可从已有普通节点创建代理链/策略组并保存为手动节点；策略组可按订阅分组与节点名正则动态展开成员；路由规则可选择当前高级出站目标 | 真机组合场景回归待补 |
+| 高级路由 | 代理链、策略组/负载均衡运行核心已可通过 JSON 导入生成；添加节点页已可从已有普通节点创建代理链/策略组并保存为手动节点；策略组可按订阅分组与节点名正则动态展开成员，过滤匹配按 v2rayNG 搜索体验大小写不敏感；路由规则可选择当前高级出站目标 | 真机组合场景回归待补 |
 | 云备份 | 剪贴板 JSON 备份 + WebDAV ZIP 云备份/还原已落地，默认 `backups/backup_ng.zip`，恢复兼容旧 JSON 包 | 真 WebDAV 服务兼容回归待补 |
 
 ---
@@ -268,8 +268,8 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 **任务**
 - 🟡 **负载均衡（Balancer）**：运行核心已完成，`policy-group` JSON 可生成，且已有普通节点可通过专门 UI 构建为策略组配置
   `routing.balancers`，支持 `leastPing/leastLoad/random/roundRobin` 与对应
-  `observatory` / `burstObservatory`；路由规则可选择当前策略组目标；动态成员可按订阅分组和节点名正则在启动时展开
-- 🟡 **策略组（PolicyGroup）**：静态成员 JSON 运行核心已完成；构建器会拒绝完整配置、嵌套高级节点和无效 outbound；添加节点页已有成员选择/策略选择/保存入口；从订阅按正则动态选成员已完成，真机组合场景待回归
+  `observatory` / `burstObservatory`；路由规则可选择当前策略组目标；动态成员可按订阅分组和节点名正则在启动时展开，过滤匹配按 v2rayNG 搜索体验大小写不敏感
+- 🟡 **策略组（PolicyGroup）**：静态成员 JSON 运行核心已完成；构建器会拒绝完整配置、嵌套高级节点和无效 outbound；添加节点页已有成员选择/策略选择/保存入口；从订阅按正则动态选成员已完成，过滤匹配按 v2rayNG 搜索体验大小写不敏感；真机组合场景待回归
 - 🟡 **代理链（ProxyChain）**：运行核心已完成，`proxy-chain` JSON 导入后可生成多段 outbounds 并用 `sockopt.dialerProxy` 串联；添加节点页已有成员选择、顺序调整与保存入口
 - ✅ **WebDAV 云备份/恢复**：BASIC 认证 + best-effort `MKCOL` 建目录 + 上传/下载 Hey ZIP 备份包（默认 `backups/backup_ng.zip`，内含 `hey_backup.json`，恢复兼容旧 JSON 包）；真服务兼容回归待补
 
@@ -526,5 +526,6 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-19 | 协议点检 | ✅ Fragment finalmask 运行配置完成（TLS/Reality 生成 `finalmask.tcp/udp`，Reality 默认 `packets=1-3`，已有 finalmask 和代理链 dialerProxy 会跳过；补运行配置单测） |
 | 2026-06-19 | 协议点检 | ✅ Fragment packets 枚举完成（Settings action menu 按 v2rayNG `fragment_packets` 限定 `tlshello/1-2/1-3/1-5`，SettingsController 与 XrayConfig 均兜底非法值；补选项和归一化单测） |
 | 2026-06-19 | 协议点检 | ✅ 本地 SOCKS 默认端口完成（`pref_socks_port` 默认对齐 v2rayNG 为 10808；Hey 的 Harmony HTTP inbound 兼容端口避让到 10809；补默认端口单测） |
+| 2026-06-19 | 自查 | ✅ Hypium 回归断言清理完成（动态策略组订阅过滤改为大小写不敏感；手动 WireGuard `reserved` 空输入不再误解析成 `[0]`，缺省恢复 `[0,0,0]`；routing/outbound 测试改为语义断言，清除旧 JSON 缩进依赖失败） |
 | 2026-06-15 | 自查 | ✅ 字段一致性总扫：AppSettings/SettingsDraft 5 个构造点字段完整一致，SubscriptionGroup.filter 贯通，无需修改 |
 | 2026-06-15 | 自查 | ✅ 深链/metrics 配置形状核对 Xray 官方一致；自查清单收尾（净修复：预检非阻断 + 清理未用导入） |

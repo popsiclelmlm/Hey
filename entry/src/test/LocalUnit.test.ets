@@ -199,7 +199,7 @@ export default function localUnitTest() {
       expect(result.configJson).assertContain('"proxy-policy-group-"');
       expect(result.configJson).assertContain('"type": "roundRobin"');
       expect(result.configJson).assertContain('"balancerTag": "balancer"');
-      expect(result.configJson).assertContain('"inboundTag": [\n        "http-in"');
+      expect(hasInboundBalancerRule(result.configJson, 'http-in', 'balancer')).assertTrue();
       expect(result.httpProxyPort).assertEqual(LOCAL_HTTP_PROXY_PORT);
 
       settings.delayTestUrl = 'https://probe.example/generate_204';
@@ -347,7 +347,9 @@ export default function localUnitTest() {
         mtu: ''
       });
       expect(defaultReservedWireguard.success).assertTrue();
-      expect(defaultReservedWireguard.outboundJson).assertContain('"reserved": [\n      0,\n      0,\n      0\n    ]');
+      const reservedSection = jsonArraySection(defaultReservedWireguard.outboundJson, 'reserved');
+      expect(reservedSection).assertContain('"reserved": [');
+      expect(countTextOccurrences(reservedSection, '0')).assertEqual(3);
       expect(buildManualWireguardOutbound({
         tag: 'WG',
         host: 'example.com',
@@ -782,10 +784,8 @@ export default function localUnitTest() {
       expect(result.configJson).assertContain('"expectIPs"');
       expect(result.configJson).assertContain('"geoip:cn"');
       expect(result.configJson).assertContain('"domain:blocked.example": "127.0.0.1"');
-      expect(result.configJson).assertContain('"inboundTag": [\n        "dns"');
-      expect(result.configJson).assertContain('"outboundTag": "proxy"');
-      expect(result.configJson).assertContain('"inboundTag": [\n        "domestic-dns-0"');
-      expect(result.configJson).assertContain('"outboundTag": "direct"');
+      expect(hasInboundOutboundRule(result.configJson, 'dns', 'proxy')).assertTrue();
+      expect(hasInboundOutboundRule(result.configJson, 'domestic-dns-0', 'direct')).assertTrue();
     });
 
     it('adds v2rayng default dns hosts before user hosts', 0, () => {
@@ -931,8 +931,12 @@ export default function localUnitTest() {
       expect(result.configJson).assertContain('"geosite:category-ads-all"');
       expect(result.configJson).assertContain('"geosite:cn"');
       expect(result.configJson.indexOf('domain:disabled.example')).assertEqual(-1);
-      expect(result.configJson.indexOf('geosite:category-ads-all') < result.configJson.indexOf('domain:example.com')).assertTrue();
-      expect(result.configJson.indexOf('domain:example.com') < result.configJson.indexOf('geosite:cn')).assertTrue();
+      const adRuleIndex = findRoutingRuleIndexByDomain(result.configJson, 'geosite:category-ads-all');
+      const customRuleIndex = findRoutingRuleIndexByDomain(result.configJson, 'domain:example.com');
+      const cnRuleIndex = findRoutingRuleIndexByDomain(result.configJson, 'geosite:cn');
+      expect(adRuleIndex >= 0).assertTrue();
+      expect(customRuleIndex > adRuleIndex).assertTrue();
+      expect(cnRuleIndex > customRuleIndex).assertTrue();
     });
 
     it('gates process routing rules behind route only mode', 0, () => {
@@ -1093,7 +1097,7 @@ export default function localUnitTest() {
       expect(result.configJson).assertContain('"tag": "socks-in"');
       expect(result.configJson).assertContain('"tag": "http-in"');
       expect(result.configJson).assertContain('"balancerTag": "balancer"');
-      expect(result.configJson).assertContain('"inboundTag": [\n        "http-in"');
+      expect(hasInboundBalancerRule(result.configJson, 'http-in', 'balancer')).assertTrue();
       expect(result.configJson).assertContain('"socks-in"');
     });
 
@@ -2112,7 +2116,8 @@ export default function localUnitTest() {
       const exportTargets = nodes.concat([invalid, fullConfigNode, proxyChainNode, policyGroupNode]);
       const exported = exportNodesText(exportTargets);
       expect(exported).assertContain('vless://');
-      expect(exported).assertContain('"protocol": "vless"');
+      expect(exported).assertContain('trojan://secret@example.com:443#beta');
+      expect(exported.indexOf('"protocol": "vless"')).assertEqual(-1);
       expect(exported.indexOf('"remarks": "Custom full config"')).assertEqual(-1);
       expect(exported.indexOf('chain-demo')).assertEqual(-1);
       expect(exported.indexOf('group-demo')).assertEqual(-1);
@@ -2142,6 +2147,7 @@ export default function localUnitTest() {
       sourceGroup.nodes = buildAdvancedNodeFixture();
       const dynamic = buildPolicyGroupConfigFromSubscription('Latest Dynamic', 'leastPing', 'sub-a', 'trojan', [sourceGroup]);
       expect(dynamic.success).assertTrue();
+      expect(dynamic.count).assertEqual(1);
       const dynamicNode = copyNode(nodes[2], 'dynamic-policy-copy');
       dynamicNode.protocol = 'policy-group';
       dynamicNode.rawLink = '';
@@ -2404,7 +2410,8 @@ export default function localUnitTest() {
       const vmessStandard = parseShareLinkToOutboundJson('vmess://00000000-0000-0000-0000-000000000000@example.com:443?security=tls&sni=std.example&type=tcp#vmess-std');
       expect(vmessStandard.success).assertTrue();
       expect(vmessStandard.outboundJson).assertContain('"security": "auto"');
-      expect(vmessStandard.outboundJson).assertContain('"streamSettings": {\n    "network": "tcp",\n    "security": "tls"');
+      expect(outboundStreamText(vmessStandard.outboundJson, 'network')).assertEqual('tcp');
+      expect(outboundStreamText(vmessStandard.outboundJson, 'security')).assertEqual('tls');
       expect(vmessStandard.outboundJson).assertContain('"serverName": "std.example"');
 
       const ssResult = parseShareLinkToOutboundJson(ss);
@@ -2746,7 +2753,7 @@ export default function localUnitTest() {
     });
 
     it('builds desktop control card data from supported deep links', 0, () => {
-      const data = buildControlCardFormData();
+      const data = buildControlCardFormData('en');
       expect(CONTROL_CARD_FORM_NAME).assertEqual('HeyControlCard');
       expect(data.toggleUri).assertEqual(CONTROL_CARD_TOGGLE_URI);
       expect(data.startUri).assertEqual(CONTROL_CARD_START_URI);
@@ -2911,6 +2918,85 @@ function buildRoutingRuleFixture(id: string, remarks: string, outboundTag: strin
     enabled: true,
     locked: false
   };
+}
+
+function routingRulesFromConfig(configJson: string): Array<Record<string, Object>> {
+  const config = JSON.parse(configJson) as Record<string, Object>;
+  const routing = config.routing as Record<string, Object>;
+  const rules = routing.rules as Array<Record<string, Object>>;
+  if (!Array.isArray(rules)) {
+    return new Array<Record<string, Object>>();
+  }
+  return rules;
+}
+
+function hasRoutingInboundTag(rule: Record<string, Object>, inboundTag: string): boolean {
+  const inboundTags = rule.inboundTag as Array<string>;
+  return Array.isArray(inboundTags) && inboundTags.indexOf(inboundTag) >= 0;
+}
+
+function hasInboundBalancerRule(configJson: string, inboundTag: string, balancerTag: string): boolean {
+  const rules = routingRulesFromConfig(configJson);
+  for (let index = 0; index < rules.length; index++) {
+    if (hasRoutingInboundTag(rules[index], inboundTag) && (rules[index].balancerTag as string) === balancerTag) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function hasInboundOutboundRule(configJson: string, inboundTag: string, outboundTag: string): boolean {
+  const rules = routingRulesFromConfig(configJson);
+  for (let index = 0; index < rules.length; index++) {
+    if (hasRoutingInboundTag(rules[index], inboundTag) && (rules[index].outboundTag as string) === outboundTag) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function findRoutingRuleIndexByDomain(configJson: string, domain: string): number {
+  const rules = routingRulesFromConfig(configJson);
+  for (let index = 0; index < rules.length; index++) {
+    const domains = rules[index].domain as Array<string>;
+    if (Array.isArray(domains) && domains.indexOf(domain) >= 0) {
+      return index;
+    }
+  }
+  return -1;
+}
+
+function jsonArraySection(jsonText: string, key: string): string {
+  const start = jsonText.indexOf(`"${key}": [`);
+  if (start < 0) {
+    return '';
+  }
+  const end = jsonText.indexOf(']', start);
+  if (end < start) {
+    return '';
+  }
+  return jsonText.substring(start, end + 1);
+}
+
+function countTextOccurrences(text: string, needle: string): number {
+  let count = 0;
+  let start = 0;
+  while (start < text.length) {
+    const next = text.indexOf(needle, start);
+    if (next < 0) {
+      return count;
+    }
+    count++;
+    start = next + needle.length;
+  }
+  return count;
+}
+
+function outboundStreamText(outboundJson: string, key: string): string {
+  const outbound = JSON.parse(outboundJson) as Record<string, Object>;
+  const streamSettings = outbound.streamSettings as Record<string, Object>;
+  const value = streamSettings[key];
+  return typeof value === 'string' ? value : '';
 }
 
 function buildSubscriptionGroupFixture(id: string, name: string): SubscriptionGroup {
