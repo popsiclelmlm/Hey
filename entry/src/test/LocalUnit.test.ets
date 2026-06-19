@@ -2018,6 +2018,7 @@ export default function localUnitTest() {
       expect(exported).assertContain('ech=test-ech-config');
       expect(exported).assertContain('pcs=test-pinned-ca256');
       expect(exported).assertContain('pqv=test-mldsa65-verify');
+      expect(exported).assertContain('headerType=none');
 
       const validation = normalizeOutboundInput(link);
       expect(validation.valid).assertTrue();
@@ -2162,6 +2163,7 @@ export default function localUnitTest() {
       expect(specialPassword.outboundJson).assertContain('"password": "sec@ret/p?x"');
       const exportedSpecialPassword = formatOutboundJsonToShareLink(specialPassword.outboundJson, 'trojan-special');
       expect(exportedSpecialPassword).assertContain('trojan://sec%40ret%2Fp%3Fx@example.com:443');
+      expect(exportedSpecialPassword).assertContain('headerType=none');
       const roundTripSpecialPassword = parseShareLinkToOutboundJson(exportedSpecialPassword);
       expect(roundTripSpecialPassword.success).assertTrue();
       expect(roundTripSpecialPassword.outboundJson).assertContain('"password": "sec@ret/p?x"');

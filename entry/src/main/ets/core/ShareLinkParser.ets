@@ -1466,6 +1466,8 @@ function appendStreamSettingsToQuery(queryParams: Map<string, string>, stream?: 
         queryParams.set('host', tcpReq.headers.Host.join(','));
       }
     }
+  } else if (network === 'tcp') {
+    queryParams.set('headerType', 'none');
   }
 }
 
