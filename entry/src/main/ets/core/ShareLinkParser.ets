@@ -1,4 +1,4 @@
-import { decodeBase64ToUtf8, encodeUtf8ToBase64 } from './Encoding';
+import { decodeBase64ToUtf8, encodeUtf8ToBase64, encodeUtf8ToBase64NoPadding } from './Encoding';
 import { buildKcpFinalMask, isCanonicalKcpFinalMask, readKcpShareParamsFromFinalMask } from './KcpTransport';
 
 export interface ShareLinkParseResult {
@@ -1231,6 +1231,9 @@ function parseGenericUser(userInfo: string): XrayGenericUser | null {
       pass: ''
     };
   }
+  if (splitIndex === 0) {
+    return null;
+  }
   return {
     user: value.substring(0, splitIndex),
     pass: value.substring(splitIndex + 1)
@@ -1592,7 +1595,7 @@ function formatShadowsocks(outbound: XrayOutbound, name: string): string {
   }
 
   const credentials = `${server.method}:${server.password}`;
-  const base64Credentials = encodeUtf8ToBase64(credentials);
+  const base64Credentials = encodeUtf8ToBase64NoPadding(credentials);
 
   const queryParams = new Map<string, string>();
   const stream = outbound.streamSettings;
@@ -1607,7 +1610,7 @@ function formatShadowsocks(outbound: XrayOutbound, name: string): string {
 
   const queryStr = formatQueryParams(queryParams);
   const hashStr = name.length > 0 ? `#${encodeURIComponent(name)}` : '';
-  return `ss://${base64Credentials}@${formatHostPort(server.address, server.port)}${queryStr}${hashStr}`;
+  return `ss://${formatUserInfo(base64Credentials)}@${formatHostPort(server.address, server.port)}${queryStr}${hashStr}`;
 }
 
 function formatSocks(outbound: XrayOutbound, name: string): string {
@@ -1619,7 +1622,9 @@ function formatSocks(outbound: XrayOutbound, name: string): string {
 
   let userInfo = '';
   if (server.users && server.users.length > 0) {
-    userInfo = `${encodeURIComponent(encodeUtf8ToBase64(`${server.users[0].user}:${server.users[0].pass}`))}@`;
+    userInfo = `${formatUserInfo(encodeUtf8ToBase64NoPadding(`${server.users[0].user}:${server.users[0].pass}`))}@`;
+  } else {
+    userInfo = `${formatUserInfo(encodeUtf8ToBase64NoPadding(':'))}@`;
   }
   const hashStr = name.length > 0 ? `#${encodeURIComponent(name)}` : '';
   return `socks://${userInfo}${formatHostPort(server.address, server.port)}${hashStr}`;

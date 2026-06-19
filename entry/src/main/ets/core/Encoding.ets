@@ -135,3 +135,11 @@ export function encodeUtf8ToBase64(value: string): string {
   }
   return result;
 }
+
+export function encodeUtf8ToBase64NoPadding(value: string): string {
+  let result = encodeUtf8ToBase64(value);
+  while (result.endsWith('=')) {
+    result = result.substring(0, result.length - 1);
+  }
+  return result;
+}

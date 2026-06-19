@@ -291,7 +291,8 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 - ✅ HTTPUpgrade / XHTTP 传输参数：`httpupgrade` host/path 导入导出保留，NodeEdit 可选择；XHTTP `mode/extra` 可手动填写并导入导出保留（2026-06-19）
 - ✅ gRPC 传输模式：`mode=multi` 可导入导出为 `grpcSettings.multiMode`，NodeEdit 手动编辑可在 v2rayNG `gun/multi` 两种模式间选择（2026-06-19）
 - ✅ KCP 传输参数：`type=kcp` 的 `headerType`/`seed`/`mtu`/`tti` 可导入导出，运行 outbound 生成 v2rayNG 风格 `kcpSettings` + `finalmask.udp`，NodeEdit 可选择 KCP header/seed/MTU/TTI（2026-06-19）
-- ✅ SOCKS 分享认证：导出时按 v2rayNG 使用 `base64(user:pass)` 作为 userInfo，导入导出 round-trip 保留认证信息（2026-06-19）
+- ✅ SOCKS 分享认证：导出时按 v2rayNG 使用去 padding 的 `base64(user:pass)` 作为 userInfo，无认证节点导出 `base64(":") = Og`，导入导出 round-trip 保留认证信息（2026-06-19）
+- ✅ Shadowsocks/SOCKS base64 padding：分享导出按 v2rayNG 去掉 userInfo base64 末尾 `=`，并对 Shadowsocks base64 userInfo 做 URI 编码（2026-06-19）
 - ✅ SOCKS scheme 别名：按 v2rayNG 支持 `socks4://` / `socks5://` 导入，统一归一为 Xray `socks` outbound；导出仍使用 `socks://` 主 scheme（2026-06-19）
 - ✅ Shadowsocks legacy 尾斜杠兼容：整段 base64 旧格式导入允许 v2rayNG 正则支持的可选末尾 `/`，并覆盖 method 小写化与密码中冒号解析（2026-06-19）
 - ✅ Hysteria2 端口跳跃（`mport`/`mportHopInt`）、`security=tls`、显式 `insecure=1/0`、`obfs`、证书 pin（`pinSHA256`）与带宽：分享链接解析和手动编辑器均已写入 outbound，导出 `mportHopInt` 时按 v2rayNG 规则规范化为不少于 5 秒的单值间隔，运行配置会生成 `finalmask.quicParams.brutalUp/brutalDown`、`udpHop` 与 `salamander` mask（2026-06-19；运行态仍待真机/内核验证）

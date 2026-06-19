@@ -2212,6 +2212,12 @@ export default function localUnitTest() {
       expect(ssResult.success).assertTrue();
       expect(ssResult.outboundJson).assertContain('"protocol": "shadowsocks"');
       expect(ssResult.outboundJson).assertContain('"method": "aes-128-gcm"');
+      const shortSsJson = '{"protocol":"shadowsocks","tag":"proxy","settings":{"servers":[{"address":"example.com","port":8388,"method":"aes-128-gcm","password":"p"}]}}';
+      const exportedShortSs = formatOutboundJsonToShareLink(shortSsJson, 'ss-short');
+      expect(exportedShortSs).assertContain('ss://YWVzLTEyOC1nY206cA@example.com:8388');
+      const roundTripShortSs = parseShareLinkToOutboundJson(exportedShortSs);
+      expect(roundTripShortSs.success).assertTrue();
+      expect(roundTripShortSs.outboundJson).assertContain('"password": "p"');
 
       const legacySlash = parseShareLinkToOutboundJson('ss://QUVTLTI1Ni1HQ006cGFzczp3b3JkOndpdGg6Y29sb25zQGV4YW1wbGUuY29tOjgzODgv#Legacy%20Slash');
       expect(legacySlash.success).assertTrue();
@@ -2255,6 +2261,19 @@ export default function localUnitTest() {
       const roundTripSocks = parseShareLinkToOutboundJson(exportedSocks);
       expect(roundTripSocks.success).assertTrue();
       expect(roundTripSocks.outboundJson).assertContain('"pass": "pass"');
+      const noAuthSocks = parseShareLinkToOutboundJson('socks://example.com:1080#socks-noauth');
+      expect(noAuthSocks.success).assertTrue();
+      const exportedNoAuthSocks = formatOutboundJsonToShareLink(noAuthSocks.outboundJson, 'socks-noauth');
+      expect(exportedNoAuthSocks).assertContain('socks://Og@example.com:1080');
+      const roundTripNoAuthSocks = parseShareLinkToOutboundJson(exportedNoAuthSocks);
+      expect(roundTripNoAuthSocks.success).assertTrue();
+      expect(roundTripNoAuthSocks.outboundJson.indexOf('"users"')).assertEqual(-1);
+      const shortSocksJson = '{"protocol":"socks","tag":"proxy","settings":{"servers":[{"address":"example.com","port":1080,"users":[{"user":"u","pass":"pa"}]}]}}';
+      const exportedShortSocks = formatOutboundJsonToShareLink(shortSocksJson, 'socks-short');
+      expect(exportedShortSocks).assertContain('socks://dTpwYQ@example.com:1080');
+      const roundTripShortSocks = parseShareLinkToOutboundJson(exportedShortSocks);
+      expect(roundTripShortSocks.success).assertTrue();
+      expect(roundTripShortSocks.outboundJson).assertContain('"pass": "pa"');
 
       const socks4 = parseShareLinkToOutboundJson('socks4://example.com:1080#socks4-demo');
       expect(socks4.success).assertTrue();
