@@ -3,6 +3,7 @@ import { buildPolicyGroupConfigFromNodes, buildPolicyGroupConfigFromSubscription
 import { buildAppBackupPayload, buildAppBackupZipFromPayload, parseAppBackupData, parseAppBackupPayload } from '../main/ets/core/AppBackup';
 import { CONTROL_CARD_FORM_NAME, CONTROL_CARD_SCAN_URI, CONTROL_CARD_START_URI, CONTROL_CARD_STOP_URI, CONTROL_CARD_TOGGLE_URI, buildControlCardFormData } from '../main/ets/core/ControlCard';
 import { hasDuplicateAssetName, isEditableCustomAssetUrl, normalizeScannedAssetUrl } from '../main/ets/core/AssetUrls';
+import { decodeBase64ToUtf8 } from '../main/ets/core/Encoding';
 import { formatTranslation, missingTranslationKeys, normalizeLanguage, resolveLanguage, resolveSystemLanguage, translate } from '../main/ets/core/I18n';
 import { defaultJsonConfigNodeName, resolveJsonConfigNodeName } from '../main/ets/core/JsonConfigNames';
 import { selectRuntimeLocalSocksPort, shouldUseDynamicLocalSocksPort, withRuntimeLocalSocksPort } from '../main/ets/core/LocalProxy';
@@ -2188,6 +2189,16 @@ export default function localUnitTest() {
       const roundTripVmess = parseShareLinkToOutboundJson(exportedVmess);
       expect(roundTripVmess.success).assertTrue();
       expect(roundTripVmess.outboundJson).assertContain('"allowInsecure": true');
+
+      const secureVmessJson =
+        '{"protocol":"vmess","tag":"proxy","settings":{"vnext":[{"address":"secure.example.com","port":443,"users":[{"id":"00000000-0000-0000-0000-000000000000","alterId":0,"security":"auto"}]}]},"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"serverName":"secure.example.com","allowInsecure":false}}}';
+      const exportedSecureVmess = formatOutboundJsonToShareLink(secureVmessJson, 'vmess-secure');
+      const encodedSecureVmess = exportedSecureVmess.substring('vmess://'.length);
+      const decodedSecureVmess = decodeBase64ToUtf8(encodedSecureVmess);
+      expect(decodedSecureVmess).assertContain('"insecure":"0"');
+      const roundTripSecureVmess = parseShareLinkToOutboundJson(exportedSecureVmess);
+      expect(roundTripSecureVmess.success).assertTrue();
+      expect(roundTripSecureVmess.outboundJson).assertContain('"allowInsecure": false');
 
       const ssResult = parseShareLinkToOutboundJson(ss);
       expect(ssResult.success).assertTrue();

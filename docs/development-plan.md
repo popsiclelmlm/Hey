@@ -278,7 +278,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 - ✅ Reality 全参数（`spiderX`、`mldsa65Verify`/`pqv`）解析与下发：分享链接导入/导出、Clash.Meta 订阅解析和 NodeEdit Reality 表单均会保留后量子验签公钥（2026-06-18）
 - ✅ `flow`（`xtls-rprx-vision` / `xtls-rprx-vision-udp443`）字段：分享链接导入导出保留，NodeEdit 手动编辑选项对齐 v2rayNG（2026-06-19）
 - ✅ uTLS fingerprint（`fp`）：分享链接导入导出保留，NodeEdit 指纹选项对齐 v2rayNG `chrome/firefox/safari/ios/android/edge/360/qq/random/randomized`（2026-06-19）
-- ✅ VMess QR TLS insecure：旧版 VMess JSON 分享里的 `insecure=1` 会导入为 `tlsSettings.allowInsecure`，导出再导入仍保留（2026-06-19）
+- ✅ VMess QR TLS insecure：旧版 VMess JSON 分享里的 `insecure=1/0` 会导入为 `tlsSettings.allowInsecure`，导出时也按 v2rayNG 显式写回 `1/0`（2026-06-19）
 - ✅ URL-style TLS allowInsecure 导出：VLESS/Trojan 等分享导出按 v2rayNG 同时写入 `insecure` 与 `allowInsecure` 兼容键，`0/1` 状态可 round-trip 保留（2026-06-19）
 - ✅ TLS 证书 pin 与 `allowInsecure` 运行语义：分享链接/手动配置仍保留字段，生成运行 Xray 配置时若有 `pinnedPeerCertSha256` 则按 v2rayNG 将 `allowInsecure` 置为 `false`（2026-06-19）
 - ✅ TLS/Reality SNI fallback：生成运行 Xray 配置时若 `serverName` 为空，会按 v2rayNG 优先用传输 host/authority，非域名时回退服务器域名（2026-06-19）
@@ -466,6 +466,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-19 | M3 | ✅ All 分组批处理对齐完成（Nodes 页单节点删除、删除全部、去重、删除无效配置按 v2rayNG 当前可见范围跨订阅分组执行；“删除无效配置”改为删除测速失败节点；测速后自动排序/删除失败节点按订阅分组保存；补 All 分组批处理纯函数单测） |
 | 2026-06-19 | 协议点检 | ✅ `flow`/uTLS 指纹选项完成（NodeEdit 手动编辑补齐 `xtls-rprx-vision-udp443` 与 `ios/android/randomized` 指纹选项，分享链接导入导出保留这些值；补选项和 round-trip 单测） |
 | 2026-06-19 | 协议点检 | ✅ VMess QR TLS insecure 完成（旧版 VMess JSON `insecure=1` 导入为 `tlsSettings.allowInsecure`，导出后再导入仍保留；补 round-trip 单测） |
+| 2026-06-19 | 协议点检 | ✅ VMess QR insecure 显式 false 导出完成（旧版 VMess JSON 导出在 TLS 且 `allowInsecure=false` 时按 v2rayNG 写入 `"insecure":"0"`；补解码形状单测） |
 | 2026-06-19 | 协议点检 | ✅ URL-style TLS allowInsecure 导出完成（VLESS/Trojan 等 TLS 分享导出同时写 `insecure` 与 `allowInsecure`，true/false 均按 v2rayNG `1/0` 输出；补 round-trip 单测） |
 | 2026-06-19 | 协议点检 | ✅ TLS 证书 pin 与 allowInsecure 运行语义完成（运行配置生成时若有 `pinnedPeerCertSha256`，按 v2rayNG 禁用 `allowInsecure`；无 pin 时保持原值；补运行配置单测） |
 | 2026-06-19 | 协议点检 | ✅ TLS/Reality SNI fallback 完成（运行配置生成时空 `serverName` 按 v2rayNG 从传输 host/authority 或服务器域名补齐；补传输 host 与服务器域名回退单测） |

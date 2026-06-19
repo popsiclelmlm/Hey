@@ -1499,7 +1499,7 @@ function formatVmess(outbound: XrayOutbound, name: string): string {
     const tlsSettings = security === 'tls' ? stream?.tlsSettings : stream?.realitySettings;
     if (tlsSettings) {
       if (tlsSettings.serverName) vmessObj.sni = tlsSettings.serverName;
-      if (tlsSettings.allowInsecure) vmessObj.insecure = '1';
+      if (security === 'tls') vmessObj.insecure = tlsSettings.allowInsecure ? '1' : '0';
       if (tlsSettings.alpn && tlsSettings.alpn.length > 0) vmessObj.alpn = tlsSettings.alpn.join(',');
       if (tlsSettings.fingerprint) vmessObj.fp = tlsSettings.fingerprint;
     }
