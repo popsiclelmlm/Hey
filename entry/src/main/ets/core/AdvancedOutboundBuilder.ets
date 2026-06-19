@@ -13,6 +13,18 @@ export interface AdvancedOutboundBuildResult {
   count: number;
 }
 
+export interface AdvancedOutboundEditState {
+  success: boolean;
+  message: string;
+  mode: XrayConfigType;
+  name: string;
+  strategy: PolicyGroupStrategy;
+  dynamicPolicyGroupEnabled: boolean;
+  dynamicSubscriptionId: string;
+  dynamicFilter: string;
+  memberOutboundJsons: Array<string>;
+}
+
 interface AdvancedOutboundMember {
   outboundJson: string;
 }
@@ -121,6 +133,54 @@ export function resolveDynamicPolicyGroupConfigJson(configJson: string, groups: 
   }
   const result = buildDynamicPolicyGroupConfigFromNodes(dynamic.name, dynamic.strategy, dynamic.subscriptionId, dynamic.filter, nodes);
   return result.success ? result.configJson : configJson;
+}
+
+export function parseAdvancedOutboundEditState(configJson: string, configType?: XrayConfigType): AdvancedOutboundEditState {
+  const validation = normalizeConfigInput(configJson, configType);
+  const mode = validation.configType ?? configType ?? 'proxy-chain';
+  if (!validation.valid || (mode !== 'proxy-chain' && mode !== 'policy-group')) {
+    return emptyAdvancedOutboundEditState(mode, validation.message);
+  }
+
+  try {
+    const parsed = JSON.parse(validation.normalizedJson) as Record<string, Object>;
+    const rawOutbounds = parsed['outbounds'];
+    if (!Array.isArray(rawOutbounds)) {
+      return emptyAdvancedOutboundEditState(mode, mode === 'policy-group' ? '策略组配置缺少 outbounds 数组。' : '代理链配置缺少 outbounds 数组。');
+    }
+
+    const memberOutboundJsons = new Array<string>();
+    for (let index = 0; index < rawOutbounds.length; index++) {
+      const memberJson = normalizeAdvancedOutboundMemberJson(JSON.stringify(rawOutbounds[index]));
+      if (memberJson.length > 0) {
+        memberOutboundJsons.push(memberJson);
+      }
+    }
+
+    const dynamicSubscriptionId = stringRecordValue(parsed, 'policyGroupSubscriptionId');
+    const dynamicFilter = stringRecordValue(parsed, 'policyGroupFilter');
+    return {
+      success: true,
+      message: validation.message,
+      mode,
+      name: resolveAdvancedOutboundEditName(parsed, mode),
+      strategy: mode === 'policy-group' ? normalizePolicyGroupBuilderStrategy(stringRecordValue(parsed, 'strategy', stringRecordValue(parsed, 'policyGroupType'))) : 'roundRobin',
+      dynamicPolicyGroupEnabled: mode === 'policy-group' && (dynamicSubscriptionId.length > 0 || dynamicFilter.length > 0 || hasRecordKey(parsed, 'policyGroupSubscriptionId') || hasRecordKey(parsed, 'policyGroupFilter')),
+      dynamicSubscriptionId,
+      dynamicFilter,
+      memberOutboundJsons
+    };
+  } catch (error) {
+    return emptyAdvancedOutboundEditState(mode, `高级节点配置解析失败：${JSON.stringify(error)}`);
+  }
+}
+
+export function normalizeAdvancedOutboundMemberJson(outboundJson: string): string {
+  const validation = normalizeConfigInput(outboundJson, 'outbound');
+  if (validation.valid && validation.configType === 'outbound') {
+    return validation.normalizedJson;
+  }
+  return '';
 }
 
 function buildPolicyGroupConfigFromNodesInternal(name: string, strategy: string, nodes: Array<ProxyNode>, subscriptionId: string, filter: string, dynamicSource: boolean): AdvancedOutboundBuildResult {
@@ -247,6 +307,39 @@ function resolveDynamicPolicyGroupName(parsed: Record<string, Object>): string {
     return parsed.name.trim();
   }
   return '策略组';
+}
+
+function resolveAdvancedOutboundEditName(parsed: Record<string, Object>, mode: XrayConfigType): string {
+  if (typeof parsed.remarks === 'string' && parsed.remarks.trim().length > 0) {
+    return parsed.remarks.trim();
+  }
+  if (typeof parsed.name === 'string' && parsed.name.trim().length > 0) {
+    return parsed.name.trim();
+  }
+  return mode === 'policy-group' ? '策略组' : '代理链';
+}
+
+function emptyAdvancedOutboundEditState(mode: XrayConfigType, message: string): AdvancedOutboundEditState {
+  return {
+    success: false,
+    message,
+    mode,
+    name: '',
+    strategy: 'roundRobin',
+    dynamicPolicyGroupEnabled: false,
+    dynamicSubscriptionId: '',
+    dynamicFilter: '',
+    memberOutboundJsons: []
+  };
+}
+
+function stringRecordValue(record: Record<string, Object>, key: string, fallback: string = ''): string {
+  const value = record[key];
+  return typeof value === 'string' ? value.trim() : fallback;
+}
+
+function hasRecordKey(record: Record<string, Object>, key: string): boolean {
+  return record[key] !== undefined;
 }
 
 function matchesPolicyGroupFilter(name: string, filter: string): boolean {

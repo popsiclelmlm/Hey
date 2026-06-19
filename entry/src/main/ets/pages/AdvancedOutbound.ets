@@ -1,8 +1,9 @@
 import { common } from '@kit.AbilityKit';
 import { router, promptAction } from '@kit.ArkUI';
 import { DEFAULT_LANGUAGE, translate } from '../core/I18n';
-import { buildDynamicPolicyGroupConfigFromNodes, buildPolicyGroupConfigFromNodes, buildProxyChainConfigFromNodes, isAdvancedOutboundBuildableNode, PolicyGroupStrategy } from '../core/AdvancedOutboundBuilder';
+import { buildDynamicPolicyGroupConfigFromNodes, buildPolicyGroupConfigFromNodes, buildProxyChainConfigFromNodes, isAdvancedOutboundBuildableNode, normalizeAdvancedOutboundMemberJson, parseAdvancedOutboundEditState, PolicyGroupStrategy } from '../core/AdvancedOutboundBuilder';
 import { AppLanguage, ProxyNode, SubscriptionGroup, SubscriptionProfile } from '../core/Profile';
+import { markRuntimeSettingsRestartNeeded } from '../core/SettingsChange';
 import { NODES_CONTROLLER } from '../features/nodes/NodesController';
 import { SETTINGS_CONTROLLER } from '../features/settings/SettingsController';
 import { SHARED_RUNTIME_CONTROLLER } from '../features/runtime/RuntimeController';
@@ -19,11 +20,17 @@ interface AdvancedOutboundCandidate {
   node: ProxyNode;
 }
 
+interface AdvancedOutboundParams {
+  mode?: string;
+  nodeId?: string;
+}
+
 @Entry
 @Component
 struct AdvancedOutboundPage {
   @State private language: AppLanguage = DEFAULT_LANGUAGE;
   @State private mode: string = 'proxy-chain';
+  @State private editNodeId: string = '';
   @State private nodeName: string = '';
   @State private strategy: PolicyGroupStrategy = 'roundRobin';
   @State private subscriptionGroups: Array<SubscriptionGroup> = [];
@@ -36,10 +43,14 @@ struct AdvancedOutboundPage {
   @State private isBusy: boolean = false;
   private strategyOptions: Array<string> = ['roundRobin', 'random', 'leastPing', 'leastLoad'];
   private dynamicDefaultsLoaded: boolean = false;
+  private editDefaultsLoaded: boolean = false;
 
   aboutToAppear(): void {
-    const params = router.getParams() as Record<string, Object>;
-    this.mode = (params?.mode as string) === 'policy-group' ? 'policy-group' : 'proxy-chain';
+    const params = router.getParams() as AdvancedOutboundParams;
+    this.editNodeId = params?.nodeId ?? '';
+    if (this.editNodeId.length === 0) {
+      this.mode = params?.mode === 'policy-group' ? 'policy-group' : 'proxy-chain';
+    }
     this.loadState();
   }
 
@@ -478,9 +489,6 @@ struct AdvancedOutboundPage {
     try {
       const context = getContext(this) as common.Context;
       this.language = (await SETTINGS_CONTROLLER.load(context)).language;
-      if (this.nodeName.trim().length === 0) {
-        this.nodeName = this.mode === 'policy-group' ? this.t('advancedOutbound.defaultPolicyGroupName') : this.t('advancedOutbound.defaultProxyChainName');
-      }
       const profile = await SubscriptionStore.load(context);
       this.subscriptionGroups = profile.groups;
       if (!this.dynamicDefaultsLoaded) {
@@ -491,9 +499,78 @@ struct AdvancedOutboundPage {
       }
       this.candidates = this.collectCandidates(profile);
       this.selectedNodeKeys = this.filterExistingSelection(this.selectedNodeKeys);
+      if (this.editNodeId.length > 0 && !this.editDefaultsLoaded) {
+        this.applyEditDefaults(profile);
+      }
+      if (this.nodeName.trim().length === 0) {
+        this.nodeName = this.mode === 'policy-group' ? this.t('advancedOutbound.defaultPolicyGroupName') : this.t('advancedOutbound.defaultProxyChainName');
+      }
     } catch (error) {
       this.lastError = this.f1('advancedOutbound.loadFailed', 'error', JSON.stringify(error));
     }
+  }
+
+  private applyEditDefaults(profile: SubscriptionProfile): void {
+    const node = this.findNodeById(profile, this.editNodeId);
+    if (node === null) {
+      this.editDefaultsLoaded = true;
+      return;
+    }
+
+    const editState = parseAdvancedOutboundEditState(node.outboundJson, node.configType);
+    if (!editState.success || (editState.mode !== 'proxy-chain' && editState.mode !== 'policy-group')) {
+      this.lastError = localizeCoreMessage(this.language, editState.message);
+      this.editDefaultsLoaded = true;
+      return;
+    }
+
+    this.mode = editState.mode;
+    this.nodeName = editState.name.length > 0 ? editState.name : node.name;
+    this.strategy = editState.strategy;
+    this.dynamicPolicyGroupEnabled = editState.dynamicPolicyGroupEnabled;
+    this.dynamicSubscriptionId = editState.dynamicSubscriptionId;
+    this.dynamicFilter = editState.dynamicFilter;
+    if (!editState.dynamicPolicyGroupEnabled) {
+      this.selectedNodeKeys = this.resolveSelectedKeysFromMemberJsons(editState.memberOutboundJsons);
+    }
+    this.editDefaultsLoaded = true;
+  }
+
+  private findNodeById(profile: SubscriptionProfile, nodeId: string): ProxyNode | null {
+    for (let groupIndex = 0; groupIndex < profile.groups.length; groupIndex++) {
+      const group = profile.groups[groupIndex];
+      for (let nodeIndex = 0; nodeIndex < group.nodes.length; nodeIndex++) {
+        if (group.nodes[nodeIndex].id === nodeId) {
+          return group.nodes[nodeIndex];
+        }
+      }
+    }
+    for (let nodeIndex = 0; nodeIndex < profile.nodes.length; nodeIndex++) {
+      if (profile.nodes[nodeIndex].id === nodeId) {
+        return profile.nodes[nodeIndex];
+      }
+    }
+    return null;
+  }
+
+  private resolveSelectedKeysFromMemberJsons(memberOutboundJsons: Array<string>): Array<string> {
+    const selectedKeys = new Array<string>();
+    const usedIndexes = new Array<number>();
+    for (let memberIndex = 0; memberIndex < memberOutboundJsons.length; memberIndex++) {
+      const memberJson = memberOutboundJsons[memberIndex];
+      for (let candidateIndex = 0; candidateIndex < this.candidates.length; candidateIndex++) {
+        if (usedIndexes.indexOf(candidateIndex) >= 0) {
+          continue;
+        }
+        const candidate = this.candidates[candidateIndex];
+        if (normalizeAdvancedOutboundMemberJson(candidate.node.outboundJson) === memberJson) {
+          selectedKeys.push(candidate.key);
+          usedIndexes.push(candidateIndex);
+          break;
+        }
+      }
+    }
+    return selectedKeys;
   }
 
   private collectCandidates(profile: SubscriptionProfile): Array<AdvancedOutboundCandidate> {
@@ -644,9 +721,9 @@ struct AdvancedOutboundPage {
       return true;
     }
     try {
-      return new RegExp(filter).test(name);
+      return new RegExp(filter, 'i').test(name);
     } catch (error) {
-      return name.indexOf(filter) >= 0;
+      return name.toLowerCase().indexOf(filter.toLowerCase()) >= 0;
     }
   }
 
@@ -738,15 +815,27 @@ struct AdvancedOutboundPage {
       }
 
       const context = getContext(this) as common.Context;
-      const saved = await NODES_CONTROLLER.saveProfile(context, result.configJson, this.language, result.configType);
-      if (saved.profile === null) {
-        this.lastError = saved.lastError;
-        return;
+      if (this.editNodeId.length > 0) {
+        const updated = await NODES_CONTROLLER.updateManualNode(context, this.editNodeId, result.name, result.configJson, this.language, result.configType);
+        if (!updated.success) {
+          this.lastError = updated.lastError;
+          return;
+        }
+        if (updated.selected) {
+          markRuntimeSettingsRestartNeeded();
+        }
+        SHARED_RUNTIME_CONTROLLER.appendLog(`${result.configType} advanced outbound updated`);
+        promptAction.showToast({ message: this.t('advancedOutbound.updated') });
+      } else {
+        const saved = await NODES_CONTROLLER.saveProfile(context, result.configJson, this.language, result.configType);
+        if (saved.profile === null) {
+          this.lastError = saved.lastError;
+          return;
+        }
+        await SubscriptionStore.addManualNode(context, result.name, saved.profile.outboundJson, saved.profile.configType);
+        SHARED_RUNTIME_CONTROLLER.appendLog(`${result.configType} advanced outbound saved`);
+        promptAction.showToast({ message: this.t('advancedOutbound.saved') });
       }
-
-      await SubscriptionStore.addManualNode(context, result.name, saved.profile.outboundJson, saved.profile.configType);
-      SHARED_RUNTIME_CONTROLLER.appendLog(`${result.configType} advanced outbound saved`);
-      promptAction.showToast({ message: this.t('advancedOutbound.saved') });
       router.back();
     } catch (error) {
       this.lastError = this.f1('advancedOutbound.saveFailed', 'error', JSON.stringify(error));

@@ -111,6 +111,22 @@ struct NodeDetailPage {
               })
           }
 
+          if (this.canEditAdvancedOutbound()) {
+            Button(this.t('node.detail.editAdvanced'))
+              .height(44)
+              .width('100%')
+              .enabled(this.node.id.length > 0 && !SHARED_RUNTIME_CONTROLLER.isBusy())
+              .backgroundColor(AppColor.surfaceAlt)
+              .fontColor(AppColor.textPrimary)
+              .fontSize(FontSz.callout)
+              .fontWeight(FontWeight.Medium)
+              .borderRadius(Radius.pill)
+              .margin({ left: Space.lg, right: Space.lg })
+              .onClick(() => {
+                this.openAdvancedEditor();
+              })
+          }
+
           Button(this.t('node.detail.copyFullConfig'))
             .height(44)
             .width('100%')
@@ -411,11 +427,29 @@ struct NodeDetailPage {
       ((this.node.configType ?? 'outbound') === 'full' || this.node.protocol === 'custom');
   }
 
+  private canEditAdvancedOutbound(): boolean {
+    const configType = this.node.configType ?? 'outbound';
+    return this.node.id.length > 0 &&
+      this.node.sourceUrl.trim().length === 0 &&
+      this.node.rawLink.trim().length === 0 &&
+      (configType === 'proxy-chain' || configType === 'policy-group');
+  }
+
   private openJsonEditor(): void {
     router.pushUrl({
       url: AppRoute.JSON_IMPORT,
       params: {
         nodeId: this.node.id
+      }
+    });
+  }
+
+  private openAdvancedEditor(): void {
+    router.pushUrl({
+      url: AppRoute.ADVANCED_OUTBOUND,
+      params: {
+        nodeId: this.node.id,
+        mode: this.node.configType ?? this.node.protocol
       }
     });
   }

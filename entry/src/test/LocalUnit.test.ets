@@ -1,5 +1,5 @@
 import { describe, it, expect } from '@ohos/hypium';
-import { buildPolicyGroupConfigFromNodes, buildPolicyGroupConfigFromSubscription, buildProxyChainConfigFromNodes, isAdvancedOutboundBuildableNode, normalizePolicyGroupBuilderStrategy, resolveDynamicPolicyGroupConfigJson } from '../main/ets/core/AdvancedOutboundBuilder';
+import { buildPolicyGroupConfigFromNodes, buildPolicyGroupConfigFromSubscription, buildProxyChainConfigFromNodes, isAdvancedOutboundBuildableNode, normalizePolicyGroupBuilderStrategy, parseAdvancedOutboundEditState, resolveDynamicPolicyGroupConfigJson } from '../main/ets/core/AdvancedOutboundBuilder';
 import { buildAppBackupPayload, buildAppBackupZipFromPayload, parseAppBackupData, parseAppBackupPayload } from '../main/ets/core/AppBackup';
 import { CONTROL_CARD_FORM_NAME, CONTROL_CARD_SCAN_URI, CONTROL_CARD_START_URI, CONTROL_CARD_STOP_URI, CONTROL_CARD_TOGGLE_URI, buildControlCardFormData } from '../main/ets/core/ControlCard';
 import { AssetNameEntry, hasDuplicateAssetName, isEditableCustomAssetUrl, normalizeScannedAssetUrl } from '../main/ets/core/AssetUrls';
@@ -262,6 +262,36 @@ export default function localUnitTest() {
       expect(filtered.configJson).assertContain('"protocol": "vless"');
       expect(filtered.configJson.indexOf('"protocol": "trojan"')).assertEqual(-1);
       expect(validatePolicyGroupConfigJson(filtered.configJson).valid).assertTrue();
+    });
+
+    it('parses existing advanced outbound configs for v2rayNG-style editing', 0, () => {
+      const nodes = buildAdvancedNodeFixture();
+      const chain = buildProxyChainConfigFromNodes('Editable Chain', nodes);
+      expect(chain.success).assertTrue();
+
+      const chainEdit = parseAdvancedOutboundEditState(chain.configJson, 'proxy-chain');
+      expect(chainEdit.success).assertTrue();
+      expect(chainEdit.mode).assertEqual('proxy-chain');
+      expect(chainEdit.name).assertEqual('Editable Chain');
+      expect(chainEdit.memberOutboundJsons.length).assertEqual(2);
+      expect(chainEdit.memberOutboundJsons[0]).assertContain('"protocol": "vless"');
+      expect(chainEdit.memberOutboundJsons[1]).assertContain('"protocol": "trojan"');
+      expect(chainEdit.dynamicPolicyGroupEnabled).assertFalse();
+
+      const firstGroup = buildSubscriptionGroupFixture('sub-a', 'A');
+      firstGroup.nodes = nodes;
+      const dynamicGroup = buildPolicyGroupConfigFromSubscription('Editable Dynamic', 'leastPing', 'sub-a', 'VLESS', [firstGroup]);
+      expect(dynamicGroup.success).assertTrue();
+
+      const groupEdit = parseAdvancedOutboundEditState(dynamicGroup.configJson, 'policy-group');
+      expect(groupEdit.success).assertTrue();
+      expect(groupEdit.mode).assertEqual('policy-group');
+      expect(groupEdit.name).assertEqual('Editable Dynamic');
+      expect(groupEdit.strategy).assertEqual('leastPing');
+      expect(groupEdit.dynamicPolicyGroupEnabled).assertTrue();
+      expect(groupEdit.dynamicSubscriptionId).assertEqual('sub-a');
+      expect(groupEdit.dynamicFilter).assertEqual('VLESS');
+      expect(groupEdit.memberOutboundJsons.length).assertEqual(1);
     });
 
     it('resolves dynamic policy group configs from latest subscription groups', 0, () => {
