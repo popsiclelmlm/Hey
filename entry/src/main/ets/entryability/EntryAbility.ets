@@ -3,6 +3,7 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
 import { applyColorMode } from '../core/ColorMode';
 import { UI_MODE_NIGHT_SYSTEM } from '../core/Profile';
+import { extractSharedTextFromWant } from '../core/SharedTextImport';
 import { SettingsStore } from '../storage/SettingsStore';
 
 const DOMAIN = 0x0000;
@@ -12,12 +13,14 @@ export default class EntryAbility extends UIAbility {
     this.applyStoredColorMode();
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
     this.stashDeepLink(want);
+    this.stashSharedTextImport(want);
     this.stashAutoStartupLaunch(launchParam);
   }
 
   onNewWant(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onNewWant');
     this.stashDeepLink(want);
+    this.stashSharedTextImport(want);
   }
 
   // Stash a deep-link Want uri (hey://install-sub|install-config?url=...) for the
@@ -27,6 +30,17 @@ export default class EntryAbility extends UIAbility {
     const uri = want.uri;
     if (uri !== undefined && uri.length > 0) {
       AppStorage.setOrCreate('pendingDeepLink', uri);
+    }
+  }
+
+  private stashSharedTextImport(want: Want): void {
+    const payload = extractSharedTextFromWant({
+      action: want.action,
+      type: want.type,
+      parameters: want.parameters
+    });
+    if (payload.length > 0) {
+      AppStorage.setOrCreate('pendingSharedTextImport', payload);
     }
   }
 

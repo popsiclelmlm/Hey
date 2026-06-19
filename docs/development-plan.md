@@ -29,7 +29,7 @@
 | 订阅 | 多分组 + 手动/批量更新 + 前台到期刷新 + 本地 HTTP 代理经由更新 + WorkScheduler 后台调度接线；本地 SOCKS 入口按 v2rayNG 默认开启，可供代理经由能力使用 | 待真机触发回归后台唤醒路径 |
 | 分享导出 | 文本/文件导出 + 节点二维码 + 订阅链接二维码 + 系统分享面板；批量导出已按 v2rayNG `shareNonCustomConfigsToClipboard` 只输出可分享普通节点并跳过自定义/高级/无效配置；节点详情可按 v2rayNG `shareFullContent2Clipboard` 复制完整运行配置；URL-style 普通 TCP 节点导出会按 v2rayNG 写出 `security/type/headerType` 默认 query；剪贴板导入路径已补 Harmony `READ_PASTEBOARD` 权限声明与运行时请求；运行中导入/扫码/新增/选择当前节点后会标记待重启，返回首页自动应用新配置 | 仍待真机回归不同分享目标兼容性 |
 | 速度通知 | 🟡 常驻通知代码完成；连接运行且速度显示开启时每 3 秒刷新上传/下载速率与累计流量，停止或关闭设置时取消 | 待真机通知权限弹窗、通知中心展示与后台留存回归 |
-| 深链导入 | ✅ Harmony Want / `hey://install-sub` / `hey://install-config` 已接入 EntryAbility 与首页解析 | 仍待真机回归外部应用触发路径 |
+| 深链导入 | ✅ Harmony Want / `hey://install-sub` / `hey://install-config` 已接入 EntryAbility 与首页解析；外部应用 `sendData/text/plain` 分享文本会复用订阅、单节点与 native 批量兜底导入路径 | 仍待真机回归外部应用触发路径 |
 | 桌面入口 | 🟡 Harmony 服务卡片基础入口完成；2×2 卡片提供 toggle/start/stop/scan 四个控制深链入口，并通过保存 formId + updateForm 同步运行态 | 待真机添加卡片、点击调起和系统刷新回归 |
 | 高级路由 | 代理链、策略组/负载均衡运行核心已可通过 JSON 导入生成；添加节点页已可从已有普通节点创建代理链/策略组并保存为手动节点；手动高级节点可从节点详情重新打开、预填成员/策略/动态订阅条件并原位保存；策略组可按订阅分组与节点名正则动态展开成员，过滤匹配按 v2rayNG 搜索体验大小写不敏感；路由规则可选择当前高级出站目标 | 真机组合场景回归待补 |
 | 云备份 | 剪贴板 JSON 备份 + WebDAV ZIP 云备份/还原已落地，默认 `backups/backup_ng.zip`，恢复兼容旧 JSON 包 | 真 WebDAV 服务兼容回归待补 |
@@ -223,7 +223,8 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 - ✅ **文件导出**：Export 页保存当前分组节点到 `.txt` 文件（2026-06-18 已完成；系统分享面板已补齐）
 - ✅ **URL Scheme / Want 深链导入**：对应 v2rayNG `v2rayng://install-config` 与
   `install-sub`，在 `EntryAbility.onCreate/onNewWant` 解析 Want 并导入；外层
-  URI fragment 会按 v2rayNG 规则作为内层链接缺省名称兜底
+  URI fragment 会按 v2rayNG 规则作为内层链接缺省名称兜底；外部应用
+  `sendData/text/plain` 分享文本会按 v2rayNG `ACTION_SEND` 导入
 - ✅ **控制深链入口**：对应 v2rayNG Tasker/shortcuts/QS tile 的基础控制动作，
   支持 `hey://control?action=start|stop|toggle|scan` 和短 URI
   `hey://start` / `hey://stop` / `hey://toggle` / `hey://scan`
@@ -439,6 +440,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-18 | M1 | 🟡 Native 分享转换接线完成（`CGoConvertShareLinksToXrayJson`/`CGOConvertXrayJsonToShareLinks` 导出 + native wrapper + 导入页批量/base64/Clash YAML 兜底）；`.so` 已重建，待真机复测 |
 | 2026-06-19 | M1 | ✅ `libxray.so` 重建完成（构建脚本补 Android API level stub 与 Go `-checklinkname=0`，预构建库已通过 `llvm-nm -D` 验证 12 个 CGo 符号导出且均已接线） |
 | 2026-06-19 | M4 | ✅ 扫码 native 分享兜底完成（Scanner 在单链接解析失败后复用 native 分享转换，批量保存 outbounds 为手动节点并标记运行配置待重启；补共享命名单测） |
+| 2026-06-19 | M4 | ✅ 外部分享文本导入完成（EntryAbility 注册/提取 Harmony `sendData text/plain`，首页导入订阅 URL、单节点链接与 native 批量/base64/Clash 文本；补 Want 参数提取单测） |
 | 2026-06-18 | M4 | ✅ WireGuard/Hysteria2 手动编辑器校验完成（抽出 `ManualOutboundBuilder`，NodeEdit 复用，补 WG/HY2 outbound 生成单测）；运行态仍待真机/内核复测 |
 | 2026-06-18 | M4 | ✅ 本地 SOCKS 代理设置完成（`localSocksEnabled`/端口/UDP/用户名/密码 + `socks-in` 生成 + LAN 共享监听 + 单测） |
 | 2026-06-19 | M4 | ✅ 本地 SOCKS 默认开启与端口对齐 v2rayNG（`pref_enable_local_proxy` 默认 true；默认 SOCKS 端口 10808；默认设置生成 `socks-in`，关闭时不生成；补配置生成单测） |

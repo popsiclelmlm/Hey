@@ -89,6 +89,19 @@
                 "host": "scan"
               }
             ]
+          },
+          {
+            "actions": [
+              "ohos.want.action.sendData"
+            ],
+            "entities": [
+              "entity.system.default"
+            ],
+            "uris": [
+              {
+                "type": "text/plain"
+              }
+            ]
           }
         ]
       }

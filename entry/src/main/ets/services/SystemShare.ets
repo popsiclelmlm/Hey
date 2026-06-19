@@ -1,12 +1,14 @@
 import { common, Want } from '@kit.AbilityKit';
 import { pasteboard } from '@kit.BasicServicesKit';
+import {
+  HARMONY_CONTENT_TITLE_KEY,
+  HARMONY_SEND_DATA_ACTION,
+  HARMONY_SHARE_ABSTRACT_KEY,
+  HARMONY_SHARE_URL_KEY,
+  HARMONY_TEXT_MIME_TYPE
+} from '../core/SharedTextImport';
 
-const ACTION_SEND_DATA: string = 'ohos.want.action.sendData';
 const ENTITY_DEFAULT: string = 'entity.system.default';
-const TEXT_MIME_TYPE: string = 'text/plain';
-const CONTENT_TITLE_KEY: string = 'ohos.extra.param.key.contentTitle';
-const SHARE_ABSTRACT_KEY: string = 'ohos.extra.param.key.shareAbstract';
-const SHARE_URL_KEY: string = 'ohos.extra.param.key.shareUrl';
 
 export interface TextShareResult {
   systemShareStarted: boolean;
@@ -17,13 +19,13 @@ export interface TextShareResult {
 export function buildTextShareWant(title: string, content: string): Want {
   const text = content.trim();
   const parameters: Record<string, Object> = {};
-  parameters[CONTENT_TITLE_KEY] = title as Object;
-  parameters[SHARE_ABSTRACT_KEY] = text as Object;
-  parameters[SHARE_URL_KEY] = text as Object;
+  parameters[HARMONY_CONTENT_TITLE_KEY] = title as Object;
+  parameters[HARMONY_SHARE_ABSTRACT_KEY] = text as Object;
+  parameters[HARMONY_SHARE_URL_KEY] = text as Object;
   return {
-    action: ACTION_SEND_DATA,
+    action: HARMONY_SEND_DATA_ACTION,
     entities: [ENTITY_DEFAULT],
-    type: TEXT_MIME_TYPE,
+    type: HARMONY_TEXT_MIME_TYPE,
     parameters
   };
 }

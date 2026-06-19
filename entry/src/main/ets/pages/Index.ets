@@ -6,8 +6,10 @@ import { DEFAULT_LANGUAGE, translate } from '../core/I18n';
 import { AppLanguage, AppSettings, ConnectionStatus, normalizeRealPingConcurrency, ProxyNode, resolveDelayTestUrl, RuntimeStats, SubscriptionGroup, SubscriptionProfile } from '../core/Profile';
 import { LOCAL_HTTP_PROXY_PORT } from '../core/XrayConfig';
 import { DeepLinkControlAction, DeepLinkIntent, parseDeepLink, subscriptionNameFromDeepLink } from '../core/DeepLink';
-import { consumeRuntimeSettingsRestartDecision } from '../core/SettingsChange';
+import { consumeRuntimeSettingsRestartDecision, markRuntimeSettingsRestartNeeded } from '../core/SettingsChange';
+import { resolveImportedNodeName } from '../core/ImportedNodeNames';
 import { DelayTester, DelayTestResult } from '../services/DelayTester';
+import { convertNativeShareTextToOutbounds } from '../services/NativeShareConverter';
 import { CONTROL_CARD_MANAGER } from '../services/ControlCardManager';
 import { SPEED_NOTIFICATION_MANAGER } from '../services/SpeedNotificationManager';
 import { SubscriptionBackgroundScheduler } from '../services/SubscriptionBackgroundScheduler';
@@ -112,6 +114,7 @@ struct Index {
     await this.loadNodes();
     await this.handlePendingRuntimeSettingsRestart();
     await this.handlePendingAutoStartupLaunch();
+    await this.handlePendingSharedTextImport();
     await this.handlePendingDeepLink();
     await this.refreshDueSubscriptions();
     await this.syncSubscriptionBackgroundSchedule();
@@ -199,6 +202,135 @@ struct Index {
       this.lastError = this.f1('error.deepLinkImport', 'error', JSON.stringify(error));
       SHARED_RUNTIME_CONTROLLER.appendLog(this.lastError);
     }
+  }
+
+  private async handlePendingSharedTextImport(): Promise<void> {
+    const payload = AppStorage.get<string>('pendingSharedTextImport');
+    if (payload === undefined || payload.trim().length === 0) {
+      return;
+    }
+    AppStorage.setOrCreate('pendingSharedTextImport', '');
+    await this.importSharedTextPayload(payload);
+  }
+
+  private async importSharedTextPayload(payload: string): Promise<void> {
+    const value = payload.trim();
+    if (value.length === 0) {
+      return;
+    }
+    const context = getContext(this) as common.Context;
+    const lines = this.uniqueImportLines(value);
+    const configLines = new Array<string>();
+    let subscriptionCount = 0;
+
+    try {
+      for (let index = 0; index < lines.length; index++) {
+        const line = lines[index];
+        if (this.isSubscriptionImportLine(line)) {
+          if (await this.importSharedSubscriptionLine(context, line)) {
+            subscriptionCount++;
+          }
+        } else {
+          configLines.push(line);
+        }
+      }
+
+      const configPayload = configLines.length === lines.length ? value : configLines.join('\n');
+      const configCount = configPayload.trim().length > 0 ? await this.importSharedConfigPayload(context, configPayload) : 0;
+      if (configCount > 0 || subscriptionCount > 0) {
+        markRuntimeSettingsRestartNeeded();
+        this.applyNodesState(await NODES_CONTROLLER.load(context, this.language));
+        await this.syncSubscriptionBackgroundSchedule();
+        const total = configCount + subscriptionCount;
+        const message = total === 1 ? this.t('log.sharedTextImported') : this.f1('log.sharedTextImportedCount', 'count', `${total}`);
+        SHARED_RUNTIME_CONTROLLER.appendLog(message);
+        promptAction.showToast({ message });
+      }
+    } catch (error) {
+      this.lastError = this.f1('error.deepLinkImport', 'error', JSON.stringify(error));
+      SHARED_RUNTIME_CONTROLLER.appendLog(this.lastError);
+    }
+  }
+
+  private async importSharedSubscriptionLine(context: common.Context, url: string): Promise<boolean> {
+    const validationMessage = SubscriptionManager.validateSubscriptionUrl(url, false);
+    if (validationMessage.length > 0) {
+      this.lastError = localizeCoreMessage(this.language, validationMessage);
+      SHARED_RUNTIME_CONTROLLER.appendLog(this.lastError);
+      return false;
+    }
+
+    const name = subscriptionNameFromDeepLink(url);
+    const added = await SUBSCRIPTIONS_CONTROLLER.addGroup(context, name, url, '', '', false, this.language);
+    const state = await SUBSCRIPTIONS_CONTROLLER.update(context, added.selectedGroupId, url, this.selectedNodeId, this.language, this.subscriptionProxyPort());
+    this.applySubscriptionsState(state);
+    SHARED_RUNTIME_CONTROLLER.appendLog(this.f1('log.deepLinkSub', 'name', name));
+    return true;
+  }
+
+  private async importSharedConfigPayload(context: common.Context, payload: string): Promise<number> {
+    const saved = await NODES_CONTROLLER.saveProfile(context, payload, this.language);
+    if (saved.profile !== null) {
+      await SubscriptionStore.addManualNode(
+        context,
+        resolveImportedNodeName(saved.profile.outboundJson, this.t('import.sharedTextNodeName')),
+        saved.profile.outboundJson,
+        saved.profile.configType
+      );
+      SHARED_RUNTIME_CONTROLLER.appendLog(this.f1('log.deepLinkConfig', 'name', this.nodeNameFromOutbound(saved.profile.outboundJson)));
+      return 1;
+    }
+
+    const nativeResult = convertNativeShareTextToOutbounds(payload);
+    if (!nativeResult.ok) {
+      this.lastError = nativeResult.message.length > 0 ? `${saved.lastError}\n${nativeResult.message}` : saved.lastError;
+      SHARED_RUNTIME_CONTROLLER.appendLog(this.lastError);
+      return 0;
+    }
+
+    let importedCount = 0;
+    let lastValidationError = '';
+    for (let index = 0; index < nativeResult.outbounds.length; index++) {
+      const outbound = nativeResult.outbounds[index];
+      const imported = await NODES_CONTROLLER.saveProfile(context, outbound.outboundJson, this.language, 'outbound');
+      if (imported.profile === null) {
+        lastValidationError = imported.lastError;
+        continue;
+      }
+      await SubscriptionStore.addManualNode(
+        context,
+        resolveImportedNodeName(imported.profile.outboundJson, outbound.name),
+        imported.profile.outboundJson,
+        imported.profile.configType
+      );
+      importedCount++;
+    }
+
+    if (importedCount === 0 && lastValidationError.length > 0) {
+      this.lastError = lastValidationError;
+      SHARED_RUNTIME_CONTROLLER.appendLog(this.lastError);
+    }
+    return importedCount;
+  }
+
+  private uniqueImportLines(value: string): Array<string> {
+    const lines = value.split('\n');
+    const seen = new Set<string>();
+    const result = new Array<string>();
+    for (let index = 0; index < lines.length; index++) {
+      const line = lines[index].trim();
+      if (line.length === 0 || seen.has(line)) {
+        continue;
+      }
+      seen.add(line);
+      result.push(line);
+    }
+    return result.length > 0 ? result : [value.trim()];
+  }
+
+  private isSubscriptionImportLine(value: string): boolean {
+    const lower = value.trim().toLowerCase();
+    return lower.startsWith('http://') || lower.startsWith('https://');
   }
 
   private async handleControlDeepLink(action: DeepLinkControlAction): Promise<void> {
@@ -960,6 +1092,7 @@ struct Index {
     await this.loadSettings();
     await this.loadNodes();
     await this.handlePendingAutoStartupLaunch();
+    await this.handlePendingSharedTextImport();
     await this.handlePendingDeepLink();
     await this.refreshDueSubscriptions();
     await this.syncSubscriptionBackgroundSchedule();

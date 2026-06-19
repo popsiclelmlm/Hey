@@ -15,6 +15,7 @@ import { APP_MODE_PROXY_ONLY, APP_MODE_VPN, AppSettings, ConnectionStatus, DEFAU
 import { BUILTIN_GEO_DATA_FILE_NAMES, GEOIP_ONLY_CN_PRIVATE_FILE_NAME, GEOIP_ONLY_CN_PRIVATE_URL, GEO_FILE_SOURCES, V2RAYNG_GEO_FILE_SOURCE_REPOS, buildBuiltinGeoAssetUrl, formatGeoCountSummary, formatGeoCountUnavailable, geoDataSpecForFile, parseGeoCountData } from '../main/ets/core/GeoAssets';
 import { DELAY_TEST_SOCKS_PORT, LOCAL_HTTP_PROXY_LAN_HOST, LOCAL_HTTP_PROXY_PORT, LOCAL_SOCKS_PROXY_PORT, UNIDENTIFIED_PROCESS_PACKAGE, buildDelayTestConfig, buildRuntimeXrayConfig, buildXrayConfig, buildXrayConfigWithSettings, collectOutboundDomainPreResolveHosts, normalizeFullConfigRoutingProcesses, normalizeOutboundInput, normalizeRoutingRuleProcesses, validateFullConfigJson, validateOutboundJson, validatePolicyGroupConfigJson, validateProxyChainConfigJson, withOutboundDomainResolvedHosts } from '../main/ets/core/XrayConfig';
 import { parseDeepLink } from '../main/ets/core/DeepLink';
+import { HARMONY_SEND_DATA_ACTION, HARMONY_SHARE_ABSTRACT_KEY, HARMONY_SHARE_URL_KEY, HARMONY_TEXT_MIME_TYPE, SharedTextWantLike, extractSharedTextFromWant, isSharedTextWant } from '../main/ets/core/SharedTextImport';
 import { extractOutboundsFromXrayConfig } from '../main/ets/core/XrayOutbounds';
 import { SUPPORTED_SHARE_LINK_SCHEMES, buildUnsupportedShareLinkMessage, formatOutboundJsonToShareLink, isSupportedShareLink, parseShareLinkToOutboundJson } from '../main/ets/core/ShareLinkParser';
 import { exportRoutingRulesJson, importRoutingRulesJson, resetRoutingRulesFromPreset } from '../main/ets/core/RoutingRules';
@@ -2822,6 +2823,43 @@ export default function localUnitTest() {
       const sub = parseDeepLink(`hey://install-sub?url=${encodeURIComponent('https://example.com/sub')}#Sub%20Name`);
       expect(sub.kind).assertEqual('sub');
       expect(sub.payload).assertEqual('https://example.com/sub#Sub Name');
+    });
+
+    it('extracts Harmony sendData text imports like v2rayNG ACTION_SEND', 0, () => {
+      const parameters: Record<string, Object> = {};
+      parameters[HARMONY_SHARE_ABSTRACT_KEY] = 'vless://abstract@example.com:443?encryption=none#abstract' as Object;
+      parameters[HARMONY_SHARE_URL_KEY] = '  vless://url@example.com:443?encryption=none#url  ' as Object;
+
+      const shared: SharedTextWantLike = {
+        action: HARMONY_SEND_DATA_ACTION,
+        type: HARMONY_TEXT_MIME_TYPE,
+        parameters
+      };
+      expect(isSharedTextWant(shared)).assertTrue();
+      expect(extractSharedTextFromWant(shared)).assertEqual('vless://url@example.com:443?encryption=none#url');
+
+      const fallbackParameters: Record<string, Object> = {};
+      fallbackParameters[HARMONY_SHARE_ABSTRACT_KEY] = 'vmess://payload';
+      const fallback: SharedTextWantLike = {
+        action: HARMONY_SEND_DATA_ACTION,
+        type: 'text/plain; charset=utf-8',
+        parameters: fallbackParameters
+      };
+      expect(extractSharedTextFromWant(fallback)).assertEqual('vmess://payload');
+
+      const nonText: SharedTextWantLike = {
+        action: HARMONY_SEND_DATA_ACTION,
+        type: 'image/png',
+        parameters
+      };
+      expect(isSharedTextWant(nonText)).assertFalse();
+
+      const viewData: SharedTextWantLike = {
+        action: 'ohos.want.action.viewData',
+        type: HARMONY_TEXT_MIME_TYPE,
+        parameters
+      };
+      expect(extractSharedTextFromWant(viewData)).assertEqual('');
     });
 
     it('parses control deep links for shortcut actions', 0, () => {
