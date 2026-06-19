@@ -191,6 +191,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 - **批量更新全部**：订阅页顶部刷新按钮更新全部启用订阅分组（已完成）
 - **代理经由更新**：运行中时通过本地 HTTP 端口拉取订阅（2026-06-18 已完成）
 - **节点批量操作**：删除全部、删除重复、批量测速后自动排序、测速后自动删除超时节点已完成；
+  删除重复已按 v2rayNG 普通 profile 比较语义忽略备注/raw fragment/runtime tag 并跳过复杂节点（2026-06-19）；
   其他批处理能力继续对照 v2rayNG 点检
 
 **v2rayNG 对照**：`SubscriptionUpdater`（WorkManager）、`AngConfigManager.updateConfigViaSub`、
@@ -514,6 +515,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-19 | 协议点检 | ✅ HTTPUpgrade/XHTTP 传输参数完成（分享链接 `type=httpupgrade` 的 host/path 导出不再丢失，NodeEdit 可选择 httpupgrade；XHTTP `mode/extra` 可手动填写并 round-trip 保留；补传输选项与参数单测） |
 | 2026-06-19 | 协议点检 | ✅ XHTTP mode 枚举完成（分享链接导入/导出、NodeEdit 保存与运行配置生成均按 v2rayNG `auto/packet-up/stream-up/stream-one` 限定，非法值兜底 `auto`；补归一化单测） |
 | 2026-06-19 | M4 | ✅ 开机自启安装兼容修正（移除受限 `ohos.permission.RECEIVER_STARTUP_COMPLETED` manifest 声明，保留 `AUTO_STARTUP` 启动原因下的 `startOnBoot` 处理，避免普通调试签名 HAP 安装被授权 ACL 拦截） |
+| 2026-06-19 | M3 | ✅ 节点去重 profile 语义完成（普通节点去重忽略备注、分享链接 fragment 与 runtime tag 差异；full/proxy-chain/policy-group 复杂节点按 v2rayNG 跳过；订阅保存去重与 Nodes 批量去重共用同一 helper；补单测） |
 | 2026-06-19 | 协议点检 | ✅ gRPC 传输模式完成（NodeEdit 可选择 v2rayNG `gun/multi`，保存时写入 `grpcSettings.multiMode`；分享链接 `mode=multi` round-trip 保留） |
 | 2026-06-19 | 协议点检 | ✅ KCP 传输参数完成（分享链接 `type=kcp` 的 `headerType`/`seed`/`mtu`/`tti` 导入导出保留，运行 JSON 生成 `kcpSettings` 与 v2rayNG 风格 `finalmask.udp`，NodeEdit 可手动填写；补 KCP 参数与 VMess QR round-trip 单测） |
 | 2026-06-19 | 协议点检 | ✅ SOCKS 分享认证导出完成（用户密码导出为 v2rayNG `base64(user:pass)` userInfo，导入导出 round-trip 保留认证信息） |

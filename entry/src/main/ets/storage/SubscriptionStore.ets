@@ -1,6 +1,7 @@
 import { common } from '@kit.AbilityKit';
 import { preferences } from '@kit.ArkData';
 import { ProxyNode, SubscriptionGroup, SubscriptionProfile, XrayConfigType } from '../core/Profile';
+import { dedupeProxyNodes } from '../core/NodeDedupe';
 import {
   DEFAULT_SUBSCRIPTION_UPDATE_INTERVAL_MINUTES,
   moveSubscriptionGroup,
@@ -570,32 +571,7 @@ export class SubscriptionStore {
   }
 
   private static dedupeNodes(nodes: Array<ProxyNode>): Array<ProxyNode> {
-    const seen = new Set<string>();
-    const result = new Array<ProxyNode>();
-    for (let index = 0; index < nodes.length; index++) {
-      const node = nodes[index];
-      const key = SubscriptionStore.nodeDedupeKey(node);
-      if (key.length > 0 && seen.has(key)) {
-        continue;
-      }
-      if (key.length > 0) {
-        seen.add(key);
-      }
-      result.push(node);
-    }
-    return result;
-  }
-
-  private static nodeDedupeKey(node: ProxyNode): string {
-    const rawLink = node.rawLink.trim();
-    if (rawLink.length > 0) {
-      return `raw:${rawLink}`;
-    }
-    const validation = normalizeConfigInput(node.outboundJson, node.configType);
-    if (validation.valid) {
-      return `json:${validation.normalizedJson}`;
-    }
-    return `json:${node.outboundJson.trim()}`;
+    return dedupeProxyNodes(nodes);
   }
 
   private static createGroup(

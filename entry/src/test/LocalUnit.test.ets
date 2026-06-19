@@ -2073,15 +2073,38 @@ export default function localUnitTest() {
       expect(sortNodes(nodes, 'protocol')[0].protocol).assertEqual('trojan');
     });
 
-    it('dedupes nodes by raw link and normalized outbound json', 0, () => {
+    it('dedupes ordinary nodes like v2rayNG profile comparison', 0, () => {
       const nodes = buildNodeFixture();
+      const distinctManual: ProxyNode = copyNode(nodes[1], 'node-manual-distinct');
+      distinctManual.outboundJson = VLESS_FINALMASK_OUTBOUND;
+      const baseNodes = [nodes[0], distinctManual, nodes[2]];
       const duplicateRaw: ProxyNode = copyNode(nodes[0], 'raw-duplicate');
       duplicateRaw.rawLink = nodes[0].rawLink;
       const duplicateJson: ProxyNode = copyNode(nodes[2], 'json-duplicate');
       duplicateJson.rawLink = '';
       duplicateJson.outboundJson = nodes[2].outboundJson;
-      const result = dedupeNodes(nodes.concat([duplicateRaw, duplicateJson]));
-      expect(result.length).assertEqual(nodes.length);
+      const duplicateDifferentRemark: ProxyNode = copyNode(nodes[2], 'fragment-duplicate');
+      duplicateDifferentRemark.name = 'Alpha renamed';
+      duplicateDifferentRemark.rawLink = 'vless://alpha@example.com:443#another-name';
+      const duplicateDifferentTag: ProxyNode = copyNode(nodes[2], 'tag-duplicate');
+      duplicateDifferentTag.rawLink = '';
+      duplicateDifferentTag.outboundJson = VLESS_REALITY_OUTBOUND.replace('"tag":"proxy"', '"tag":"relay"');
+      const complexOne: ProxyNode = copyNode(nodes[2], 'complex-one');
+      complexOne.rawLink = '';
+      complexOne.configType = 'full';
+      complexOne.outboundJson = FULL_XRAY_CONFIG;
+      const complexTwo: ProxyNode = copyNode(complexOne, 'complex-two');
+      const result = dedupeNodes(baseNodes.concat([
+        duplicateRaw,
+        duplicateJson,
+        duplicateDifferentRemark,
+        duplicateDifferentTag,
+        complexOne,
+        complexTwo
+      ]));
+      expect(result.length).assertEqual(baseNodes.length + 2);
+      expect(result[result.length - 2].id).assertEqual('complex-one');
+      expect(result[result.length - 1].id).assertEqual('complex-two');
     });
 
     it('applies v2rayNG visible batch operations across all groups', 0, () => {
@@ -3186,7 +3209,7 @@ function buildNodeFixture(): Array<ProxyNode> {
     id: 'node-beta',
     name: 'Beta',
     protocol: 'trojan',
-    outboundJson: VLESS_REALITY_OUTBOUND,
+    outboundJson: TROJAN_OUTBOUND,
     sourceUrl: 'https://sub.example/list',
     rawLink: 'trojan://secret@example.com:443#beta',
     updatedAt: 1,

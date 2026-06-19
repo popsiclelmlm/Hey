@@ -208,6 +208,7 @@
 | 2026-06-19 | 协议点检 | ✅ HTTPUpgrade/XHTTP 传输参数完成；`type=httpupgrade` host/path 导出保留，NodeEdit 可选择 httpupgrade，XHTTP `mode/extra` 可手动填写并 round-trip 保留 |
 | 2026-06-19 | 协议点检 | ✅ XHTTP mode 枚举完成；导入、导出、NodeEdit 保存和运行配置均按 v2rayNG `auto/packet-up/stream-up/stream-one` 归一化，非法值兜底 `auto` |
 | 2026-06-19 | 阶段 4 | ✅ 开机自启安装兼容修正；移除受限 `ohos.permission.RECEIVER_STARTUP_COMPLETED` manifest 声明，保留 Harmony `AUTO_STARTUP` 启动原因下的自动连接处理，普通调试签名安装不再被授权 ACL 拦截 |
+| 2026-06-19 | 阶段 3 | ✅ 节点去重 profile 语义完成；普通节点按 v2rayNG `ProfileItem.equals` 近似语义忽略备注、分享链接 fragment 与 runtime tag 差异，full/proxy-chain/policy-group 复杂节点不参与重复删除 |
 | 2026-06-19 | 协议点检 | ✅ gRPC 传输模式完成；NodeEdit 可选择 v2rayNG `gun/multi`，分享链接 `mode=multi` 与 `grpcSettings.multiMode` round-trip 保留 |
 | 2026-06-19 | 协议点检 | ✅ KCP 传输参数完成；`type=kcp` 的 `headerType`/`seed`/`mtu`/`tti` 导入导出保留，并生成 v2rayNG 风格 `kcpSettings` + `finalmask.udp` |
 | 2026-06-19 | 协议点检 | ✅ SOCKS 分享认证导出完成；用户密码导出为 v2rayNG 去 padding `base64(user:pass)` userInfo，无认证导出 `Og`，导入导出保留认证信息 |

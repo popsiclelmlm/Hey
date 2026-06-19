@@ -2,6 +2,7 @@ import { AppSettings, ProxyNode, SubscriptionGroup } from '../../core/Profile';
 import { resolveDynamicPolicyGroupConfigJson } from '../../core/AdvancedOutboundBuilder';
 import { buildRuntimeXrayConfig, normalizeConfigInput } from '../../core/XrayConfig';
 import { formatOutboundJsonToShareLink } from '../../core/ShareLinkParser';
+import { dedupeProxyNodes, proxyNodeDedupeKey } from '../../core/NodeDedupe';
 
 export type NodeSortKey = 'delay' | 'name' | 'protocol';
 
@@ -72,20 +73,7 @@ export function filterAndSortNodes(nodes: Array<ProxyNode>, query: string, sortK
 }
 
 export function dedupeNodes(nodes: Array<ProxyNode>): Array<ProxyNode> {
-  const seen = new Set<string>();
-  const result = new Array<ProxyNode>();
-  for (let index = 0; index < nodes.length; index++) {
-    const node = nodes[index];
-    const key = dedupeKey(node);
-    if (key.length > 0 && seen.has(key)) {
-      continue;
-    }
-    if (key.length > 0) {
-      seen.add(key);
-    }
-    result.push(node);
-  }
-  return result;
+  return dedupeProxyNodes(nodes);
 }
 
 export function findInvalidNodes(nodes: Array<ProxyNode>): Array<ProxyNode> {
@@ -163,7 +151,7 @@ export function dedupeVisibleNodesInGroups(
   const duplicateIds = new Set<string>();
   for (let index = 0; index < visibleNodes.length; index++) {
     const node = visibleNodes[index];
-    const key = dedupeKey(node);
+    const key = proxyNodeDedupeKey(node);
     if (key.length === 0) {
       continue;
     }
@@ -314,18 +302,6 @@ function isCustomExportNode(node: ProxyNode): boolean {
 
 function isCustomConfigType(configType: string | undefined): boolean {
   return configType === 'full' || configType === 'proxy-chain' || configType === 'policy-group';
-}
-
-function dedupeKey(node: ProxyNode): string {
-  const rawLink = node.rawLink.trim();
-  if (rawLink.length > 0) {
-    return `raw:${rawLink}`;
-  }
-  const validation = normalizeConfigInput(node.outboundJson, node.configType);
-  if (validation.valid) {
-    return `json:${validation.normalizedJson}`;
-  }
-  return `json:${node.outboundJson.trim()}`;
 }
 
 function compareDelay(left: ProxyNode, right: ProxyNode): number {
