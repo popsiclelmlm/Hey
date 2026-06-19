@@ -1,7 +1,7 @@
 import { bundleManager } from '@kit.AbilityKit';
 import { AppSettings, DEFAULT_VPN_MTU, GeneratedXrayConfig, isProxyOnlyRuntimeMode, isVpnRuntimeMode, normalizeRoutingDomainStrategy, normalizeVpnMtuValue, OUTBOUND_DOMAIN_RESOLVE_DNS_HOSTS, OUTBOUND_DOMAIN_RESOLVE_NONE, OUTBOUND_DOMAIN_RESOLVE_REPLACE, resolveDelayTestUrl, RoutingRule, ValidationResult, XrayConfigType } from './Profile';
 import { isSupportedShareLink, isWireguardConfigFile, parseShareLinkToOutboundJson, parseWireguardConfigToOutboundJson } from './ShareLinkParser';
-import { normalizeV2rayNgFragmentPackets } from './V2rayNgOptions';
+import { V2RAYNG_DEFAULT_CORE_LOG_LEVEL, normalizeV2rayNgCoreLogLevel, normalizeV2rayNgFragmentPackets } from './V2rayNgOptions';
 
 interface XrayOutbound {
   protocol?: string;
@@ -315,7 +315,7 @@ const DNS_OUT_TAG: string = 'dns-out';
 const DNS_TAG: string = 'dns';
 const DOMESTIC_DNS_TAG_PREFIX: string = 'domestic-dns-';
 const DEFAULT_WIREGUARD_IPV4_ADDRESS: string = '172.16.0.2/32';
-const DEFAULT_LOG_LEVEL: string = 'warning';
+const DEFAULT_LOG_LEVEL: string = V2RAYNG_DEFAULT_CORE_LOG_LEVEL;
 const DEFAULT_ROUTING_DOMAIN_STRATEGY: string = 'AsIs';
 const GEOSITE_CN_DOMAIN: string = 'geosite:cn';
 const GEOIP_CN_EXPECT: string = 'geoip:cn';
@@ -1689,7 +1689,7 @@ function buildXrayConfigFromOutbounds(
 
   const config: XrayFullConfig = {
     log: {
-      loglevel: settings?.logLevel ?? DEFAULT_LOG_LEVEL
+      loglevel: normalizeV2rayNgCoreLogLevel(settings?.logLevel ?? DEFAULT_LOG_LEVEL, DEFAULT_LOG_LEVEL)
     },
     dns,
     inbounds,

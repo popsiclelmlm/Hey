@@ -21,6 +21,7 @@ import {
   normalizeVpnMtuValue,
   RoutingRule
 } from '../core/Profile';
+import { V2RAYNG_DEFAULT_CORE_LOG_LEVEL, normalizeV2rayNgCoreLogLevel } from '../core/V2rayNgOptions';
 
 const PREFERENCES_NAME: string = 'hey_vpn_settings';
 const SETTINGS_KEY: string = 'app_settings';
@@ -72,7 +73,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   delayTestUrl: DEFAULT_DELAY_TEST_URL,
   ipApiUrl: DEFAULT_IP_API_URL,
   realPingConcurrency: 16,
-  logLevel: 'warning',
+  logLevel: V2RAYNG_DEFAULT_CORE_LOG_LEVEL,
   outboundDomainResolveMethod: OUTBOUND_DOMAIN_RESOLVE_DNS_HOSTS,
   mode: APP_MODE_VPN,
   trafficMode: 'rules',
@@ -163,7 +164,7 @@ export class SettingsStore {
       delayTestUrl: SettingsStore.stringValue(raw.delayTestUrl, base.delayTestUrl),
       ipApiUrl: SettingsStore.stringValue(raw.ipApiUrl, base.ipApiUrl),
       realPingConcurrency: normalizeRealPingConcurrency(raw.realPingConcurrency, base.realPingConcurrency),
-      logLevel: SettingsStore.stringValue(raw.logLevel, base.logLevel),
+      logLevel: normalizeV2rayNgCoreLogLevel(SettingsStore.stringValue(raw.logLevel, base.logLevel), base.logLevel),
       outboundDomainResolveMethod: normalizeOutboundDomainResolveMethod(raw.outboundDomainResolveMethod, base.outboundDomainResolveMethod),
       mode: normalizeAppRuntimeMode(raw.mode, base.mode),
       trafficMode: SettingsStore.trafficModeValue(raw.trafficMode, base.trafficMode),

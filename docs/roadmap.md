@@ -229,6 +229,7 @@
 | 2026-06-19 | 协议点检 | ✅ Mux 协议适用范围完成；全局 Mux 跳过 v2rayNG 禁用协议与 XHTTP，VLESS flow 节点使用 `concurrency=-1` |
 | 2026-06-19 | 协议点检 | ✅ Fragment finalmask 运行配置完成；TLS/Reality 生成 `finalmask.tcp/udp`，Reality 默认 `packets=1-3`，已有 finalmask 和代理链 dialerProxy 会跳过 |
 | 2026-06-19 | 协议点检 | ✅ Fragment packets 枚举完成；Settings 按 v2rayNG `fragment_packets` 限定 `tlshello/1-2/1-3/1-5`，保存与运行配置均兜底非法值 |
+| 2026-06-19 | 协议点检 | ✅ Core loglevel 枚举完成；Settings/存储/运行配置按 v2rayNG `core_loglevel` 限定 `debug/info/warning/error/none`，旧非法值兜底 `warning` |
 | 2026-06-19 | 协议点检 | ✅ 本地 SOCKS 默认端口完成；`pref_socks_port` 默认对齐 v2rayNG 为 10808，Harmony HTTP inbound 兼容端口避让到 10809 |
 | 2026-06-19 | 阶段 4 | ✅ 扫码 native 分享兜底完成；Scanner 在单链接解析失败后复用 `CGoConvertShareLinksToXrayJson` 转换结果，批量保存 outbounds 并标记运行配置待重启 |
 | 2026-06-19 | 阶段 4 | ✅ 剪贴板导入提示 i18n 完成；订阅编辑/详情/面板、扫码页与 JSON 导入页的粘贴成功、读取失败、空剪贴板和无有效文本提示均跟随当前语言 |

@@ -26,7 +26,7 @@ import {
 } from '../core/Profile';
 import { applyColorMode } from '../core/ColorMode';
 import { markRuntimeSettingsRestartNeeded } from '../core/SettingsChange';
-import { V2RAYNG_FRAGMENT_PACKET_OPTIONS, normalizeV2rayNgFragmentPackets } from '../core/V2rayNgOptions';
+import { V2RAYNG_CORE_LOG_LEVEL_OPTIONS, V2RAYNG_FRAGMENT_PACKET_OPTIONS, normalizeV2rayNgCoreLogLevel, normalizeV2rayNgFragmentPackets } from '../core/V2rayNgOptions';
 import {
   LanguageToggleRow,
   SettingInputRow,
@@ -847,7 +847,7 @@ struct SettingsPage {
   }
 
   private showLogLevelMenu(): void {
-    const values: string[] = ['debug', 'info', 'warning', 'error', 'none'];
+    const values: string[] = V2RAYNG_CORE_LOG_LEVEL_OPTIONS;
     const buttons: [promptAction.Button, promptAction.Button, promptAction.Button, promptAction.Button, promptAction.Button] = [
       { text: this.t('settings.logLevel.debug'), color: AppColor.brand } as promptAction.Button,
       { text: this.t('settings.logLevel.info'), color: AppColor.brand } as promptAction.Button,
@@ -966,16 +966,17 @@ struct SettingsPage {
   }
 
   private logLevelLabel(): string {
-    if (this.settingLogLevel === 'debug') {
+    const logLevel = normalizeV2rayNgCoreLogLevel(this.settingLogLevel);
+    if (logLevel === 'debug') {
       return this.t('settings.logLevel.debug');
     }
-    if (this.settingLogLevel === 'info') {
+    if (logLevel === 'info') {
       return this.t('settings.logLevel.info');
     }
-    if (this.settingLogLevel === 'error') {
+    if (logLevel === 'error') {
       return this.t('settings.logLevel.error');
     }
-    if (this.settingLogLevel === 'none') {
+    if (logLevel === 'none') {
       return this.t('settings.logLevel.none');
     }
     return this.t('settings.logLevel.warning');

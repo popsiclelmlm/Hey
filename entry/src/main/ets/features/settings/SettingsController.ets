@@ -1,6 +1,6 @@
 import { common } from '@kit.AbilityKit';
 import { AppLanguage, AppRuntimeMode, AppSettings, normalizeAppRuntimeMode, normalizeOutboundDomainResolveMethod, normalizeRealPingConcurrency, normalizeRoutingDomainStrategy, normalizeUiModeNight, normalizeVpnBypassLanMode, normalizeVpnInterfaceAddressIndex, normalizeVpnMtuValue, OutboundDomainResolveMethod, RoutingRule } from '../../core/Profile';
-import { normalizeV2rayNgFragmentPackets } from '../../core/V2rayNgOptions';
+import { normalizeV2rayNgCoreLogLevel, normalizeV2rayNgFragmentPackets } from '../../core/V2rayNgOptions';
 import { DEFAULT_APP_SETTINGS, SettingsStore } from '../../storage/SettingsStore';
 
 export interface SettingsDraft {
@@ -179,7 +179,7 @@ export class SettingsController {
       delayTestUrl: draft.delayTestUrl.trim(),
       ipApiUrl: draft.ipApiUrl.trim(),
       realPingConcurrency: this.realPingConcurrencyValue(draft.realPingConcurrency, DEFAULT_APP_SETTINGS.realPingConcurrency),
-      logLevel: this.logLevelValue(draft.logLevel, DEFAULT_APP_SETTINGS.logLevel),
+      logLevel: normalizeV2rayNgCoreLogLevel(draft.logLevel, DEFAULT_APP_SETTINGS.logLevel),
       outboundDomainResolveMethod: normalizeOutboundDomainResolveMethod(draft.outboundDomainResolveMethod, DEFAULT_APP_SETTINGS.outboundDomainResolveMethod),
       mode: normalizeAppRuntimeMode(draft.mode, DEFAULT_APP_SETTINGS.mode),
       trafficMode: draft.trafficMode,
@@ -276,15 +276,6 @@ export class SettingsController {
   private muxXudpQuicValue(value: string, fallback: string): string {
     const normalized = value.trim();
     if (normalized === 'reject' || normalized === 'allow' || normalized === 'skip') {
-      return normalized;
-    }
-    return fallback;
-  }
-
-  private logLevelValue(value: string, fallback: string): string {
-    const normalized = value.trim();
-    if (normalized === 'debug' || normalized === 'info' || normalized === 'warning' ||
-      normalized === 'error' || normalized === 'none') {
       return normalized;
     }
     return fallback;

@@ -29,7 +29,7 @@ import { buildSubscriptionAutoUpdateSchedulePlan } from '../main/ets/core/Subscr
 import { buildSpeedNotificationAdditionalText, buildSpeedNotificationText, calculateSpeedNotificationRates, sampleSpeedNotificationStats, shouldPublishSpeedNotification } from '../main/ets/core/SpeedNotification';
 import { DEFAULT_WEBDAV_BACKUP_FILE_NAME, buildWebDavAuthorizationHeader, buildWebDavMkcolUrls, buildWebDavRemoteUrl, isWebDavMkcolAcceptedStatus, normalizeWebDavConfig, validateWebDavConfig } from '../main/ets/core/WebDav';
 import { CURRENT_APP_VERSION, buildUpdateCheckResult, compareVersions, normalizeVersionTag } from '../main/ets/core/UpdateChecker';
-import { V2RAYNG_DEFAULT_FRAGMENT_PACKETS, V2RAYNG_DEFAULT_VMESS_SECURITY, V2RAYNG_FLOW_OPTIONS, V2RAYNG_FRAGMENT_PACKET_OPTIONS, V2RAYNG_GRPC_MODE_OPTIONS, V2RAYNG_KCP_HEADER_TYPE_OPTIONS, V2RAYNG_SS_SECURITY_OPTIONS, V2RAYNG_SUPPORTED_TRANSPORT_OPTIONS, V2RAYNG_TCP_HEADER_TYPE_OPTIONS, V2RAYNG_UTLS_FINGERPRINT_OPTIONS, V2RAYNG_VMESS_SECURITY_OPTIONS, V2RAYNG_XHTTP_MODE_OPTIONS, normalizeV2rayNgFragmentPackets } from '../main/ets/core/V2rayNgOptions';
+import { V2RAYNG_CORE_LOG_LEVEL_OPTIONS, V2RAYNG_DEFAULT_CORE_LOG_LEVEL, V2RAYNG_DEFAULT_FRAGMENT_PACKETS, V2RAYNG_DEFAULT_VMESS_SECURITY, V2RAYNG_FLOW_OPTIONS, V2RAYNG_FRAGMENT_PACKET_OPTIONS, V2RAYNG_GRPC_MODE_OPTIONS, V2RAYNG_KCP_HEADER_TYPE_OPTIONS, V2RAYNG_SS_SECURITY_OPTIONS, V2RAYNG_SUPPORTED_TRANSPORT_OPTIONS, V2RAYNG_TCP_HEADER_TYPE_OPTIONS, V2RAYNG_UTLS_FINGERPRINT_OPTIONS, V2RAYNG_VMESS_SECURITY_OPTIONS, V2RAYNG_XHTTP_MODE_OPTIONS, normalizeV2rayNgCoreLogLevel, normalizeV2rayNgFragmentPackets } from '../main/ets/core/V2rayNgOptions';
 import { filterLogItems, formatLogcatText } from '../main/ets/features/logs/LogOperations';
 import {
   applyDelayTestPostActionsToGroups,
@@ -523,6 +523,11 @@ export default function localUnitTest() {
       expect(result.configJson).assertContain('"mux"');
       expect(result.configJson).assertContain('"concurrency": -1');
       expect(result.configJson).assertContain('"9.9.9.9"');
+
+      settings.logLevel = 'verbose';
+      result = buildXrayConfigWithSettings(VLESS_REALITY_OUTBOUND, settings);
+      expect(result.configJson).assertContain('"loglevel": "warning"');
+      expect(result.configJson.indexOf('"loglevel": "verbose"')).assertEqual(-1);
 
       settings.routingDomainStrategy = 'bad';
       result = buildXrayConfigWithSettings(VLESS_REALITY_OUTBOUND, settings);
@@ -1617,6 +1622,8 @@ export default function localUnitTest() {
       expect(SETTINGS_CONTROLLER.buildSettings(draft).fragmentPackets).assertEqual('1-5');
       draft.fragmentPackets = 'bad';
       expect(SETTINGS_CONTROLLER.buildSettings(draft).fragmentPackets).assertEqual('tlshello');
+      draft.logLevel = 'none';
+      expect(SETTINGS_CONTROLLER.buildSettings(draft).logLevel).assertEqual('none');
       draft.logLevel = 'verbose';
       expect(SETTINGS_CONTROLLER.buildSettings(draft).logLevel).assertEqual('warning');
       draft.outboundDomainResolveMethod = 'bad' as OutboundDomainResolveMethod;
@@ -2139,12 +2146,15 @@ export default function localUnitTest() {
       expect(validation.normalizedJson).assertContain('"mldsa65Verify": "test-mldsa65-verify"');
     });
 
-    it('keeps v2rayNG flow, VMess security, Shadowsocks method, fragment, and uTLS fingerprint options complete', 0, () => {
+    it('keeps v2rayNG flow, loglevel, security, fragment, and transport options complete', 0, () => {
       expect(V2RAYNG_FLOW_OPTIONS.join('|')).assertEqual('none|xtls-rprx-vision|xtls-rprx-vision-udp443');
       expect(V2RAYNG_UTLS_FINGERPRINT_OPTIONS.join('|')).assertEqual('none|chrome|firefox|safari|ios|android|edge|360|qq|random|randomized');
       expect(V2RAYNG_DEFAULT_VMESS_SECURITY).assertEqual('chacha20-poly1305');
       expect(V2RAYNG_VMESS_SECURITY_OPTIONS.join('|')).assertEqual('chacha20-poly1305|aes-128-gcm|auto|none|zero');
       expect(V2RAYNG_SS_SECURITY_OPTIONS.join('|')).assertEqual('aes-256-gcm|aes-128-gcm|chacha20-poly1305|chacha20-ietf-poly1305|xchacha20-poly1305|xchacha20-ietf-poly1305|none|plain|2022-blake3-aes-128-gcm|2022-blake3-aes-256-gcm|2022-blake3-chacha20-poly1305');
+      expect(V2RAYNG_DEFAULT_CORE_LOG_LEVEL).assertEqual('warning');
+      expect(V2RAYNG_CORE_LOG_LEVEL_OPTIONS.join('|')).assertEqual('debug|info|warning|error|none');
+      expect(normalizeV2rayNgCoreLogLevel('verbose')).assertEqual('warning');
       expect(V2RAYNG_DEFAULT_FRAGMENT_PACKETS).assertEqual('tlshello');
       expect(V2RAYNG_FRAGMENT_PACKET_OPTIONS.join('|')).assertEqual('tlshello|1-2|1-3|1-5');
       expect(normalizeV2rayNgFragmentPackets('bad')).assertEqual('tlshello');

@@ -79,6 +79,27 @@ export const V2RAYNG_GRPC_MODE_OPTIONS: Array<string> = [
   'multi'
 ];
 
+export const V2RAYNG_CORE_LOG_LEVEL_OPTIONS: Array<string> = [
+  'debug',
+  'info',
+  'warning',
+  'error',
+  'none'
+];
+
+export const V2RAYNG_DEFAULT_CORE_LOG_LEVEL: string = 'warning';
+
+export function normalizeV2rayNgCoreLogLevel(value: string, fallback: string = V2RAYNG_DEFAULT_CORE_LOG_LEVEL): string {
+  const trimmed = value.trim();
+  if (V2RAYNG_CORE_LOG_LEVEL_OPTIONS.indexOf(trimmed) >= 0) {
+    return trimmed;
+  }
+  if (V2RAYNG_CORE_LOG_LEVEL_OPTIONS.indexOf(fallback) >= 0) {
+    return fallback;
+  }
+  return V2RAYNG_DEFAULT_CORE_LOG_LEVEL;
+}
+
 export const V2RAYNG_FRAGMENT_PACKET_OPTIONS: Array<string> = [
   'tlshello',
   '1-2',
