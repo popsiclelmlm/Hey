@@ -1229,6 +1229,26 @@ export default function localUnitTest() {
       expect(exportRoutingRulesJson(result)).assertContain('"locked": true');
     });
 
+    it('keeps v2rayNG public DNS entries in routing presets', 0, () => {
+      const chinaWhite = resetRoutingRulesFromPreset([], 'chinaWhite');
+      const chinaWhiteJson = exportRoutingRulesJson(chinaWhite);
+      expect(chinaWhite.length).assertEqual(8);
+      expect(chinaWhiteJson).assertContain('"223.5.5.5"');
+      expect(chinaWhiteJson).assertContain('"2400:3200::1"');
+      expect(chinaWhiteJson).assertContain('"117.50.60.30"');
+      expect(chinaWhiteJson).assertContain('"domain:alidns.com"');
+      expect(chinaWhiteJson.indexOf('223.5.5.5') < chinaWhiteJson.indexOf('domain:alidns.com')).assertTrue();
+
+      const chinaBlack = resetRoutingRulesFromPreset([], 'chinaBlack');
+      const chinaBlackJson = exportRoutingRulesJson(chinaBlack);
+      expect(chinaBlack.length).assertEqual(10);
+      expect(chinaBlackJson).assertContain('"1.1.1.1"');
+      expect(chinaBlackJson).assertContain('"2001:4860:4860::8888"');
+      expect(chinaBlackJson).assertContain('"2a02:6b8::feed:a11"');
+      expect(chinaBlackJson).assertContain('"domain:yandex.net"');
+      expect(chinaBlackJson.indexOf('1.1.1.1') < chinaBlackJson.indexOf('domain:cloudflare-dns.com')).assertTrue();
+    });
+
     it('imports routing rules json from clipboard format', 0, () => {
       const lockedRule = buildRoutingRuleFixture('locked-rule', 'Locked keep', 'direct');
       lockedRule.locked = true;

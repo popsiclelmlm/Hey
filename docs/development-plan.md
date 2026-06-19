@@ -121,7 +121,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 
 **进展（2026-06-18 续）**：预设规则集导入/导出已落地：
 - 预设：内置大陆白名单/大陆黑名单/全局/伊朗白名单/俄罗斯白名单
-- 导入：导入预设、剪贴板或二维码规则数组 JSON 时保留 `locked` 规则并替换未锁定规则
+- 导入：导入预设、剪贴板或二维码规则数组 JSON 时保留 `locked` 规则并替换未锁定规则；预设规则内容包含 v2rayNG `custom_routing_white`/`custom_routing_black` 的公共 DNS IP/域名规则
 - 导出：当前规则可导出为 v2rayNG 风格规则数组 JSON 到剪贴板
 - UI：规则编辑器补 `locked` 开关，规则列表显示锁定标记
 
@@ -384,6 +384,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-15 | 自查 | ✅ ArkTS 严格性扫描：无 `any`、新增导入全部被用；清理 SubscriptionEdit 既有未用导入 `translate` |
 | 2026-06-18 | M2 | ✅ 自定义路由规则编辑/生效（规则模型 + Route 页增删改/启停/排序 + `routing.rules` 生成 + 单测） |
 | 2026-06-18 | M2 | ✅ 预设规则集导入/导出（5 组内置预设 + 剪贴板 JSON 导入/导出 + locked 规则保留 + 单测）；M2 路由规则主功能闭环，仍待真机验证规则实效 |
+| 2026-06-19 | M2 | ✅ 路由预设公共 DNS 规则对齐（中国白名单补齐 v2rayNG 中国公共 DNS IP 直连规则，中国黑名单补齐海外公共 DNS IP 代理规则与 `domain:yandex.net`；补预设防漂移单测） |
 | 2026-06-19 | M2 | ✅ 路由规则集二维码导入完成（Route 页新增二维码导入入口，扫码后确认并复用规则数组 JSON 导入，保留 locked 规则；补 QR payload 单测） |
 | 2026-06-19 | M4 | ✅ 资源 URL 二维码导入完成（Assets 页新增 v2rayNG `add_qrcode` 等价入口，扫码 URL 后预填自定义资源添加表单；补扫码 URL 归一化单测） |
 | 2026-06-19 | M4 | ✅ 自定义资源名称唯一性校验完成（新增/编辑/扫码预填/本地导入保存时按 v2rayNG asset remarks 语义拒绝重复名称；补重复判断单测） |
