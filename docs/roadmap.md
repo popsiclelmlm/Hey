@@ -194,6 +194,7 @@
 | 2026-06-19 | 协议点检 | ✅ VMess QR TLS insecure 完成；旧版 VMess JSON `insecure=1` 导入为 `tlsSettings.allowInsecure`，导出再导入保留 |
 | 2026-06-19 | 协议点检 | ✅ VMess QR insecure 显式 false 导出完成；旧版 VMess JSON 导出在 TLS 且 `allowInsecure=false` 时按 v2rayNG 写入 `"insecure":"0"` |
 | 2026-06-19 | 协议点检 | ✅ VMess URL-style security 分层完成；标准 URI 解析时 user security 保持 `auto`，`security=tls` 仅进入传输层 |
+| 2026-06-19 | 协议点检 | ✅ VMess 手动 security 选项完成；NodeEdit 按 v2rayNG `securitys` 使用 `chacha20-poly1305/aes-128-gcm/auto/none/zero`，新建默认第 0 项 |
 | 2026-06-19 | 协议点检 | ✅ URL-style TLS allowInsecure 导出完成；VLESS/Trojan 等 TLS 分享导出同时写 `insecure` 与 `allowInsecure`，true/false 均按 v2rayNG `1/0` 输出 |
 | 2026-06-19 | 协议点检 | ✅ TLS 证书 pin 与 allowInsecure 运行语义完成；配置 `pinnedPeerCertSha256` 时生成运行配置会按 v2rayNG 将 `allowInsecure` 置为 false |
 | 2026-06-19 | 协议点检 | ✅ TLS/Reality SNI fallback 完成；运行配置生成时空 `serverName` 会按 v2rayNG 从传输 host/authority 或服务器域名补齐 |

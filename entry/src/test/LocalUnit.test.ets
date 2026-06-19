@@ -29,7 +29,7 @@ import { buildSubscriptionAutoUpdateSchedulePlan } from '../main/ets/core/Subscr
 import { buildSpeedNotificationAdditionalText, buildSpeedNotificationText, calculateSpeedNotificationRates, sampleSpeedNotificationStats, shouldPublishSpeedNotification } from '../main/ets/core/SpeedNotification';
 import { DEFAULT_WEBDAV_BACKUP_FILE_NAME, buildWebDavAuthorizationHeader, buildWebDavMkcolUrls, buildWebDavRemoteUrl, isWebDavMkcolAcceptedStatus, normalizeWebDavConfig, validateWebDavConfig } from '../main/ets/core/WebDav';
 import { CURRENT_APP_VERSION, buildUpdateCheckResult, compareVersions, normalizeVersionTag } from '../main/ets/core/UpdateChecker';
-import { V2RAYNG_FLOW_OPTIONS, V2RAYNG_GRPC_MODE_OPTIONS, V2RAYNG_KCP_HEADER_TYPE_OPTIONS, V2RAYNG_SS_SECURITY_OPTIONS, V2RAYNG_SUPPORTED_TRANSPORT_OPTIONS, V2RAYNG_TCP_HEADER_TYPE_OPTIONS, V2RAYNG_UTLS_FINGERPRINT_OPTIONS, V2RAYNG_XHTTP_MODE_OPTIONS } from '../main/ets/core/V2rayNgOptions';
+import { V2RAYNG_DEFAULT_VMESS_SECURITY, V2RAYNG_FLOW_OPTIONS, V2RAYNG_GRPC_MODE_OPTIONS, V2RAYNG_KCP_HEADER_TYPE_OPTIONS, V2RAYNG_SS_SECURITY_OPTIONS, V2RAYNG_SUPPORTED_TRANSPORT_OPTIONS, V2RAYNG_TCP_HEADER_TYPE_OPTIONS, V2RAYNG_UTLS_FINGERPRINT_OPTIONS, V2RAYNG_VMESS_SECURITY_OPTIONS, V2RAYNG_XHTTP_MODE_OPTIONS } from '../main/ets/core/V2rayNgOptions';
 import { filterLogItems, formatLogcatText } from '../main/ets/features/logs/LogOperations';
 import {
   applyDelayTestPostActionsToGroups,
@@ -2135,9 +2135,11 @@ export default function localUnitTest() {
       expect(validation.normalizedJson).assertContain('"mldsa65Verify": "test-mldsa65-verify"');
     });
 
-    it('keeps v2rayNG flow, Shadowsocks method, and uTLS fingerprint options complete', 0, () => {
+    it('keeps v2rayNG flow, VMess security, Shadowsocks method, and uTLS fingerprint options complete', 0, () => {
       expect(V2RAYNG_FLOW_OPTIONS.join('|')).assertEqual('none|xtls-rprx-vision|xtls-rprx-vision-udp443');
       expect(V2RAYNG_UTLS_FINGERPRINT_OPTIONS.join('|')).assertEqual('none|chrome|firefox|safari|ios|android|edge|360|qq|random|randomized');
+      expect(V2RAYNG_DEFAULT_VMESS_SECURITY).assertEqual('chacha20-poly1305');
+      expect(V2RAYNG_VMESS_SECURITY_OPTIONS.join('|')).assertEqual('chacha20-poly1305|aes-128-gcm|auto|none|zero');
       expect(V2RAYNG_SS_SECURITY_OPTIONS.join('|')).assertEqual('aes-256-gcm|aes-128-gcm|chacha20-poly1305|chacha20-ietf-poly1305|xchacha20-poly1305|xchacha20-ietf-poly1305|none|plain|2022-blake3-aes-128-gcm|2022-blake3-aes-256-gcm|2022-blake3-chacha20-poly1305');
       expect(V2RAYNG_SUPPORTED_TRANSPORT_OPTIONS.join('|')).assertEqual('tcp|kcp|ws|httpupgrade|xhttp|h2|grpc');
       expect(V2RAYNG_TCP_HEADER_TYPE_OPTIONS.join('|')).assertEqual('none|http');

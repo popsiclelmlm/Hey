@@ -5,7 +5,7 @@ import { buildKcpFinalMask } from '../core/KcpTransport';
 import { buildManualHysteria2Outbound, buildManualWireguardOutbound } from '../core/ManualOutboundBuilder';
 import { AppLanguage } from '../core/Profile';
 import { markRuntimeSettingsRestartNeeded } from '../core/SettingsChange';
-import { V2RAYNG_FLOW_OPTIONS, V2RAYNG_GRPC_MODE_OPTIONS, V2RAYNG_KCP_HEADER_TYPE_OPTIONS, V2RAYNG_SS_SECURITY_OPTIONS, V2RAYNG_SUPPORTED_TRANSPORT_OPTIONS, V2RAYNG_TCP_HEADER_TYPE_OPTIONS, V2RAYNG_UTLS_FINGERPRINT_OPTIONS, V2RAYNG_XHTTP_MODE_OPTIONS } from '../core/V2rayNgOptions';
+import { V2RAYNG_DEFAULT_VMESS_SECURITY, V2RAYNG_FLOW_OPTIONS, V2RAYNG_GRPC_MODE_OPTIONS, V2RAYNG_KCP_HEADER_TYPE_OPTIONS, V2RAYNG_SS_SECURITY_OPTIONS, V2RAYNG_SUPPORTED_TRANSPORT_OPTIONS, V2RAYNG_TCP_HEADER_TYPE_OPTIONS, V2RAYNG_UTLS_FINGERPRINT_OPTIONS, V2RAYNG_VMESS_SECURITY_OPTIONS, V2RAYNG_XHTTP_MODE_OPTIONS } from '../core/V2rayNgOptions';
 import { NODES_CONTROLLER } from '../features/nodes/NodesController';
 import { SETTINGS_CONTROLLER } from '../features/settings/SettingsController';
 import { SHARED_RUNTIME_CONTROLLER } from '../features/runtime/RuntimeController';
@@ -496,7 +496,7 @@ struct NodeEditPage {
               } else if (this.protocol === 'vmess') {
                 PickerRow({
                   label: '安全策略 (security)',
-                  options: ['auto', 'none', 'zero', 'aes-128-gcm', 'chacha20-ietf-poly1305'],
+                  options: V2RAYNG_VMESS_SECURITY_OPTIONS,
                   selectedValue: $securityOrMethod
                 })
                 this.EditorRow('额外 ID (alterId)', this.vmessAlterId, '一般设为 0', (value: string) => {
@@ -843,7 +843,7 @@ struct NodeEditPage {
         const user: FormVmessUser = {
           id: this.userIdOrPassword.trim(),
           alterId: this.numberOr(this.vmessAlterId, 0),
-          security: this.valueOr(this.securityOrMethod, 'auto')
+          security: this.valueOr(this.securityOrMethod, V2RAYNG_DEFAULT_VMESS_SECURITY)
         };
         const server: FormVmessServer = {
           address: host,
@@ -1174,7 +1174,7 @@ struct NodeEditPage {
       this.vlessFlow = 'xtls-rprx-vision';
     } else if (protocol === 'vmess') {
       this.serverPort = '443';
-      this.securityOrMethod = 'auto';
+      this.securityOrMethod = V2RAYNG_DEFAULT_VMESS_SECURITY;
       this.vmessAlterId = '0';
       this.transportType = 'tcp';
       this.tlsSecurity = 'tls';

@@ -18,6 +18,16 @@ export const V2RAYNG_UTLS_FINGERPRINT_OPTIONS: Array<string> = [
   'randomized'
 ];
 
+export const V2RAYNG_DEFAULT_VMESS_SECURITY: string = 'chacha20-poly1305';
+
+export const V2RAYNG_VMESS_SECURITY_OPTIONS: Array<string> = [
+  V2RAYNG_DEFAULT_VMESS_SECURITY,
+  'aes-128-gcm',
+  'auto',
+  'none',
+  'zero'
+];
+
 export const V2RAYNG_SS_SECURITY_OPTIONS: Array<string> = [
   'aes-256-gcm',
   'aes-128-gcm',

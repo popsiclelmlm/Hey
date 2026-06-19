@@ -289,6 +289,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 - ✅ uTLS fingerprint（`fp`）：分享链接导入导出保留，NodeEdit 指纹选项对齐 v2rayNG `chrome/firefox/safari/ios/android/edge/360/qq/random/randomized`（2026-06-19）
 - ✅ VMess QR TLS insecure：旧版 VMess JSON 分享里的 `insecure=1/0` 会导入为 `tlsSettings.allowInsecure`，导出时也按 v2rayNG 显式写回 `1/0`（2026-06-19）
 - ✅ VMess URL-style security 分层：标准 `vmess://uuid@host?...` URI 的 VMess user security 固定为 v2rayNG 默认 `auto`，查询参数 `security=tls/reality` 只作为传输层安全配置解析（2026-06-19）
+- ✅ VMess 手动 security 选项：NodeEdit 按 v2rayNG `securitys` 提供 `chacha20-poly1305/aes-128-gcm/auto/none/zero`，手动新建默认第 0 项 `chacha20-poly1305`（2026-06-19）
 - ✅ URL-style TLS allowInsecure 导出：VLESS/Trojan 等分享导出按 v2rayNG 同时写入 `insecure` 与 `allowInsecure` 兼容键，`0/1` 状态可 round-trip 保留（2026-06-19）
 - ✅ TLS 证书 pin 与 `allowInsecure` 运行语义：分享链接/手动配置仍保留字段，生成运行 Xray 配置时若有 `pinnedPeerCertSha256` 则按 v2rayNG 将 `allowInsecure` 置为 `false`（2026-06-19）
 - ✅ TLS/Reality SNI fallback：生成运行 Xray 配置时若 `serverName` 为空，会按 v2rayNG 优先用传输 host/authority，非域名时回退服务器域名（2026-06-19）
@@ -489,6 +490,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-19 | 协议点检 | ✅ VMess QR TLS insecure 完成（旧版 VMess JSON `insecure=1` 导入为 `tlsSettings.allowInsecure`，导出后再导入仍保留；补 round-trip 单测） |
 | 2026-06-19 | 协议点检 | ✅ VMess QR insecure 显式 false 导出完成（旧版 VMess JSON 导出在 TLS 且 `allowInsecure=false` 时按 v2rayNG 写入 `"insecure":"0"`；补解码形状单测） |
 | 2026-06-19 | 协议点检 | ✅ VMess URL-style security 分层完成（标准 URI 解析时 user security 固定为 `auto`，`security=tls` 仅进入 streamSettings；补解析单测） |
+| 2026-06-19 | 协议点检 | ✅ VMess 手动 security 选项完成（NodeEdit security picker 按 v2rayNG `securitys` 补齐完整顺序并同步新建默认值；补选项防漂移单测） |
 | 2026-06-19 | 协议点检 | ✅ URL-style TLS allowInsecure 导出完成（VLESS/Trojan 等 TLS 分享导出同时写 `insecure` 与 `allowInsecure`，true/false 均按 v2rayNG `1/0` 输出；补 round-trip 单测） |
 | 2026-06-19 | 协议点检 | ✅ TLS 证书 pin 与 allowInsecure 运行语义完成（运行配置生成时若有 `pinnedPeerCertSha256`，按 v2rayNG 禁用 `allowInsecure`；无 pin 时保持原值；补运行配置单测） |
 | 2026-06-19 | 协议点检 | ✅ TLS/Reality SNI fallback 完成（运行配置生成时空 `serverName` 按 v2rayNG 从传输 host/authority 或服务器域名补齐；补传输 host 与服务器域名回退单测） |
