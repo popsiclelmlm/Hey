@@ -183,9 +183,15 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 - 更新：手动更新、订阅详情更新、扫码订阅导入、批量更新全部和前台到期刷新均可优先使用本地 HTTP 代理；代理不可用时回退直连
 - 测试：新增配置生成单测覆盖开关关闭/开启时 HTTP inbound 与代理路由输出
 
+**进展（2026-06-20 续）**：节点列表搜索语义已对齐 v2rayNG：
+- 搜索：非空关键词先按大小写不敏感正则匹配，正则非法时退回大小写不敏感字面量包含匹配
+- 字段：匹配节点名、订阅/来源 URL、普通 outbound 的服务器地址和协议，补齐 v2rayNG 对 remarks/server/protocol 的搜索体验，同时保留 Hey 现有来源搜索
+- 测试：新增单测覆盖正则 alternation、锚点匹配、server 地址匹配和非法正则回退
+
 **任务**
 - **订阅自动更新**：WorkScheduler 后台任务代码已接入；下一步真机验证应用不打开时的周期唤醒与网络拉取
 - **正则过滤** `filter`：按节点名筛选导入（2026-06-15 已完成）
+- **节点列表搜索**：按 v2rayNG `MainViewModel.updateCache` 语义支持正则优先、非法正则回退字面量匹配（2026-06-20 已完成）
 - **自定义 User-Agent** 与订阅级 `allowInsecureUrl` 已完成
 - **订阅分组重排**：上移/下移并持久化顺序（2026-06-18 已完成）
 - **批量更新全部**：订阅页顶部刷新按钮更新全部启用订阅分组（已完成）
@@ -400,6 +406,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-15 | M3 | ✅ 订阅正则过滤 `filter` 全链路（分组字段 + 编辑页 + 更新/更新全部按节点名筛选，零匹配/无效回退全部） |
 | 2026-06-15 | M3 | ✅ 测速后自动操作（`autoSortAfterTest`/`autoRemoveInvalidAfterTest` 设置项 + 设置页「节点测速」开关 + 批量测速后排序/删超时） |
 | 2026-06-19 | M3 | ✅ 手动按测试结果排序菜单完成；对齐 v2rayNG `sort_by_test_results`，按当前订阅分组或 All 虚拟分组分别排序并持久化 |
+| 2026-06-20 | M3 | ✅ 节点列表搜索语义完成；对齐 v2rayNG 正则优先、非法正则退回字面量匹配，并补普通 outbound server 地址搜索 |
 | 2026-06-15 | M4 | ✅ 二维码生成（节点详情页 `generateBarcode.createBarcode` 渲染分享链接 QR + 复制链接） |
 | 2026-06-15 | M4 | ✅ URL Scheme / Want 深链导入（`hey://install-sub`/`install-config` scheme + EntryAbility 暂存 + Index 解析导入订阅/节点） |
 | 2026-06-19 | M4 | ✅ 深链 fragment 名称兜底对齐 v2rayNG（`install-sub`/`install-config` 的外层 URI fragment 仅在内层 URL 缺少 fragment 时补入；补解析单测） |

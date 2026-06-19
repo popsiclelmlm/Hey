@@ -2192,11 +2192,20 @@ export default function localUnitTest() {
       expect(normalizeWebDavConfig({}).remoteFileName).assertEqual('backup_ng.zip');
     });
 
-    it('filters nodes by name protocol and source', 0, () => {
+    it('filters nodes by v2rayNG-style regex or literal fallback', 0, () => {
       const nodes = buildNodeFixture();
       expect(filterNodes(nodes, 'alpha').length).assertEqual(1);
       expect(filterNodes(nodes, 'trojan').length).assertEqual(1);
       expect(filterNodes(nodes, 'manual').length).assertEqual(1);
+      expect(filterNodes(nodes, 'Alpha|Beta').length).assertEqual(2);
+      expect(filterNodes(nodes, '^Alpha$')[0].name).assertEqual('Alpha');
+      expect(filterNodes(nodes, 'relay\\.example\\.com')[0].name).assertEqual('Beta');
+
+      const bracketNode: ProxyNode = copyNode(nodes[0], 'node-bracket');
+      bracketNode.name = 'Regex [literal]';
+      const bracketResult = filterNodes(nodes.concat([bracketNode]), '[');
+      expect(bracketResult.length).assertEqual(1);
+      expect(bracketResult[0].name).assertEqual('Regex [literal]');
     });
 
     it('sorts nodes by delay name and protocol', 0, () => {

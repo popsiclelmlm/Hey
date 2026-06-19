@@ -38,16 +38,16 @@ interface NodeTestDelaySortEntry {
 }
 
 export function filterNodes(nodes: Array<ProxyNode>, query: string): Array<ProxyNode> {
-  const keyword = query.trim().toLowerCase();
+  const keyword = query.trim();
   if (keyword.length === 0) {
     return copyNodes(nodes);
   }
 
+  const regex = buildNodeSearchRegex(keyword);
   const result = new Array<ProxyNode>();
   for (let index = 0; index < nodes.length; index++) {
     const node = nodes[index];
-    const value = `${node.name} ${node.protocol} ${node.sourceUrl}`.toLowerCase();
-    if (value.indexOf(keyword) >= 0) {
+    if (matchesNodeSearch(node, keyword, regex)) {
       result.push(node);
     }
   }
@@ -70,6 +70,102 @@ export function sortNodes(nodes: Array<ProxyNode>, sortKey: NodeSortKey): Array<
 
 export function filterAndSortNodes(nodes: Array<ProxyNode>, query: string, sortKey: NodeSortKey): Array<ProxyNode> {
   return sortNodes(filterNodes(nodes, query), sortKey);
+}
+
+function buildNodeSearchRegex(keyword: string): RegExp | null {
+  try {
+    return new RegExp(keyword, 'i');
+  } catch (_error) {
+    return null;
+  }
+}
+
+function matchesNodeSearch(node: ProxyNode, keyword: string, regex: RegExp | null): boolean {
+  const fields = nodeSearchFields(node);
+  const literal = keyword.toLowerCase();
+  for (let index = 0; index < fields.length; index++) {
+    const value = fields[index];
+    if (regex !== null) {
+      if (regex.test(value)) {
+        return true;
+      }
+    } else if (value.toLowerCase().indexOf(literal) >= 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function nodeSearchFields(node: ProxyNode): Array<string> {
+  const fields = new Array<string>();
+  appendSearchField(fields, node.name);
+  appendSearchField(fields, node.sourceUrl);
+  appendSearchField(fields, extractOutboundServer(node.outboundJson));
+  appendSearchField(fields, node.protocol);
+  return fields;
+}
+
+function appendSearchField(fields: Array<string>, value: string): void {
+  const normalized = value.trim();
+  if (normalized.length > 0) {
+    fields.push(normalized);
+  }
+}
+
+function extractOutboundServer(outboundJson: string): string {
+  try {
+    const outbound = JSON.parse(outboundJson) as Record<string, Object>;
+    const protocol = stringValue(outbound['protocol']).toLowerCase();
+    const settings = objectValue(outbound['settings']);
+    if (settings === null) {
+      return '';
+    }
+    if (protocol === 'vless' || protocol === 'vmess') {
+      return stringValue(firstRecord(settings['vnext'])?.['address']);
+    }
+    if (protocol === 'wireguard') {
+      return endpointHost(stringValue(firstRecord(settings['peers'])?.['endpoint']));
+    }
+    return stringValue(firstRecord(settings['servers'])?.['address']);
+  } catch (_error) {
+    return '';
+  }
+}
+
+function firstRecord(value: Object | undefined): Record<string, Object> | null {
+  if (!Array.isArray(value) || value.length === 0) {
+    return null;
+  }
+  const values = value as Array<Object>;
+  return objectValue(values[0]);
+}
+
+function objectValue(value: Object | undefined): Record<string, Object> | null {
+  if (value === undefined || value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+  return value as Record<string, Object>;
+}
+
+function stringValue(value: Object | undefined): string {
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return `${value}`;
+  }
+  return '';
+}
+
+function endpointHost(endpoint: string): string {
+  if (endpoint.startsWith('[')) {
+    const endIndex = endpoint.indexOf(']');
+    if (endIndex > 0) {
+      return endpoint.substring(1, endIndex);
+    }
+  }
+  const portIndex = endpoint.lastIndexOf(':');
+  return portIndex > 0 ? endpoint.substring(0, portIndex) : endpoint;
 }
 
 export function dedupeNodes(nodes: Array<ProxyNode>): Array<ProxyNode> {
