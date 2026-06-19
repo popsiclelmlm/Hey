@@ -47,14 +47,14 @@ v2rayNG's features and design, see
 | Delete all / duplicate / invalid configs | Present. Delete-all, duplicate cleanup, test-failed invalid-node cleanup, single-node deletion, and v2rayNG-style optional per-config deletion confirmation are wired from the Nodes menu/list actions. Batch delete/dedupe/invalid cleanup now follows the currently visible node scope, including the All virtual group across subscription groups. |
 | Export/share configs and QR generation | Present for text-oriented flows. Plain-text share-link/exported JSON output is present, clipboard import reads are permission-declared and requested on Harmony, batch export follows v2rayNG `shareNonCustomConfigsToClipboard` semantics by including only shareable ordinary nodes, skipping full custom/proxy-chain/policy-group/invalid configs, and counting actual exported rows; node detail can copy v2rayNG-style full generated Xray config content for ordinary, full custom, proxy-chain, and policy-group nodes; node detail can render QR codes for share-link nodes, subscription detail can render QR codes for subscription URLs, Export can save the current group to a `.txt` file, and batch/single-node/subscription text can be sent through the Harmony system share sheet with clipboard fallback. |
 | Multi-subscription groups | Present with legacy single-subscription migration. Rename/edit, enable-disable, delete, delete confirmation, reorder, batch update all, subscription URL QR/text sharing, per-subscription insecure URL opt-in, auto-update opt-in, and update interval are wired. Foreground due refresh is wired, subscription fetches can prefer the local HTTP proxy when the VPN runtime exposes it, and WorkScheduler background refresh is code-complete pending real-device wakeup regression. |
-| Routing rulesets and geo assets | Partial. Geo asset download/management present (Assets page), including the v2rayNG `geoip-only-cn-private.dat` built-in file used by ext GeoIP routing and the v2rayNG Loyalsoldier/Russia/Iran Geo source choices, with custom asset URLs addable manually, from local `.dat`, or from QR-scanned URL like v2rayNG, duplicate asset names rejected like v2rayNG remarks, local imported assets refreshable/deletable but not editable like v2rayNG file rows, and native geosite/geoip count sidecars shown in file status after core rebuild. Clipboard backup/restore and WebDAV ZIP cloud backup/restore are wired, with legacy JSON backup restore compatibility. Routing config emits speed metrics when enabled, ad-block, custom enabled rules, process UID matchers, and bypass-LAN/CN rules in order. Predefined ruleset import/export is wired, including v2rayNG China whitelist/blacklist public DNS IP/domain entries, and custom rulesets can be imported from clipboard or QR code JSON like v2rayNG while preserving locked rules; proxy-chain and policy-group runtime nodes are supported through JSON import and the advanced outbound builder, routing rules can target the current advanced outbound, and policy-group subscription-regex dynamic members resolve at startup. |
+| Routing rulesets and geo assets | Partial. Geo asset download/management present (Assets page), including the v2rayNG `geoip-only-cn-private.dat` built-in file used by ext GeoIP routing and the v2rayNG Loyalsoldier/Russia/Iran Geo source choices, with custom asset URLs addable manually, from local `.dat`, or from QR-scanned URL like v2rayNG, duplicate asset names rejected like v2rayNG remarks, local imported assets refreshable/deletable but not editable like v2rayNG file rows, and native geosite/geoip count sidecars shown in file status through the rebuilt `libxray.so`. Clipboard backup/restore and WebDAV ZIP cloud backup/restore are wired, with legacy JSON backup restore compatibility. Routing config emits speed metrics when enabled, ad-block, custom enabled rules, process UID matchers, and bypass-LAN/CN rules in order. Predefined ruleset import/export is wired, including v2rayNG China whitelist/blacklist public DNS IP/domain entries, and custom rulesets can be imported from clipboard or QR code JSON like v2rayNG while preserving locked rules; proxy-chain and policy-group runtime nodes are supported through JSON import and the advanced outbound builder, routing rules can target the current advanced outbound, and policy-group subscription-regex dynamic members resolve at startup. |
 | Per-app proxy | Partial. VPN app allow/block mapping is wired from saved package names, with visible-list batch selection, auto-proxy selection from the v2rayNG remote package list plus embedded fallback, clipboard import/export, v2rayNG default proxy-selected mode, and empty-list self blocking; unrestricted installed-app enumeration remains platform-limited. |
 | Auto subscription update | Partial. Per-subscription `autoUpdate` and `updateIntervalMinutes` persist with v2rayNG-compatible defaults (1440 minutes, minimum 15); the home page performs throttled foreground due refresh through the local HTTP proxy when available. Harmony WorkScheduler now registers a persisted repeating background task at the shortest enabled interval and runs due refresh from `SubscriptionUpdateWorkAbility`; real-device wakeup regression remains pending. |
 | Boot/startup automation | Partial and platform-dependent. `startOnBoot` mirrors v2rayNG `pref_is_booted`; when Harmony launches the app with `AbilityConstant.LaunchReason.AUTO_STARTUP`, Hey consumes the pending startup marker after settings/nodes load and starts the selected node if the setting is enabled. Requires user/system auto-start enablement and real-device reboot regression. |
 
 ## Native Bridge Status
 
-`libxray.so` exports 13 CGo functions; `napi_init.cpp` wires 12 (M1, refreshed 2026-06-18).
+The packaged `libxray.so` exports 12 CGo functions; `napi_init.cpp` wires all 12 (M1, refreshed 2026-06-19).
 
 - Wired (runtime): `CGoRunXrayFromJSON`, `CGoStopXray`, `CGoPing`, `CGoSetTunFd`.
 - Wired (M1): `CGoQueryStats` (real per-tag traffic via the Xray metrics
@@ -64,15 +64,12 @@ v2rayNG's features and design, see
   `CGoGetFreePorts` (dynamic ports for real outbound delay tests and local SOCKS runtime port),
   `CGoConvertShareLinksToXrayJson` / `CGOConvertXrayJsonToShareLinks`
   (native share text ⇄ Xray JSON conversion).
-- Idle: `CGoRunXray`.
+- The legacy upstream `CGoRunXray` entry is not a Hey runtime target; Hey starts Xray with `CGoRunXrayFromJSON`.
 
 > M1 note: the prebuilt `libxray.so` version script previously exported only the
 > 4 runtime symbols (`local: *` hid the rest). `scripts/build_libxray_ohos.sh`
 > now also exports `CGoQueryStats`/`CGoTestXray`/`CGoXrayVersion` plus the Geo
-> count/read symbols, `CGoGetFreePorts`, and the share conversion symbols, so
-> the bridge code is complete but a
-> **`libxray.so` rebuild + device retest** is required before these optional
-> paths take effect. Until then the bridge degrades gracefully (stats fall back,
-> preflight is skipped, version shows the static label, Geo count reports
-> unavailable, delay tests and dynamic local SOCKS use static fallback ports,
-> and import falls back to the built-in single-link parser only).
+> count/read symbols, `CGoGetFreePorts`, and the share conversion symbols, and
+> the packaged `libxray.so` was rebuilt on 2026-06-19. `llvm-nm -D` confirms all
+> 12 CGo symbols are exported and wired. Device retest is still required for the
+> optional paths.

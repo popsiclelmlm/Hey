@@ -10,12 +10,12 @@
 | --- | --- | --- |
 | 应用骨架 / 导航 / i18n | ✅ 99% | 双语、分层清晰、路由完整，语言设置已支持 v2rayNG 风格 `auto` 跟随系统/中文/英文三态，UI 模式可按设置跟随系统/浅色/深色，About 页已接 GitHub release 更新检查，并支持 v2rayNG 风格 pre-release 检查开关 |
 | 原生 TUN 数据通路 | ✅ 94% | 代码就位且**真机闭环验证通过（2026-06-15）**——TUN→Xray→出站→可上网；`ipv6Enabled` 控制 IPv6 地址/路由，`preferIpv6` 控制 outbound Happy Eyeballs，VPN MTU 默认值已对齐 v2rayNG 为 1500，待真机回归 |
-| 分享链接解析 | ✅ 97% | vless/vmess/trojan/ss/socks/http/wireguard/hy2 已覆盖，VLESS `flow` 含 `xtls-rprx-vision-udp443`、uTLS `fp` 含 `ios/android/randomized`、VMess QR `insecure` 按 v2rayNG 导入导出 `1/0`、VMess URL-style user security 默认 `auto` 且 `security=tls/reality` 仅作为传输层安全配置、URL-style TLS `insecure`/`allowInsecure` 兼容键导出、URL-style userInfo 编码、空 fragment 默认 `none` 节点名、finalMask `fm`、TCP `headerType=http/none`、KCP `headerType/seed/mtu/tti`、gRPC `mode=multi`、SOCKS 去 padding `base64(user:pass)` 认证/无认证 `Og` 导出与 `socks4://` / `socks5://` 导入别名、Shadowsocks legacy base64 兼容尾斜杠与密码冒号、SIP002 `obfs=http` plugin 可导入且导出不回写 `plugin`、WireGuard reserved 缺省值 `0,0,0` 与 MTU 缺省值 `1420`、Hysteria2 `security=tls`/`insecure=1/0`/`mportHopInt`/`pinSHA256`、HTTPUpgrade host/path、XHTTP `mode/extra` 均可导入导出并在手动编辑器选择/填写；Hysteria2 bandwidth/obfs/port-hop 会在运行配置中生成 v2rayNG 风格 `finalmask.quicParams`、`udpHop` 和 `salamander` mask；Reality `spx`/`pqv` 已按 v2rayNG 映射为 `spiderX`/`mldsa65Verify` 并可导入导出，WireGuard `.conf` 整段导入已支持；导入失败后可走 native 转换兜底支持 v2rayN 多行/base64 与 Clash.Meta YAML（待重建 `.so` 真机验证）；TUIC 在 v2rayNG 当前枚举中未启用且 Xray-core 官方配置不支持，暂不列为运行目标 |
+| 分享链接解析 | ✅ 98% | vless/vmess/trojan/ss/socks/http/wireguard/hy2 已覆盖，VLESS `flow` 含 `xtls-rprx-vision-udp443`、uTLS `fp` 含 `ios/android/randomized`、VMess QR `insecure` 按 v2rayNG 导入导出 `1/0`、VMess URL-style user security 默认 `auto` 且 `security=tls/reality` 仅作为传输层安全配置、URL-style TLS `insecure`/`allowInsecure` 兼容键导出、URL-style userInfo 编码、空 fragment 默认 `none` 节点名、finalMask `fm`、TCP `headerType=http/none`、KCP `headerType/seed/mtu/tti`、gRPC `mode=multi`、SOCKS 去 padding `base64(user:pass)` 认证/无认证 `Og` 导出与 `socks4://` / `socks5://` 导入别名、Shadowsocks legacy base64 兼容尾斜杠与密码冒号、SIP002 `obfs=http` plugin 可导入且导出不回写 `plugin`、WireGuard reserved 缺省值 `0,0,0` 与 MTU 缺省值 `1420`、Hysteria2 `security=tls`/`insecure=1/0`/`mportHopInt`/`pinSHA256`、HTTPUpgrade host/path、XHTTP `mode/extra` 均可导入导出并在手动编辑器选择/填写；Hysteria2 bandwidth/obfs/port-hop 会在运行配置中生成 v2rayNG 风格 `finalmask.quicParams`、`udpHop` 和 `salamander` mask；Reality `spx`/`pqv` 已按 v2rayNG 映射为 `spiderX`/`mldsa65Verify` 并可导入导出，WireGuard `.conf` 整段导入已支持；导入失败后可走 native 转换兜底支持 v2rayN 多行/base64 与 Clash.Meta YAML，`libxray.so` 已重建并导出分享转换符号，待真机验证；TUIC 在 v2rayNG 当前枚举中未启用且 Xray-core 官方配置不支持，暂不列为运行目标 |
 | 订阅管理 | 🟡 96% | 多分组 + 旧版迁移 + 编辑/重排/批量更新全部 + 订阅级不安全 URL 开关 + 当前/All 可见范围批量删除/去重/测速失败清理 + 自动更新设置/前台到期刷新 + 本地 HTTP 代理经由更新 + WorkScheduler 后台调度接线 + 订阅链接二维码/系统分享；待真机触发回归 |
 | Xray 配置生成 | 🟡 93% | 普通节点生成 TUN/DNS/routing/HTTP 代理和本地 SOCKS 配置，本地 SOCKS 按 v2rayNG `pref_enable_local_proxy` 默认开启、默认端口 10808，且关闭时不生成 `socks-in`；追加 HTTP 代理也跟随该本地代理总开关，关闭本地代理时不再单独生成 `http-in`；速度显示开启时才生成 metrics/stats/policy；DNS hosts 支持 v2rayNG `domain:address,...` 格式写入 `dns.hosts`，并内置 v2rayNG `googleapis.cn` 与 Android Private DNS 默认 hosts，用户 hosts 可覆盖默认值；remote/domestic DNS 会按自定义 proxy/direct/block 规则生成 `domains`、`expectIPs`、DNS 专用路由和 block hosts，FakeDNS sniffing 按 v2rayNG 仅跟随 FakeDNS 开关，顶层 `fakedns` 与 DNS FakeDNS server 仍要求本地 DNS + FakeDNS；TLS/Reality 节点运行配置会按 v2rayNG 从传输 host/authority 或服务器域名补齐空 SNI，配置证书 pin 时禁用 `allowInsecure`；Hysteria2 运行配置会按 v2rayNG 归一为 Xray core 的 `protocol=hysteria`、`settings.address/port/version` 与 `streamSettings.hysteriaSettings.auth`，并保留 TLS/pin 与 finalmask；出站域名预解析方式 `0/1/2` 已持久化，并会在启动前用 Harmony 系统 DNS 补齐 live 解析结果，再按模式写入 DNS hosts/UseIP 或替换 outbound 域名；全局 Mux 按 v2rayNG 规则跳过 Shadowsocks/SOCKS/HTTP/Trojan/WireGuard/Hysteria2/XHTTP，保存 `-1..1024` 的 Mux/XUDP 并发并保留 `-1/0` 写入运行配置，全局关闭或协议跳过时会把导入节点已有 mux 显式置为关闭，且 VLESS flow 节点使用 `concurrency=-1`；全局 Fragment 按 v2rayNG 生成 TLS/Reality `finalmask.tcp/udp`，并跳过已有 finalmask 与代理链 dialerProxy；`routeOnly` 会按 v2rayNG 语义写入 TUN sniffing（普通 sniffing/FakeDNS 均关闭时仍保留 `enabled=false` + `routeOnly=true`）并控制 process 规则输出，运行前将 process 包名解析为 Harmony app UID，`__unknown_app__` 映射为 `-1`；生成 Xray routing 时会按 v2rayNG 将 `geoip:cn/private` 改写为 `geoip-only-cn-private.dat` ext 引用，DNS `expectIPs` 与设置展示保留原值；HTTP/SOCKS 代理支持局域网共享监听，SOCKS 支持启动前动态端口；完整自定义 Xray config 可校验后原样运行，且 `routing.rules.process` 仅在包名成功解析时按 v2rayNG 替换为 UID；代理链和策略组 JSON 可生成多跳/负载均衡 outbounds，添加节点页可从已有普通节点创建代理链/策略组，策略组支持按订阅分组与节点名正则动态成员，路由规则可选择当前高级出站目标 |
 | 节点延迟测速 / 排序 | ✅ 89% | 节点菜单同时提供 TCP 延迟、v2rayNG 风格真连接测速和手动按测试结果排序；真连接测速走 `CGoPing` + 独立 SOCKS 测试 inbound，优先使用 `CGoGetFreePorts` 动态端口，测速配置会按 v2rayNG 移除 outbound mux，并按 `delayTestUrl` 设置访问目标 URL；批量测速并发数已按 v2rayNG 设置接线，手动/自动排序与删除失败节点均按订阅分组与 All 虚拟分组语义落盘；需真机验证 |
 | 路由设置页 | ✅ 84% | 广告拦截、自定义规则、预设规则集导入/导出均已生效，预设内容补齐 v2rayNG 中国白名单/黑名单公共 DNS IP/域名规则，规则集支持 v2rayNG 风格剪贴板与二维码 JSON 导入；路由域名策略按 v2rayNG `AsIs/IPIfNonMatch/IPOnDemand` 三值归一化后保存并写入 Xray；`routeOnly` 控制 process 规则输出和 sniffing routeOnly，运行配置会将 process 包名转换为 Harmony app UID；运行配置生成时将路由 IP 匹配里的 `geoip:cn/private` 改写为 v2rayNG 同款 ext 引用；自定义规则可选择当前高级出站目标；真机规则回归待补 |
-| Geo 资产管理 | ✅ 97% | 下载 / 自定义 URL / 本地 `.dat` 导入 / 资源 URL 二维码导入 / 自定义资源名称唯一性校验 / 本地文件资源隐藏编辑入口 / 剪贴板备份还原 / WebDAV ZIP 云备份还原已实现，恢复兼容旧 JSON 包；内置下载已包含 v2rayNG 强制更新的 `geoip-only-cn-private.dat`，用于支撑 `geoip:cn/private` ext 路由，下载源选择补齐 v2rayNG 的 Loyalsoldier / Russia / Iran 三组规则源；Geo 文件 native 计数/校验已接线，待重建 `.so` 真机验证 |
+| Geo 资产管理 | ✅ 98% | 下载 / 自定义 URL / 本地 `.dat` 导入 / 资源 URL 二维码导入 / 自定义资源名称唯一性校验 / 本地文件资源隐藏编辑入口 / 剪贴板备份还原 / WebDAV ZIP 云备份还原已实现，恢复兼容旧 JSON 包；内置下载已包含 v2rayNG 强制更新的 `geoip-only-cn-private.dat`，用于支撑 `geoip:cn/private` ext 路由，下载源选择补齐 v2rayNG 的 Loyalsoldier / Russia / Iran 三组规则源；Geo 文件 native 计数/校验已接线，`libxray.so` 已重建并导出 Geo 符号，待真机验证 |
 | 分应用代理 | 🟡 82% | 开关、黑白名单、手动包名、应用枚举、批量全选/清除/反选、自动选中需代理应用、剪贴板导入导出和 VPN 应用映射已接线；自动选择会先拉取 v2rayNG `androidpackagenamelist` 远程列表，失败时回退内置列表，并保留 `com.google*` 强制匹配/WebView 排除；默认模式对齐 v2rayNG 为“代理选中的应用”，空列表仍阻断自身包名防回路；仍受平台可见性限制，待真机回归 |
 | 设置页 | 🟡 95% | 核心项持久化并生效，`pref_mode` 已支持 VPN / Proxy only，本地 SOCKS 代理按 v2rayNG 默认开启，静态/动态端口、UDP、认证已写入运行配置；IPv6 启用与 IPv6 优先已按 v2rayNG 拆分；mux/XUDP/fragment 高级参数、fake DNS、DNS hosts、出站域名预解析方式（含启动前 live DNS 预解析）、速度显示、常驻速度通知、当前连接信息测试网址、语言跟随系统、UI 模式、显示所有分组、双列显示、删除配置确认、立即启动扫码与日志级别选择器已接线；运行中保存设置/路由/分应用或切换当前节点后会按 v2rayNG `SettingsChangeManager` 语义返回首页自动重启服务 |
 | 扫码导入 | ✅ 84% | 粘贴导入和 ScanKit 相机扫码已接线，剪贴板读取已声明并运行时请求 Harmony `READ_PASTEBOARD` 权限；扫码页在单链接解析失败后会复用 native 转换兜底，可导入 v2rayN 多行/base64 与 Clash.Meta YAML 文本/二维码；`startScanImmediate` 开启时进入扫码页自动拉起相机，待真机相机权限/机型回归 |
@@ -24,15 +24,15 @@
 
 ### Native 桥接现状
 
-`libxray.so` 导出 13 个 CGo 函数，当前 `napi_init.cpp` 已接通 12 个：
+当前打包的 `libxray.so` 导出 12 个 CGo 函数，`napi_init.cpp` 已全部接通：
 
 - 已接通：`CGoRunXrayFromJSON`、`CGoStopXray`、`CGoPing`、`CGoSetTunFd`、
   `CGoQueryStats`（真实流量统计）、`CGoTestXray`（配置预检）、`CGoXrayVersion`、
   `CGoReadGeoFiles` / `CGoCountGeoData`（geo 校验/计数）、`CGoGetFreePorts`（动态空闲端口）、
   `CGoConvertShareLinksToXrayJson` / `CGOConvertXrayJsonToShareLinks`（分享文本 ⇄ Xray JSON 转换）
-- **闲置**：`CGoRunXray`
+- 上游旧入口 `CGoRunXray` 不作为 Hey 运行目标；Hey 使用 `CGoRunXrayFromJSON` 直接传入配置 JSON。
 
-> 当前预构建 `libxray.so` 仍需按更新后的 version-script 重建；重建前新增可选符号会优雅降级。
+> 当前预构建 `libxray.so` 已按更新后的 version-script 重建；`llvm-nm -D` 已确认 12 个 CGo 符号均导出。新增 native 能力仍需真机回归。
 
 ## 二、分阶段路线图
 
@@ -51,8 +51,8 @@
 - `CGoQueryStats` → 真实上下行流量统计
 - `CGoTestXray` → 连接前配置预检，减少启动失败
 - `CGoXrayVersion` → About 页显示内核版本
-- ✅ `CGoReadGeoFiles` / `CGoCountGeoData` → geo 文件校验与计数（2026-06-18 代码接线，待重建/真机）
-- ✅ `CGoConvertShareLinksToXrayJson` / `CGOConvertXrayJsonToShareLinks` → 分享文本与 Xray JSON 互转；导入页与扫码页已用 native 转换作为批量/base64/Clash YAML 兜底（2026-06-18/19 代码接线，待重建/真机）
+- ✅ `CGoReadGeoFiles` / `CGoCountGeoData` → geo 文件校验与计数（2026-06-18 代码接线，2026-06-19 `.so` 重建导出，待真机）
+- ✅ `CGoConvertShareLinksToXrayJson` / `CGOConvertXrayJsonToShareLinks` → 分享文本与 Xray JSON 互转；导入页与扫码页已用 native 转换作为批量/base64/Clash YAML 兜底（2026-06-18/19 代码接线，2026-06-19 `.so` 重建导出，待真机）
 
 **产出**：统计准确 + 配置可预检。
 
@@ -138,9 +138,10 @@
 | 2026-06-18 | 阶段 0 | ✅ VPN 绕过 LAN 完成；三态设置控制 Harmony VPN 默认路由或公网覆盖路由 |
 | 2026-06-18 | 阶段 0 | ✅ 本地 DNS / FakeDNS 完成；开启后生成 TUN 53 → `dns-out` 路由、DNS outbound 与 FakeDNS 配置 |
 | 2026-06-18 | 阶段 4 | ✅ 本地 HTTP 代理共享监听完成；`proxySharingEnabled` 开启时 `http-in` 监听 `0.0.0.0:10809` |
-| 2026-06-18 | 阶段 1 | 🟡 Geo 文件校验/计数接线完成；`CGoReadGeoFiles`/`CGoCountGeoData` 已导出并在 Assets 页展示分类数/规则数，待重建 `.so` + 真机验证 |
-| 2026-06-18 | 阶段 1 | 🟡 Native 空闲端口接线完成；延迟测速与本地 SOCKS 动态端口优先用 `CGoGetFreePorts` 获取运行端口，失败回退静态端口，待重建 `.so` + 真机验证 |
-| 2026-06-18 | 阶段 1 | 🟡 Native 分享转换接线完成；导入失败后调用 `CGoConvertShareLinksToXrayJson` 解析 v2rayN 多行/base64 与 Clash.Meta YAML，并提取 outbounds 保存为手动节点，待重建 `.so` + 真机验证 |
+| 2026-06-18 | 阶段 1 | 🟡 Geo 文件校验/计数接线完成；`CGoReadGeoFiles`/`CGoCountGeoData` 已导出并在 Assets 页展示分类数/规则数，`.so` 已重建，待真机验证 |
+| 2026-06-18 | 阶段 1 | 🟡 Native 空闲端口接线完成；延迟测速与本地 SOCKS 动态端口优先用 `CGoGetFreePorts` 获取运行端口，失败回退静态端口，`.so` 已重建，待真机验证 |
+| 2026-06-18 | 阶段 1 | 🟡 Native 分享转换接线完成；导入失败后调用 `CGoConvertShareLinksToXrayJson` 解析 v2rayN 多行/base64 与 Clash.Meta YAML，并提取 outbounds 保存为手动节点，`.so` 已重建，待真机验证 |
+| 2026-06-19 | 阶段 1 | ✅ `libxray.so` 重建完成；补齐 OHOS 构建脚本的 Android API level stub 与 Go 1.23+ `-checklinkname=0`，新预构建库已导出 12 个 CGo 符号且均已接线 |
 | 2026-06-18 | 阶段 4 | ✅ WireGuard/Hysteria2 手动编辑器校验完成；NodeEdit 生成可校验 outbound，覆盖 WG IPv6 endpoint、reserved/MTU 与 HY2 obfs/mport/SNI/ALPN 单测 |
 | 2026-06-18 | 阶段 4 | ✅ 本地 SOCKS 代理设置完成；Settings 可配置启用、端口、UDP、用户名/密码认证，Xray 生成 `socks-in` 并随代理共享监听 LAN |
 | 2026-06-19 | 阶段 4 | ✅ 本地 SOCKS 默认开启与端口对齐 v2rayNG；`localSocksEnabled` 新默认值为 true，默认端口 10808，默认配置会生成 `socks-in`，关闭后仍可移除本地 SOCKS 入口 |

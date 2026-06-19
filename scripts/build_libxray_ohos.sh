@@ -12,7 +12,7 @@ SRC_DIR="${WORK_DIR}/src"
 OUT_DIR="${ROOT_DIR}/entry/src/main/cpp/prebuilt/arm64-v8a"
 LIBXRAY_REPO="${LIBXRAY_REPO:-https://github.com/XTLS/libXray.git}"
 EXPORTS_FILE="${WORK_DIR}/libxray.exports"
-GO_LDFLAGS_DEFAULT="-s -w -linkmode external -extldflags \"-Wl,--version-script=${EXPORTS_FILE} -Wl,-z,lazy\""
+GO_LDFLAGS_DEFAULT="-s -w -checklinkname=0 -linkmode external -extldflags \"-Wl,--version-script=${EXPORTS_FILE} -Wl,-z,lazy\""
 GOOS_TARGET="${GOOS_TARGET:-android}"
 ANDROID_STUB_DIR="${WORK_DIR}/android-stub"
 
@@ -51,6 +51,16 @@ int __android_log_vprint(int prio, const char* tag, const char* fmt, va_list ap)
 }
 #endif
 H
+  cat > "${ANDROID_STUB_DIR}/android/api-level.h" <<'H'
+#pragma once
+#ifdef __cplusplus
+extern "C" {
+#endif
+int android_get_device_api_level(void);
+#ifdef __cplusplus
+}
+#endif
+H
   cat > "${ANDROID_STUB_DIR}/android_log_stub.c" <<'C'
 #include <stdarg.h>
 #include <stdio.h>
@@ -62,6 +72,9 @@ int __android_log_vprint(int prio, const char* tag, const char* fmt, va_list ap)
     int n = vfprintf(stderr, fmt, ap);
     fputc('\n', stderr);
     return n;
+}
+int android_get_device_api_level(void) {
+    return 35;
 }
 C
   "${CC_BIN}" -c "${ANDROID_STUB_DIR}/android_log_stub.c" -o "${ANDROID_STUB_DIR}/android_log_stub.o"

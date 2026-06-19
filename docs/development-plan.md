@@ -24,7 +24,7 @@
 | 领域 | 现状 | 缺口 |
 | --- | --- | --- |
 | 真机 VPN 闭环 | ✅ **已真机验证通过（2026-06-15）**：`TUN fd → CGoSetTunFd → Xray native TUN → 出站` 端到端可上网 | 阻塞项解除，主线推进至 M1 |
-| Native 桥接 | M1 已接通 12 个（含 `CGoQueryStats`/`CGoTestXray`/`CGoXrayVersion`/`CGoReadGeoFiles`/`CGoCountGeoData`/`CGoGetFreePorts`/`CGoConvertShareLinksToXrayJson`/`CGOConvertXrayJsonToShareLinks`），代码完成 | **待 `libxray.so` 重建（导出符号已加）+ 真机复测**；仅 `CGoRunXray` 仍闲置 |
+| Native 桥接 | M1 已接通当前打包库导出的 12 个 CGo 符号（含 `CGoQueryStats`/`CGoTestXray`/`CGoXrayVersion`/`CGoReadGeoFiles`/`CGoCountGeoData`/`CGoGetFreePorts`/`CGoConvertShareLinksToXrayJson`/`CGOConvertXrayJsonToShareLinks`），且预构建 `libxray.so` 已重建并验证导出符号 | **待真机复测**流量、预检、版本、Geo 计数、动态端口与 native 分享转换；上游旧入口 `CGoRunXray` 不作为 Hey 运行目标 |
 | 路由规则 | ✅ 广告拦截、自定义规则、预设规则集导入/导出均已写入 `routing.rules`，规则集可按 v2rayNG 从剪贴板或二维码 JSON 导入并保留 locked 规则，`routeOnly` 会控制 process 规则输出和 sniffing routeOnly；生成 Xray routing 时会按 v2rayNG 将 `geoip:cn/private` 改写为 `geoip-only-cn-private.dat` ext 引用，并将 process 包名解析为 Harmony app UID | 仍待真机验证规则实效；高级出站目标（策略组/负载均衡）归入 M5 |
 | 订阅 | 多分组 + 手动/批量更新 + 前台到期刷新 + 本地 HTTP 代理经由更新 + WorkScheduler 后台调度接线；本地 SOCKS 入口按 v2rayNG 默认开启，可供代理经由能力使用 | 待真机触发回归后台唤醒路径 |
 | 分享导出 | 文本/文件导出 + 节点二维码 + 订阅链接二维码 + 系统分享面板；批量导出已按 v2rayNG `shareNonCustomConfigsToClipboard` 只输出可分享普通节点并跳过自定义/高级/无效配置；节点详情可按 v2rayNG `shareFullContent2Clipboard` 复制完整运行配置；URL-style 普通 TCP 节点导出会按 v2rayNG 写出 `headerType=none`；剪贴板导入路径已补 Harmony `READ_PASTEBOARD` 权限声明与运行时请求；运行中导入/扫码/新增/选择当前节点后会标记待重启，返回首页自动应用新配置 | 仍待真机回归不同分享目标兼容性 |
@@ -69,7 +69,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 
 ---
 
-### M1 · Native 内核能力补全（🟡 代码完成，待重建 + 真机复测）
+### M1 · Native 内核能力补全（🟡 代码 + 二进制重建完成，待真机复测）
 
 **目标**：把已编译进 `libxray.so` 但未接线的 CGo 函数接入 `napi_init.cpp`。
 
@@ -94,7 +94,12 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 - Native：`napi_init.cpp` 新增 `convertShareLinksToXrayJson`/`convertXrayJsonToShareLinks`，符号缺失时优雅降级
 - 消费：导入页和扫码页在内置单节点解析失败后调用 native 转换，支持 v2rayN 多行/base64 与 Clash.Meta YAML，提取返回配置中的 outbounds 保存为手动节点
 
-**仍需**：用更新后的脚本重建 `libxray.so`（当前 `.so` 未导出这些新增符号），真机复测流量/预检/版本/Geo 计数/动态测速端口/动态本地 SOCKS 端口/native 分享转换，并确认新增 metrics inbound 不影响已验证的连接路径。
+**进展（2026-06-19 续）**：`libxray.so` 预构建库重建完成：
+- 构建：`scripts/build_libxray_ohos.sh` 补齐 `android/api-level.h` stub，并为 Go 1.23+ 增加 `-checklinkname=0`，兼容 `github.com/wlynxg/anet`
+- 产物：`entry/src/main/cpp/prebuilt/arm64-v8a/libxray.so` 已重建
+- 验证：`llvm-nm -D` 已确认 `CGoRunXrayFromJSON`/`CGoStopXray`/`CGoPing`/`CGoSetTunFd` 以及 M1 的 8 个可选符号全部导出
+
+**仍需**：真机复测流量/预检/版本/Geo 计数/动态测速端口/动态本地 SOCKS 端口/native 分享转换，并确认新增 metrics inbound 不影响已验证的连接路径。
 
 **任务**（按性价比排序）
 1. `CGoQueryStats` → 真实上下行流量统计，替换当前 C++ 侧近似计数
@@ -375,7 +380,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | --- | --- | --- |
 | 2026-06-05 | — | 基于实测建立"稳步推进版"开发计划；确认扫码/分应用已落地，标注内核接线、路由、订阅自动更新、深链、二维码为后续重点 |
 | 2026-06-15 | M0 | ✅ 真机数据通路闭环验证通过（TUN→Xray→出站→可上网），阻塞项解除；主线切至 M1 内核接线 |
-| 2026-06-15 | M1 | 🟡 `CGoQueryStats`/`CGoTestXray`/`CGoXrayVersion` 全链路接线（构建脚本+native+XrayConfig metrics+扩展/About 消费）；待重建 `.so` + 真机复测 |
+| 2026-06-15 | M1 | 🟡 `CGoQueryStats`/`CGoTestXray`/`CGoXrayVersion` 全链路接线（构建脚本+native+XrayConfig metrics+扩展/About 消费）；`.so` 已重建，待真机复测 |
 | 2026-06-15 | M2 | ✅ 广告拦截路由真正生效（`adBlockEnabled` 开关 → `geosite:category-ads-all` → block）；纠正实测：去重/自定义 UA 早已落地 |
 | 2026-06-15 | M3 | ✅ 订阅正则过滤 `filter` 全链路（分组字段 + 编辑页 + 更新/更新全部按节点名筛选，零匹配/无效回退全部） |
 | 2026-06-15 | M3 | ✅ 测速后自动操作（`autoSortAfterTest`/`autoRemoveInvalidAfterTest` 设置项 + 设置页「节点测速」开关 + 批量测速后排序/删超时） |
@@ -421,15 +426,16 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-18 | M0 补点 | ✅ VPN 接口地址方案可配置完成（按 v2rayNG 7 组预设保存 `vpnInterfaceAddressIndex`，Harmony `VpnConfig.addresses` 使用对应 IPv4/IPv6 client 地址） |
 | 2026-06-18 | M0 补点 | ✅ VPN 绕过 LAN 三态设置完成（保存 `vpnBypassLan=0/1/2`，绕过时用 v2rayNG 公网 IPv4 路由表；启用 IPv6 时追加 IPv6 `2000::/3`/`fc00::/18` 替代默认路由） |
 | 2026-06-18 | M0 补点 | ✅ 本地 DNS / FakeDNS 接线完成（`localDnsEnabled` 生成 TUN 53 → `dns-out` 路由和 DNS outbound；`fakeDnsEnabled` 生成 `fakedns` server、顶层 `fakedns` 与 sniffing `fakedns`，`localDnsPort` 可保存） |
-| 2026-06-18 | M1 | 🟡 Geo 文件校验/计数接线完成（`CGoReadGeoFiles`/`CGoCountGeoData` 导出 + native wrapper + Assets 页显示分类数/规则数）；待重建 `.so` + 真机复测 |
-| 2026-06-18 | M1 | 🟡 Native 空闲端口接线完成（`CGoGetFreePorts` 导出 + native wrapper + 延迟测速/本地 SOCKS 动态端口，失败回退静态端口）；待重建 `.so` + 真机复测 |
-| 2026-06-18 | M1 | 🟡 Native 分享转换接线完成（`CGoConvertShareLinksToXrayJson`/`CGOConvertXrayJsonToShareLinks` 导出 + native wrapper + 导入页批量/base64/Clash YAML 兜底）；待重建 `.so` + 真机复测 |
+| 2026-06-18 | M1 | 🟡 Geo 文件校验/计数接线完成（`CGoReadGeoFiles`/`CGoCountGeoData` 导出 + native wrapper + Assets 页显示分类数/规则数）；`.so` 已重建，待真机复测 |
+| 2026-06-18 | M1 | 🟡 Native 空闲端口接线完成（`CGoGetFreePorts` 导出 + native wrapper + 延迟测速/本地 SOCKS 动态端口，失败回退静态端口）；`.so` 已重建，待真机复测 |
+| 2026-06-18 | M1 | 🟡 Native 分享转换接线完成（`CGoConvertShareLinksToXrayJson`/`CGOConvertXrayJsonToShareLinks` 导出 + native wrapper + 导入页批量/base64/Clash YAML 兜底）；`.so` 已重建，待真机复测 |
+| 2026-06-19 | M1 | ✅ `libxray.so` 重建完成（构建脚本补 Android API level stub 与 Go `-checklinkname=0`，预构建库已通过 `llvm-nm -D` 验证 12 个 CGo 符号导出且均已接线） |
 | 2026-06-19 | M4 | ✅ 扫码 native 分享兜底完成（Scanner 在单链接解析失败后复用 native 分享转换，批量保存 outbounds 为手动节点并标记运行配置待重启；补共享命名单测） |
 | 2026-06-18 | M4 | ✅ WireGuard/Hysteria2 手动编辑器校验完成（抽出 `ManualOutboundBuilder`，NodeEdit 复用，补 WG/HY2 outbound 生成单测）；运行态仍待真机/内核复测 |
 | 2026-06-18 | M4 | ✅ 本地 SOCKS 代理设置完成（`localSocksEnabled`/端口/UDP/用户名/密码 + `socks-in` 生成 + LAN 共享监听 + 单测） |
 | 2026-06-19 | M4 | ✅ 本地 SOCKS 默认开启与端口对齐 v2rayNG（`pref_enable_local_proxy` 默认 true；默认 SOCKS 端口 10808；默认设置生成 `socks-in`，关闭时不生成；补配置生成单测） |
 | 2026-06-19 | M4 | ✅ 本地代理总开关对齐 v2rayNG（关闭本地代理时同步清理/忽略追加 HTTP 代理，旧设置归一化后不再生成 `http-in`；补 SettingsController 与配置生成单测） |
-| 2026-06-18 | M4 | ✅ 本地 SOCKS 动态端口完成（`localSocksDynamicPort` 设置 + 启动前 `CGoGetFreePorts` 选择运行端口 + 设置/端口选择单测）；待重建 `.so` + 真机复测 |
+| 2026-06-18 | M4 | ✅ 本地 SOCKS 动态端口完成（`localSocksDynamicPort` 设置 + 启动前 `CGoGetFreePorts` 选择运行端口 + 设置/端口选择单测）；`.so` 已重建，待真机复测 |
 | 2026-06-18 | M4 | ✅ 传输高级设置完成（Settings 展开 mux 并发、XUDP 并发、UDP/443 策略、fragment packets/length/interval，日志级别改为 picker，并补 Settings draft 往返单测） |
 | 2026-06-19 | M4 | ✅ Mux 并发范围对齐 v2rayNG（`muxConcurrency` 与 `muxXudpConcurrency` 保存范围改为 `-1..1024`，运行配置保留 `-1/0`，XUDP 为负时隐藏 UDP/443 策略入口；补 Settings 与配置生成单测） |
 | 2026-06-19 | M4 | ✅ Mux 禁用语义对齐 v2rayNG（全局 Mux 关闭或协议不适用时，导入 outbound 自带 mux 会被写为 `enabled=false`、`concurrency=-1`；补配置生成单测） |
