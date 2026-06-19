@@ -21,7 +21,7 @@ import {
   normalizeVpnMtuValue,
   RoutingRule
 } from '../core/Profile';
-import { V2RAYNG_DEFAULT_CORE_LOG_LEVEL, normalizeV2rayNgCoreLogLevel } from '../core/V2rayNgOptions';
+import { V2RAYNG_DEFAULT_CORE_LOG_LEVEL, V2RAYNG_DEFAULT_MUX_XUDP_QUIC, normalizeV2rayNgCoreLogLevel, normalizeV2rayNgMuxXudpQuic } from '../core/V2rayNgOptions';
 
 const PREFERENCES_NAME: string = 'hey_vpn_settings';
 const SETTINGS_KEY: string = 'app_settings';
@@ -53,7 +53,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   muxEnabled: false,
   muxConcurrency: 8,
   muxXudpConcurrency: 8,
-  muxXudpQuic: 'reject',
+  muxXudpQuic: V2RAYNG_DEFAULT_MUX_XUDP_QUIC,
   fragmentEnabled: false,
   fragmentPackets: 'tlshello',
   fragmentLength: '50-100',
@@ -144,7 +144,7 @@ export class SettingsStore {
       muxEnabled: SettingsStore.boolValue(raw.muxEnabled, base.muxEnabled),
       muxConcurrency: SettingsStore.numberValue(raw.muxConcurrency, base.muxConcurrency),
       muxXudpConcurrency: SettingsStore.numberValue(raw.muxXudpConcurrency, base.muxXudpConcurrency),
-      muxXudpQuic: SettingsStore.stringValue(raw.muxXudpQuic, base.muxXudpQuic),
+      muxXudpQuic: normalizeV2rayNgMuxXudpQuic(SettingsStore.stringValue(raw.muxXudpQuic, base.muxXudpQuic), base.muxXudpQuic),
       fragmentEnabled: SettingsStore.boolValue(raw.fragmentEnabled, base.fragmentEnabled),
       fragmentPackets: SettingsStore.stringValue(raw.fragmentPackets, base.fragmentPackets),
       fragmentLength: SettingsStore.stringValue(raw.fragmentLength, base.fragmentLength),

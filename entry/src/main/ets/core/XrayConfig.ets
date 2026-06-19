@@ -1,7 +1,7 @@
 import { bundleManager } from '@kit.AbilityKit';
 import { AppSettings, DEFAULT_VPN_MTU, GeneratedXrayConfig, isProxyOnlyRuntimeMode, isVpnRuntimeMode, normalizeRoutingDomainStrategy, normalizeVpnMtuValue, OUTBOUND_DOMAIN_RESOLVE_DNS_HOSTS, OUTBOUND_DOMAIN_RESOLVE_NONE, OUTBOUND_DOMAIN_RESOLVE_REPLACE, resolveDelayTestUrl, RoutingRule, ValidationResult, XrayConfigType } from './Profile';
 import { isSupportedShareLink, isWireguardConfigFile, parseShareLinkToOutboundJson, parseWireguardConfigToOutboundJson } from './ShareLinkParser';
-import { V2RAYNG_DEFAULT_CORE_LOG_LEVEL, normalizeV2rayNgCoreLogLevel, normalizeV2rayNgFragmentPackets } from './V2rayNgOptions';
+import { V2RAYNG_DEFAULT_CORE_LOG_LEVEL, normalizeV2rayNgCoreLogLevel, normalizeV2rayNgFragmentPackets, normalizeV2rayNgMuxXudpQuic } from './V2rayNgOptions';
 
 interface XrayOutbound {
   protocol?: string;
@@ -1105,7 +1105,7 @@ function applyMuxRuntimeSettings(outbound: XrayOutbound, settings: AppSettings |
       enabled: true,
       concurrency: shouldUseVlessFlowMuxConcurrency(outbound) ? -1 : settings.muxConcurrency,
       xudpConcurrency: settings.muxXudpConcurrency,
-      xudpProxyUDP443: settings.muxXudpQuic
+      xudpProxyUDP443: normalizeV2rayNgMuxXudpQuic(settings.muxXudpQuic)
     };
     outbound.mux = mux;
     return;

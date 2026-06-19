@@ -79,6 +79,25 @@ export const V2RAYNG_GRPC_MODE_OPTIONS: Array<string> = [
   'multi'
 ];
 
+export const V2RAYNG_MUX_XUDP_QUIC_OPTIONS: Array<string> = [
+  'reject',
+  'allow',
+  'skip'
+];
+
+export const V2RAYNG_DEFAULT_MUX_XUDP_QUIC: string = 'reject';
+
+export function normalizeV2rayNgMuxXudpQuic(value: string, fallback: string = V2RAYNG_DEFAULT_MUX_XUDP_QUIC): string {
+  const trimmed = value.trim();
+  if (V2RAYNG_MUX_XUDP_QUIC_OPTIONS.indexOf(trimmed) >= 0) {
+    return trimmed;
+  }
+  if (V2RAYNG_MUX_XUDP_QUIC_OPTIONS.indexOf(fallback) >= 0) {
+    return fallback;
+  }
+  return V2RAYNG_DEFAULT_MUX_XUDP_QUIC;
+}
+
 export const V2RAYNG_CORE_LOG_LEVEL_OPTIONS: Array<string> = [
   'debug',
   'info',

@@ -1,6 +1,6 @@
 import { common } from '@kit.AbilityKit';
 import { AppLanguage, AppRuntimeMode, AppSettings, normalizeAppRuntimeMode, normalizeOutboundDomainResolveMethod, normalizeRealPingConcurrency, normalizeRoutingDomainStrategy, normalizeUiModeNight, normalizeVpnBypassLanMode, normalizeVpnInterfaceAddressIndex, normalizeVpnMtuValue, OutboundDomainResolveMethod, RoutingRule } from '../../core/Profile';
-import { normalizeV2rayNgCoreLogLevel, normalizeV2rayNgFragmentPackets } from '../../core/V2rayNgOptions';
+import { normalizeV2rayNgCoreLogLevel, normalizeV2rayNgFragmentPackets, normalizeV2rayNgMuxXudpQuic } from '../../core/V2rayNgOptions';
 import { DEFAULT_APP_SETTINGS, SettingsStore } from '../../storage/SettingsStore';
 
 export interface SettingsDraft {
@@ -159,7 +159,7 @@ export class SettingsController {
       muxEnabled: draft.muxEnabled,
       muxConcurrency: this.muxConcurrencyValue(draft.muxConcurrency, DEFAULT_APP_SETTINGS.muxConcurrency),
       muxXudpConcurrency: this.muxConcurrencyValue(draft.muxXudpConcurrency, DEFAULT_APP_SETTINGS.muxXudpConcurrency),
-      muxXudpQuic: this.muxXudpQuicValue(draft.muxXudpQuic, DEFAULT_APP_SETTINGS.muxXudpQuic),
+      muxXudpQuic: normalizeV2rayNgMuxXudpQuic(draft.muxXudpQuic, DEFAULT_APP_SETTINGS.muxXudpQuic),
       fragmentEnabled: draft.fragmentEnabled,
       fragmentPackets: normalizeV2rayNgFragmentPackets(draft.fragmentPackets, DEFAULT_APP_SETTINGS.fragmentPackets),
       fragmentLength: this.nonEmptyString(draft.fragmentLength, DEFAULT_APP_SETTINGS.fragmentLength),
@@ -271,14 +271,6 @@ export class SettingsController {
   private nonEmptyString(value: string, fallback: string): string {
     const normalized = value.trim();
     return normalized.length > 0 ? normalized : fallback;
-  }
-
-  private muxXudpQuicValue(value: string, fallback: string): string {
-    const normalized = value.trim();
-    if (normalized === 'reject' || normalized === 'allow' || normalized === 'skip') {
-      return normalized;
-    }
-    return fallback;
   }
 
 }

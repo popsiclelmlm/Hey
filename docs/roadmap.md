@@ -227,6 +227,7 @@
 | 2026-06-19 | 协议点检 | ✅ WireGuard reserved 默认值完成；分享链接、`.conf` 导入和手动 builder 缺省写入 `[0,0,0]`，导出保留 `reserved=0,0,0` |
 | 2026-06-19 | 协议点检 | ✅ WireGuard MTU 默认值完成；分享链接和 `.conf` 导入缺省 `mtu` 时按 v2rayNG 写入 `1420`，导出保留 `mtu=1420` |
 | 2026-06-19 | 协议点检 | ✅ Mux 协议适用范围完成；全局 Mux 跳过 v2rayNG 禁用协议与 XHTTP，VLESS flow 节点使用 `concurrency=-1` |
+| 2026-06-19 | 协议点检 | ✅ Mux XUDP UDP/443 策略枚举完成；Settings/存储/运行配置按 v2rayNG `mux_xudp_quic_value` 限定 `reject/allow/skip`，旧非法值兜底 `reject` |
 | 2026-06-19 | 协议点检 | ✅ Fragment finalmask 运行配置完成；TLS/Reality 生成 `finalmask.tcp/udp`，Reality 默认 `packets=1-3`，已有 finalmask 和代理链 dialerProxy 会跳过 |
 | 2026-06-19 | 协议点检 | ✅ Fragment packets 枚举完成；Settings 按 v2rayNG `fragment_packets` 限定 `tlshello/1-2/1-3/1-5`，保存与运行配置均兜底非法值 |
 | 2026-06-19 | 协议点检 | ✅ Core loglevel 枚举完成；Settings/存储/运行配置按 v2rayNG `core_loglevel` 限定 `debug/info/warning/error/none`，旧非法值兜底 `warning` |

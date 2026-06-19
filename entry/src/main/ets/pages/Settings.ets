@@ -26,7 +26,7 @@ import {
 } from '../core/Profile';
 import { applyColorMode } from '../core/ColorMode';
 import { markRuntimeSettingsRestartNeeded } from '../core/SettingsChange';
-import { V2RAYNG_CORE_LOG_LEVEL_OPTIONS, V2RAYNG_FRAGMENT_PACKET_OPTIONS, normalizeV2rayNgCoreLogLevel, normalizeV2rayNgFragmentPackets } from '../core/V2rayNgOptions';
+import { V2RAYNG_CORE_LOG_LEVEL_OPTIONS, V2RAYNG_FRAGMENT_PACKET_OPTIONS, V2RAYNG_MUX_XUDP_QUIC_OPTIONS, normalizeV2rayNgCoreLogLevel, normalizeV2rayNgFragmentPackets, normalizeV2rayNgMuxXudpQuic } from '../core/V2rayNgOptions';
 import {
   LanguageToggleRow,
   SettingInputRow,
@@ -893,7 +893,7 @@ struct SettingsPage {
   }
 
   private showMuxXudpQuicMenu(): void {
-    const values: string[] = ['reject', 'allow', 'skip'];
+    const values: string[] = V2RAYNG_MUX_XUDP_QUIC_OPTIONS;
     const buttons: [promptAction.Button, promptAction.Button, promptAction.Button] = [
       { text: this.t('settings.muxXudpQuic.reject'), color: AppColor.brand } as promptAction.Button,
       { text: this.t('settings.muxXudpQuic.allow'), color: AppColor.brand } as promptAction.Button,
@@ -993,10 +993,11 @@ struct SettingsPage {
   }
 
   private muxXudpQuicLabel(): string {
-    if (this.settingMuxXudpQuic === 'allow') {
+    const muxXudpQuic = normalizeV2rayNgMuxXudpQuic(this.settingMuxXudpQuic);
+    if (muxXudpQuic === 'allow') {
       return this.t('settings.muxXudpQuic.allow');
     }
-    if (this.settingMuxXudpQuic === 'skip') {
+    if (muxXudpQuic === 'skip') {
       return this.t('settings.muxXudpQuic.skip');
     }
     return this.t('settings.muxXudpQuic.reject');
