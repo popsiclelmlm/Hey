@@ -1,7 +1,7 @@
 import { util } from '@kit.ArkTS';
 import { http } from '@kit.NetworkKit';
 import { ProxyNode } from '../core/Profile';
-import { decodeBase64ToUtf8 } from '../core/Encoding';
+import { decodeBase64ToUtf8, encodeUtf8ToBase64 } from '../core/Encoding';
 import {
   isSupportedShareLink,
   parseShareLinkToOutboundJson,
@@ -20,11 +20,12 @@ export interface SubscriptionUpdateResult {
 // 与本文件的 Clash 解析器匹配；每条订阅可在编辑页覆盖，留空则回落到此值。
 export const DEFAULT_SUBSCRIPTION_USER_AGENT: string = 'clash.meta Hey/0.1';
 
-interface SubscriptionRequestHeader {
+export interface SubscriptionRequestHeader {
   'User-Agent': string;
   'Accept': string;
   'Accept-Encoding': string;
   'Content-Type': string;
+  Authorization?: string;
 }
 
 interface JsonSubscriptionDocument {
@@ -249,6 +250,21 @@ export class SubscriptionManager {
     return '';
   }
 
+  static buildSubscriptionRequestHeader(url: string, userAgent: string): SubscriptionRequestHeader {
+    const resolvedUserAgent = userAgent.trim().length > 0 ? userAgent.trim() : DEFAULT_SUBSCRIPTION_USER_AGENT;
+    const header: SubscriptionRequestHeader = {
+      'User-Agent': resolvedUserAgent,
+      'Accept': 'text/plain, application/octet-stream, application/json, application/yaml, text/yaml, */*',
+      'Accept-Encoding': 'identity',
+      'Content-Type': 'text/plain; charset=utf-8'
+    };
+    const authorization = SubscriptionManager.buildEmbeddedBasicAuthorizationHeader(url);
+    if (authorization.length > 0) {
+      header.Authorization = authorization;
+    }
+    return header;
+  }
+
   static parseSubscriptionContent(content: string, sourceUrl: string): Array<ProxyNode> {
     const raw = SubscriptionManager.normalizeSubscriptionPayload(content);
     const rawNodes = SubscriptionManager.parseText(raw, sourceUrl);
@@ -280,15 +296,9 @@ export class SubscriptionManager {
       throw new Error('HTTP redirect limit reached');
     }
 
-    const resolvedUserAgent = userAgent.trim().length > 0 ? userAgent.trim() : DEFAULT_SUBSCRIPTION_USER_AGENT;
     const request = http.createHttp();
     try {
-      const header: SubscriptionRequestHeader = {
-        'User-Agent': resolvedUserAgent,
-        'Accept': 'text/plain, application/octet-stream, application/json, application/yaml, text/yaml, */*',
-        'Accept-Encoding': 'identity',
-        'Content-Type': 'text/plain; charset=utf-8'
-      };
+      const header = SubscriptionManager.buildSubscriptionRequestHeader(url, userAgent);
       const options: http.HttpRequestOptions = {
         method: http.RequestMethod.GET,
         expectDataType: http.HttpDataType.STRING,
@@ -1382,5 +1392,46 @@ export class SubscriptionManager {
 
   private static isInsecureHttpUrl(value: string): boolean {
     return value.toLowerCase().startsWith('http://');
+  }
+
+  private static buildEmbeddedBasicAuthorizationHeader(url: string): string {
+    const authority = SubscriptionManager.urlAuthority(url);
+    const separator = authority.lastIndexOf('@');
+    if (separator < 0) {
+      return '';
+    }
+    const userInfo = authority.substring(0, separator);
+    const colon = userInfo.indexOf(':');
+    const rawUser = colon >= 0 ? userInfo.substring(0, colon) : userInfo;
+    const rawPass = colon >= 0 ? userInfo.substring(colon + 1) : '';
+    const user = SubscriptionManager.decodeUrlUserInfo(rawUser);
+    const pass = SubscriptionManager.decodeUrlUserInfo(rawPass);
+    return `Basic ${encodeUtf8ToBase64(`${user}:${pass}`)}`;
+  }
+
+  private static urlAuthority(url: string): string {
+    const trimmed = url.trim();
+    const scheme = trimmed.indexOf('://');
+    if (scheme < 0) {
+      return '';
+    }
+    const start = scheme + 3;
+    let end = trimmed.length;
+    const terminators = ['/', '?', '#'];
+    for (let index = 0; index < terminators.length; index++) {
+      const position = trimmed.indexOf(terminators[index], start);
+      if (position >= 0 && position < end) {
+        end = position;
+      }
+    }
+    return trimmed.substring(start, end);
+  }
+
+  private static decodeUrlUserInfo(value: string): string {
+    try {
+      return decodeURIComponent(value);
+    } catch (error) {
+      return value;
+    }
   }
 }

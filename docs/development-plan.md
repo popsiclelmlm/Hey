@@ -26,7 +26,7 @@
 | 真机 VPN 闭环 | ✅ **已真机验证通过（2026-06-15）**：`TUN fd → CGoSetTunFd → Xray native TUN → 出站` 端到端可上网 | 阻塞项解除，主线推进至 M1 |
 | Native 桥接 | M1 已接通当前打包库导出的 12 个 CGo 符号（含 `CGoQueryStats`/`CGoTestXray`/`CGoXrayVersion`/`CGoReadGeoFiles`/`CGoCountGeoData`/`CGoGetFreePorts`/`CGoConvertShareLinksToXrayJson`/`CGOConvertXrayJsonToShareLinks`），且预构建 `libxray.so` 已重建并验证导出符号 | **待真机复测**流量、预检、版本、Geo 计数、动态端口与 native 分享转换；上游旧入口 `CGoRunXray` 不作为 Hey 运行目标 |
 | 路由规则 | ✅ 广告拦截、自定义规则、预设规则集导入/导出均已写入 `routing.rules`，规则集可按 v2rayNG 从剪贴板或二维码 JSON 导入并保留 locked 规则，`routeOnly` 会控制 sniffing routeOnly；process 规则输出按 v2rayNG `canUseProcessRouting` 受 `routeOnly` 与 Hev TUN 共同约束，并在可用时将包名解析为 Harmony app UID；生成 Xray routing 时会按 v2rayNG 将 `geoip:cn/private` 改写为 `geoip-only-cn-private.dat` ext 引用 | 仍待真机验证规则实效；高级出站目标（策略组/负载均衡）归入 M5 |
-| 订阅 | 多分组 + 手动/批量更新 + 前台到期刷新 + 本地 HTTP 代理经由更新 + WorkScheduler 后台调度接线；本地 SOCKS 入口按 v2rayNG 默认开启，可供代理经由能力使用 | 待真机触发回归后台唤醒路径 |
+| 订阅 | 多分组 + 手动/批量更新 + 前台到期刷新 + 本地 HTTP 代理经由更新 + WorkScheduler 后台调度接线；订阅请求保留自定义 User-Agent，并按 v2rayNG 支持 URL 内嵌 `user:pass@host` Basic Auth；本地 SOCKS 入口按 v2rayNG 默认开启，可供代理经由能力使用 | 待真机触发回归后台唤醒路径 |
 | 分享导出 | 文本/文件导出 + 节点二维码 + 订阅链接二维码 + 系统分享面板；批量导出已按 v2rayNG `shareNonCustomConfigsToClipboard` 只输出可分享普通节点并跳过自定义/高级/无效配置；节点详情可按 v2rayNG `shareFullContent2Clipboard` 复制完整运行配置；URL-style 普通 TCP 节点导出会按 v2rayNG 写出 `security/type/headerType` 默认 query；剪贴板导入路径不声明受限 Harmony `READ_PASTEBOARD`，读取失败由各入口现有提示处理；运行中导入/扫码/新增/选择当前节点后会标记待重启，返回首页自动应用新配置 | 仍待真机回归不同分享目标兼容性 |
 | 速度通知 | 🟡 常驻通知代码完成；连接运行且速度显示开启时每 3 秒刷新上传/下载速率与累计流量，停止或关闭设置时取消 | 待真机通知权限弹窗、通知中心展示与后台留存回归 |
 | 深链导入 | ✅ Harmony Want / `hey://install-sub` / `hey://install-config` 已接入 EntryAbility 与首页解析；外部应用 `sendData/text/plain` 分享文本会复用订阅、单节点与 native 批量兜底导入路径 | 仍待真机回归外部应用触发路径 |
@@ -428,6 +428,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-18 | M3 | ✅ 订阅自动更新设置与前台到期刷新（`autoUpdate`/`updateIntervalMinutes` + 1440/15 分钟规则 + 首页节流到期刷新 + 单测）；当时后台任务调度尚未接入 |
 | 2026-06-18 | M3 | 🟡 订阅 WorkScheduler 后台调度接线（持久重复任务 + `SubscriptionUpdateWorkAbility` 到期刷新 + 增删改/首页同步注册 + 诊断日志 + 调度计划单测）；待真机触发回归 |
 | 2026-06-18 | M3 | ✅ 运行中经由本地 HTTP 代理更新订阅（`appendHttpProxy` 设置 + `http-in` inbound 10809 + 订阅拉取 `usingProxy` 优先/直连回退 + 单测） |
+| 2026-06-20 | M3 | ✅ 订阅 URL 内嵌 Basic Auth 对齐 v2rayNG（抓取请求从 `user:pass@host` 解码 userInfo 并写入 `Authorization` 头；补请求头构建单测） |
 | 2026-06-18 | M3 | ✅ 本地 HTTP 代理共享开关生效（`proxySharingEnabled` 开启时 `http-in.listen=0.0.0.0`，默认仍为 `127.0.0.1`，补配置生成单测） |
 | 2026-06-18 | M0 补点 | ✅ VPN 接口 DNS 不再写死，`settings.vpnDns` 会规范化后写入 Harmony `VpnConfig.dnsAddresses` |
 | 2026-06-20 | M0 补点 | ✅ VPN DNS 默认值对齐 v2rayNG，空/未设置时 Harmony `VpnConfig.dnsAddresses` 只回退 `AppConfig.DNS_VPN = 1.1.1.1`，显式多 DNS 仍按用户输入去重保留 |

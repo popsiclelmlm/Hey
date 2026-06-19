@@ -2920,6 +2920,19 @@ export default function localUnitTest() {
       expect(SubscriptionManager.validateSubscriptionUrl('ftp://sub.example/list', true)).assertContain('http:// 或 https://');
     });
 
+    it('adds embedded subscription basic auth like v2rayNG', 0, () => {
+      const header = SubscriptionManager.buildSubscriptionRequestHeader(
+        'https://user%40name:p%40ss%2Fword@sub.example/list',
+        ' Custom UA '
+      );
+      expect(JSON.stringify(header)).assertContain('"User-Agent":"Custom UA"');
+      expect(header.Authorization).assertEqual('Basic dXNlckBuYW1lOnBAc3Mvd29yZA==');
+
+      const noAuthHeader = SubscriptionManager.buildSubscriptionRequestHeader('https://sub.example/list', '');
+      expect(JSON.stringify(noAuthHeader)).assertContain('"User-Agent":"clash.meta Hey/0.1"');
+      expect(noAuthHeader.Authorization === undefined).assertTrue();
+    });
+
     it('validates subscription proxy ports', 0, () => {
       expect(SubscriptionManager.shouldUseSubscriptionProxy(0)).assertFalse();
       expect(SubscriptionManager.shouldUseSubscriptionProxy(LOCAL_HTTP_PROXY_PORT)).assertTrue();
