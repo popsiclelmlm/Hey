@@ -25,7 +25,7 @@
 | --- | --- | --- |
 | 真机 VPN 闭环 | ✅ **已真机验证通过（2026-06-15）**：`TUN fd → CGoSetTunFd → Xray native TUN → 出站` 端到端可上网 | 阻塞项解除，主线推进至 M1 |
 | Native 桥接 | M1 已接通 12 个（含 `CGoQueryStats`/`CGoTestXray`/`CGoXrayVersion`/`CGoReadGeoFiles`/`CGoCountGeoData`/`CGoGetFreePorts`/`CGoConvertShareLinksToXrayJson`/`CGOConvertXrayJsonToShareLinks`），代码完成 | **待 `libxray.so` 重建（导出符号已加）+ 真机复测**；仅 `CGoRunXray` 仍闲置 |
-| 路由规则 | ✅ 广告拦截、自定义规则、预设规则集导入/导出均已写入 `routing.rules`，`routeOnly` 会控制 process 规则输出和 sniffing routeOnly；生成 Xray routing 时会按 v2rayNG 将 `geoip:cn/private` 改写为 `geoip-only-cn-private.dat` ext 引用，并将 process 包名解析为 Harmony app UID | 仍待真机验证规则实效；高级出站目标（策略组/负载均衡）归入 M5 |
+| 路由规则 | ✅ 广告拦截、自定义规则、预设规则集导入/导出均已写入 `routing.rules`，规则集可按 v2rayNG 从剪贴板或二维码 JSON 导入并保留 locked 规则，`routeOnly` 会控制 process 规则输出和 sniffing routeOnly；生成 Xray routing 时会按 v2rayNG 将 `geoip:cn/private` 改写为 `geoip-only-cn-private.dat` ext 引用，并将 process 包名解析为 Harmony app UID | 仍待真机验证规则实效；高级出站目标（策略组/负载均衡）归入 M5 |
 | 订阅 | 多分组 + 手动/批量更新 + 前台到期刷新 + 本地 HTTP 代理经由更新 + WorkScheduler 后台调度接线；本地 SOCKS 入口按 v2rayNG 默认开启，可供代理经由能力使用 | 待真机触发回归后台唤醒路径 |
 | 分享导出 | 文本/文件导出 + 节点二维码 + 订阅链接二维码 + 系统分享面板；批量导出已按 v2rayNG `shareNonCustomConfigsToClipboard` 只输出可分享普通节点并跳过自定义/高级/无效配置；节点详情可按 v2rayNG `shareFullContent2Clipboard` 复制完整运行配置；剪贴板导入路径已补 Harmony `READ_PASTEBOARD` 权限声明与运行时请求 | 仍待真机回归不同分享目标兼容性 |
 | 速度通知 | 🟡 常驻通知代码完成；连接运行且速度显示开启时每 3 秒刷新上传/下载速率与累计流量，停止或关闭设置时取消 | 待真机通知权限弹窗、通知中心展示与后台留存回归 |
@@ -121,7 +121,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 
 **进展（2026-06-18 续）**：预设规则集导入/导出已落地：
 - 预设：内置大陆白名单/大陆黑名单/全局/伊朗白名单/俄罗斯白名单
-- 导入：导入预设或剪贴板规则数组 JSON 时保留 `locked` 规则并替换未锁定规则
+- 导入：导入预设、剪贴板或二维码规则数组 JSON 时保留 `locked` 规则并替换未锁定规则
 - 导出：当前规则可导出为 v2rayNG 风格规则数组 JSON 到剪贴板
 - UI：规则编辑器补 `locked` 开关，规则列表显示锁定标记
 
@@ -131,7 +131,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 - ✅ 自定义规则集的持久化模型（参考 v2rayNG `RulesetItem`：
   `domain/ip/port/process/protocol/network/outboundTag/enabled`）
 - ✅ 新建规则编辑器（增删改 + 上移/下移排序 + 启用开关）
-- ✅ 预设规则集导入/导出（白名单/黑名单/全局等；剪贴板 JSON 导入/导出；保留 locked 规则）
+- ✅ 预设规则集导入/导出（白名单/黑名单/全局等；剪贴板/二维码 JSON 导入与剪贴板导出；保留 locked 规则）
 
 **v2rayNG 对照**：`RoutingSettingActivity` / `RoutingEditActivity` / `RulesetItem`。
 **验收标准**：开启广告拦截后广告域名走 block；自定义规则在连接后实际生效。
@@ -371,6 +371,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-15 | 自查 | ✅ ArkTS 严格性扫描：无 `any`、新增导入全部被用；清理 SubscriptionEdit 既有未用导入 `translate` |
 | 2026-06-18 | M2 | ✅ 自定义路由规则编辑/生效（规则模型 + Route 页增删改/启停/排序 + `routing.rules` 生成 + 单测） |
 | 2026-06-18 | M2 | ✅ 预设规则集导入/导出（5 组内置预设 + 剪贴板 JSON 导入/导出 + locked 规则保留 + 单测）；M2 路由规则主功能闭环，仍待真机验证规则实效 |
+| 2026-06-19 | M2 | ✅ 路由规则集二维码导入完成（Route 页新增二维码导入入口，扫码后确认并复用规则数组 JSON 导入，保留 locked 规则；补 QR payload 单测） |
 | 2026-06-19 | M2 | ✅ routeOnly process 路由语义完成（`routeOnlyEnabled` 开启时写入 TUN sniffing `routeOnly` 并允许自定义规则输出 `process`；关闭时过滤 process-only 规则或移除 process 条件；补配置生成单测） |
 | 2026-06-19 | M2 | ✅ routeOnly sniffing 边界对齐 v2rayNG（普通 sniffing 与 FakeDNS 都关闭时仍生成 `enabled=false`、空 `destOverride`、`routeOnly=true` 的 sniffing 对象；补配置生成单测） |
 | 2026-06-19 | M4 | ✅ FakeDNS sniffing 边界对齐 v2rayNG（sniffing 的 `fakedns` 仅跟随 `fakeDnsEnabled`；顶层 `fakedns` 与 DNS FakeDNS server 仍要求本地 DNS + FakeDNS；补配置生成单测） |

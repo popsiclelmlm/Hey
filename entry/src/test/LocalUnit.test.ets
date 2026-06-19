@@ -1156,6 +1156,22 @@ export default function localUnitTest() {
       expect(importRoutingRulesJson([], '{"bad":true}').success).assertFalse();
     });
 
+    it('imports routing rules json from QR code payload format', 0, () => {
+      const lockedRule = buildRoutingRuleFixture('locked-qr-rule', 'Locked keep', 'direct');
+      lockedRule.locked = true;
+      lockedRule.domain = ['domain:locked.example'];
+      const content = '\n  [{"remarks":"QR proxy","domain":["domain:qr.example"],"outboundTag":"proxy"}]\n';
+      const result = importRoutingRulesJson([lockedRule], content);
+
+      expect(result.success).assertTrue();
+      expect(result.count).assertEqual(1);
+      expect(result.rules.length).assertEqual(2);
+      expect(result.rules[0].id).assertEqual('locked-qr-rule');
+      expect(result.rules[0].domain[0]).assertEqual('domain:locked.example');
+      expect(result.rules[1].remarks).assertEqual('QR proxy');
+      expect(result.rules[1].domain[0]).assertEqual('domain:qr.example');
+    });
+
     it('preserves advanced outbound routing targets in rules json', 0, () => {
       const content = '[{"remarks":"Policy group target","domain":["domain:group.example"],"outboundTag":"policy-group"},{"remarks":"Proxy chain target","domain":["domain:chain.example"],"outboundTag":"proxy-chain"}]';
       const result = importRoutingRulesJson([], content);

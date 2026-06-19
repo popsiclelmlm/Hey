@@ -1,6 +1,7 @@
 import { common } from '@kit.AbilityKit';
 import { pasteboard } from '@kit.BasicServicesKit';
 import { promptAction } from '@kit.ArkUI';
+import { scanBarcode, scanCore } from '@kit.ScanKit';
 import { DEFAULT_LANGUAGE, translate } from '../core/I18n';
 import { AppLanguage, ProxyNode, RoutingRule } from '../core/Profile';
 import {
@@ -416,6 +417,7 @@ struct RoutingPage {
       Row({ space: Space.xs }) {
         this.RuleHeaderActionButton($r('app.media.ic_cloud_download'), 'preset')
         this.RuleHeaderActionButton($r('app.media.ic_article'), 'import')
+        this.RuleHeaderActionButton($r('app.media.ic_qr_code'), 'qrImport')
         this.RuleHeaderActionButton($r('app.media.ic_share'), 'export')
         this.RuleHeaderActionButton($r('app.media.ic_add'), 'add')
       }
@@ -643,6 +645,8 @@ struct RoutingPage {
       this.openPresetPicker();
     } else if (action === 'import') {
       this.confirmClipboardImport();
+    } else if (action === 'qrImport') {
+      this.scanRulesFromQr();
     } else if (action === 'export') {
       this.exportRulesToClipboard();
     } else if (action === 'add') {
@@ -740,20 +744,73 @@ struct RoutingPage {
         return;
       }
 
-      const result = importRoutingRulesJson(this.routingRules, text);
-      if (!result.success) {
-        promptAction.showToast({ message: this.t('routing.rule.importFailed') });
-        return;
-      }
-
-      this.routingRules = result.rules;
-      const message = this.f1('log.routingRulesImported', 'count', result.count.toString());
-      await this.persistSettings(message);
-      promptAction.showToast({ message });
+      await this.importRulesFromText(text, 'log.routingRulesImported');
     } catch (error) {
       promptAction.showToast({ message: this.t('routing.rule.importFailed') });
       SHARED_RUNTIME_CONTROLLER.appendLog(JSON.stringify(error));
     }
+  }
+
+  private async scanRulesFromQr(): Promise<void> {
+    try {
+      const context = getContext(this) as common.UIAbilityContext;
+      const options: scanBarcode.ScanOptions = {
+        scanTypes: [scanCore.ScanType.QR_CODE],
+        enableMultiMode: false,
+        enableAlbum: true
+      };
+      const result = await scanBarcode.startScanForResult(context, options);
+      if (!result || !result.originalValue || result.originalValue.trim().length === 0) {
+        return;
+      }
+      this.confirmQrImport(result.originalValue.trim());
+    } catch (error) {
+      const errorRecord = error as Record<string, Object>;
+      const code = errorRecord['code'];
+      if (code === 20001 || code === '20001') {
+        return;
+      }
+      const message = this.f1('routing.rule.scanFailed', 'error', JSON.stringify(error));
+      promptAction.showToast({ message });
+      SHARED_RUNTIME_CONTROLLER.appendLog(message);
+    }
+  }
+
+  private confirmQrImport(content: string): void {
+    AlertDialog.show({
+      title: this.t('routing.rule.importFromQr'),
+      message: this.t('routing.preset.importConfirm'),
+      autoCancel: true,
+      alignment: DialogAlignment.Bottom,
+      offset: { dx: 0, dy: -20 },
+      primaryButton: {
+        value: this.t('action.import'),
+        fontColor: AppColor.onBrand,
+        backgroundColor: AppColor.brand,
+        action: () => {
+          this.importRulesFromText(content, 'log.routingRulesImportedFromQr');
+        }
+      },
+      secondaryButton: {
+        value: this.t('action.cancel'),
+        fontColor: AppColor.textSecondary,
+        backgroundColor: AppColor.bg,
+        action: () => {}
+      }
+    })
+  }
+
+  private async importRulesFromText(content: string, logKey: string): Promise<void> {
+    const result = importRoutingRulesJson(this.routingRules, content);
+    if (!result.success) {
+      promptAction.showToast({ message: this.t('routing.rule.importFailed') });
+      return;
+    }
+
+    this.routingRules = result.rules;
+    const message = this.f1(logKey, 'count', result.count.toString());
+    await this.persistSettings(message);
+    promptAction.showToast({ message });
   }
 
   private async exportRulesToClipboard(): Promise<void> {
