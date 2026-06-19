@@ -880,7 +880,7 @@ export function buildRuntimeXrayConfig(configJson: string, settings?: AppSetting
 
   if (validation.configType === 'full') {
     return {
-      configJson: normalizeFullConfigRoutingProcesses(validation.normalizedJson)
+      configJson: normalizeFullConfigRoutingProcesses(validation.normalizedJson, resolveProcessUid, canUseProcessRouting(settings))
     };
   }
   if (validation.configType === 'proxy-chain') {
@@ -893,7 +893,14 @@ export function buildRuntimeXrayConfig(configJson: string, settings?: AppSetting
   return buildXrayConfigInternal(validation.normalizedJson, settings);
 }
 
-export function normalizeFullConfigRoutingProcesses(configJson: string, uidResolver: RoutingProcessUidResolver = resolveProcessUid): string {
+export function normalizeFullConfigRoutingProcesses(
+  configJson: string,
+  uidResolver: RoutingProcessUidResolver = resolveProcessUid,
+  allowProcessRouting: boolean = true
+): string {
+  if (!allowProcessRouting) {
+    return configJson;
+  }
   try {
     const config = parseFullConfig(configJson);
     const routing = config.routing;
@@ -2392,7 +2399,7 @@ function buildRoutingRules(settings: AppSettings | undefined, proxyBalancerTag?:
     return rules;
   }
 
-  appendCustomRoutingRules(rules, settings.routingRules, settings.routeOnlyEnabled, proxyBalancerTag);
+  appendCustomRoutingRules(rules, settings.routingRules, canUseProcessRouting(settings), proxyBalancerTag);
 
   if (settings.trafficMode === 'rules' && settings.routeOnlyEnabled) {
     const rule: XrayRoutingRule = {
@@ -2404,6 +2411,10 @@ function buildRoutingRules(settings: AppSettings | undefined, proxyBalancerTag?:
     rules.push(rule);
   }
   return rules;
+}
+
+export function canUseProcessRouting(settings: AppSettings | undefined): boolean {
+  return settings !== undefined && settings.routeOnlyEnabled && !settings.useHevTun;
 }
 
 function appendCustomRoutingRules(rules: Array<XrayRoutingRule>, customRules: Array<RoutingRule>, allowProcessRouting: boolean, proxyBalancerTag?: string): void {

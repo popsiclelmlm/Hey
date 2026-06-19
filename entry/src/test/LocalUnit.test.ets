@@ -14,7 +14,7 @@ import { buildManualHysteria2Outbound, buildManualWireguardOutbound } from '../m
 import { ANDROID_PACKAGE_NAME_LIST_URL, clearVisiblePerAppPackages, exportPerAppProxyList, importPerAppProxyList, invertVisiblePerAppPackages, normalizePerAppPackageList, resolveAutoProxyPackageListContent, selectAllPerAppPackages, selectAutoProxyPackages } from '../main/ets/core/PerAppProxy';
 import { APP_MODE_PROXY_ONLY, APP_MODE_VPN, AppSettings, ConnectionStatus, DEFAULT_DELAY_TEST_URL, DEFAULT_HEV_TUN_LOG_LEVEL, DEFAULT_HEV_TUN_RW_TIMEOUT, DEFAULT_IP_API_URL, DEFAULT_VPN_MTU, OUTBOUND_DOMAIN_RESOLVE_DNS_HOSTS, OUTBOUND_DOMAIN_RESOLVE_NONE, OUTBOUND_DOMAIN_RESOLVE_REPLACE, OutboundDomainResolveMethod, normalizeAppRuntimeMode, normalizeHevTunLogLevel, normalizeHevTunRwTimeout, normalizeRealPingConcurrency, normalizeRoutingDomainStrategy, normalizeUiModeNight, ProxyNode, resolveDelayTestUrl, RoutingRule, RuntimeStats, SubscriptionGroup } from '../main/ets/core/Profile';
 import { BUILTIN_GEO_DATA_FILE_NAMES, GEOIP_ONLY_CN_PRIVATE_FILE_NAME, GEOIP_ONLY_CN_PRIVATE_URL, GEO_FILE_SOURCES, V2RAYNG_GEO_FILE_SOURCE_REPOS, buildBuiltinGeoAssetUrl, formatGeoCountSummary, formatGeoCountUnavailable, geoDataSpecForFile, parseGeoCountData } from '../main/ets/core/GeoAssets';
-import { DELAY_TEST_SOCKS_PORT, LOCAL_HTTP_PROXY_LAN_HOST, LOCAL_HTTP_PROXY_PORT, LOCAL_SOCKS_PROXY_PORT, UNIDENTIFIED_PROCESS_PACKAGE, buildDelayTestConfig, buildRuntimeXrayConfig, buildXrayConfig, buildXrayConfigWithSettings, collectOutboundDomainPreResolveHosts, normalizeFullConfigRoutingProcesses, normalizeOutboundInput, normalizeRoutingRuleProcesses, validateFullConfigJson, validateOutboundJson, validatePolicyGroupConfigJson, validateProxyChainConfigJson, withOutboundDomainResolvedHosts } from '../main/ets/core/XrayConfig';
+import { DELAY_TEST_SOCKS_PORT, LOCAL_HTTP_PROXY_LAN_HOST, LOCAL_HTTP_PROXY_PORT, LOCAL_SOCKS_PROXY_PORT, UNIDENTIFIED_PROCESS_PACKAGE, buildDelayTestConfig, buildRuntimeXrayConfig, buildXrayConfig, buildXrayConfigWithSettings, canUseProcessRouting, collectOutboundDomainPreResolveHosts, normalizeFullConfigRoutingProcesses, normalizeOutboundInput, normalizeRoutingRuleProcesses, validateFullConfigJson, validateOutboundJson, validatePolicyGroupConfigJson, validateProxyChainConfigJson, withOutboundDomainResolvedHosts } from '../main/ets/core/XrayConfig';
 import { parseDeepLink } from '../main/ets/core/DeepLink';
 import { HARMONY_SEND_DATA_ACTION, HARMONY_SHARE_ABSTRACT_KEY, HARMONY_SHARE_URL_KEY, HARMONY_TEXT_MIME_TYPE, SharedTextWantLike, extractSharedTextFromWant, isSharedTextWant } from '../main/ets/core/SharedTextImport';
 import { extractOutboundsFromXrayConfig } from '../main/ets/core/XrayOutbounds';
@@ -539,6 +539,13 @@ export default function localUnitTest() {
       expect(normalizedFull).assertContain('"10123"');
       expect(normalizedFull.indexOf('com.example.app')).assertEqual(-1);
       expect(normalizedFull).assertContain('com.missing.app');
+
+      const hevFull = normalizeFullConfigRoutingProcesses(
+        fullWithProcess,
+        (packageName: string): string | undefined => packageName === 'com.example.app' ? '10123' : undefined,
+        false
+      );
+      expect(hevFull).assertEqual(fullWithProcess);
     });
 
     it('resolves editable json config node names', 0, () => {
@@ -1081,10 +1088,19 @@ export default function localUnitTest() {
 
       settings.routeOnlyEnabled = true;
       const enabled = buildXrayConfigWithSettings(VLESS_REALITY_OUTBOUND, settings);
+      expect(canUseProcessRouting(settings)).assertTrue();
       expect(enabled.configJson).assertContain('"routeOnly": true');
       expect(enabled.configJson).assertContain('"process": [');
       expect(enabled.configJson).assertContain('"-1"');
       expect(enabled.configJson.indexOf('com.example.app')).assertEqual(-1);
+
+      settings.useHevTun = true;
+      const hevEnabled = buildXrayConfigWithSettings(VLESS_REALITY_OUTBOUND, settings);
+      expect(canUseProcessRouting(settings)).assertFalse();
+      expect(hevEnabled.configJson).assertContain('"routeOnly": true');
+      expect(hevEnabled.configJson).assertContain('"domain:app.example"');
+      expect(hevEnabled.configJson.indexOf('"process"')).assertEqual(-1);
+      expect(hevEnabled.configJson.indexOf('"-1"')).assertEqual(-1);
 
       const resolvedProcesses = normalizeRoutingRuleProcesses(
         ['com.example.app', 'com.missing.app', UNIDENTIFIED_PROCESS_PACKAGE],

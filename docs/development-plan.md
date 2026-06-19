@@ -25,7 +25,7 @@
 | --- | --- | --- |
 | 真机 VPN 闭环 | ✅ **已真机验证通过（2026-06-15）**：`TUN fd → CGoSetTunFd → Xray native TUN → 出站` 端到端可上网 | 阻塞项解除，主线推进至 M1 |
 | Native 桥接 | M1 已接通当前打包库导出的 12 个 CGo 符号（含 `CGoQueryStats`/`CGoTestXray`/`CGoXrayVersion`/`CGoReadGeoFiles`/`CGoCountGeoData`/`CGoGetFreePorts`/`CGoConvertShareLinksToXrayJson`/`CGOConvertXrayJsonToShareLinks`），且预构建 `libxray.so` 已重建并验证导出符号 | **待真机复测**流量、预检、版本、Geo 计数、动态端口与 native 分享转换；上游旧入口 `CGoRunXray` 不作为 Hey 运行目标 |
-| 路由规则 | ✅ 广告拦截、自定义规则、预设规则集导入/导出均已写入 `routing.rules`，规则集可按 v2rayNG 从剪贴板或二维码 JSON 导入并保留 locked 规则，`routeOnly` 会控制 process 规则输出和 sniffing routeOnly；生成 Xray routing 时会按 v2rayNG 将 `geoip:cn/private` 改写为 `geoip-only-cn-private.dat` ext 引用，并将 process 包名解析为 Harmony app UID | 仍待真机验证规则实效；高级出站目标（策略组/负载均衡）归入 M5 |
+| 路由规则 | ✅ 广告拦截、自定义规则、预设规则集导入/导出均已写入 `routing.rules`，规则集可按 v2rayNG 从剪贴板或二维码 JSON 导入并保留 locked 规则，`routeOnly` 会控制 sniffing routeOnly；process 规则输出按 v2rayNG `canUseProcessRouting` 受 `routeOnly` 与 Hev TUN 共同约束，并在可用时将包名解析为 Harmony app UID；生成 Xray routing 时会按 v2rayNG 将 `geoip:cn/private` 改写为 `geoip-only-cn-private.dat` ext 引用 | 仍待真机验证规则实效；高级出站目标（策略组/负载均衡）归入 M5 |
 | 订阅 | 多分组 + 手动/批量更新 + 前台到期刷新 + 本地 HTTP 代理经由更新 + WorkScheduler 后台调度接线；本地 SOCKS 入口按 v2rayNG 默认开启，可供代理经由能力使用 | 待真机触发回归后台唤醒路径 |
 | 分享导出 | 文本/文件导出 + 节点二维码 + 订阅链接二维码 + 系统分享面板；批量导出已按 v2rayNG `shareNonCustomConfigsToClipboard` 只输出可分享普通节点并跳过自定义/高级/无效配置；节点详情可按 v2rayNG `shareFullContent2Clipboard` 复制完整运行配置；URL-style 普通 TCP 节点导出会按 v2rayNG 写出 `security/type/headerType` 默认 query；剪贴板导入路径不声明受限 Harmony `READ_PASTEBOARD`，读取失败由各入口现有提示处理；运行中导入/扫码/新增/选择当前节点后会标记待重启，返回首页自动应用新配置 | 仍待真机回归不同分享目标兼容性 |
 | 速度通知 | 🟡 常驻通知代码完成；连接运行且速度显示开启时每 3 秒刷新上传/下载速率与累计流量，停止或关闭设置时取消 | 待真机通知权限弹窗、通知中心展示与后台留存回归 |
@@ -121,7 +121,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 **进展（2026-06-18）**：自定义路由规则已贯通模型、持久化、Route 页管理与 Xray 配置生成：
 - 模型：新增 `RoutingRule`，字段对齐 v2rayNG `RulesetItem` 的核心项（remarks/domain/ip/process/port/protocol/network/outboundTag/enabled/locked）
 - UI：Route 页支持添加、编辑、删除、启停、上移/下移规则
-- 配置：启用规则按列表顺序写入 `routing.rules`，位置在广告拦截之后、`routeOnly` 绕过规则之前；未知 outboundTag 回退 `proxy`；`routeOnly` 开关会按 v2rayNG 语义控制 process 规则输出并写入 TUN sniffing `routeOnly`；运行配置生成时将路由 IP 匹配里的 `geoip:cn/private` 改写为 `ext:geoip-only-cn-private.dat:cn/private`，并将 process 包名解析为 Harmony app UID（未知应用哨兵 `__unknown_app__` → `-1`）
+- 配置：启用规则按列表顺序写入 `routing.rules`，位置在广告拦截之后、`routeOnly` 绕过规则之前；未知 outboundTag 回退 `proxy`；`routeOnly` 开关会按 v2rayNG 语义写入 TUN sniffing `routeOnly`，process 规则输出还会按 v2rayNG `canUseProcessRouting` 要求 Hev TUN 关闭；运行配置生成时将路由 IP 匹配里的 `geoip:cn/private` 改写为 `ext:geoip-only-cn-private.dat:cn/private`，并在可用时将 process 包名解析为 Harmony app UID（未知应用哨兵 `__unknown_app__` → `-1`）
 - 测试：新增单测覆盖启用/禁用规则、端口/协议/网络字段和规则顺序
 
 **进展（2026-06-18 续）**：预设规则集导入/导出已落地：
@@ -419,6 +419,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-19 | M2 | ✅ 路由域名策略枚举对齐 v2rayNG（`AsIs/IPIfNonMatch/IPOnDemand` 归一化后保存并写入 Xray，非法值回退 `AsIs`；补 Settings 往返与配置生成单测） |
 | 2026-06-19 | M2 | ✅ 路由 GeoIP ext 规则对齐 v2rayNG（生成 Xray routing 时将 `geoip:cn/private` 改写为 `ext:geoip-only-cn-private.dat:cn/private`；DNS `expectIPs` 与设置展示保留原值；补配置生成单测） |
 | 2026-06-19 | M2 | ✅ 路由 process UID 对齐 v2rayNG（普通自定义规则生成时将 process 包名解析为 Harmony app UID，`__unknown_app__` 映射 `-1`，解析不到则移除 process 条件；完整 custom config 仅在解析成功时替换；补纯函数/配置生成单测） |
+| 2026-06-20 | M2 | ✅ process routing Hev 门槛对齐 v2rayNG（`canUseProcessRouting` 要求 `routeOnly` 开启且 Hev TUN 关闭；普通自定义规则与完整 custom config 的 `process` UID 转换共用该门槛；补配置生成/归一化单测） |
 | 2026-06-18 | M3 | ✅ 订阅分组重排（纯排序函数 + Store 持久化 + Subs 页滑动上移/下移 + 单测）；批量更新全部确认已落地 |
 | 2026-06-18 | 协议点检 | ✅ WireGuard `.conf` 整段解析完成，支持粘贴/扫码/文件导入 `[Interface]` + `[Peer]` 配置并归一化为 Xray outbound |
 | 2026-06-18 | M3 | ✅ 订阅级不安全 URL 开关（编辑页 `allowInsecureUrl` + 保存/更新 HTTP 校验 + 重定向校验 + 单测）；默认拒绝 `http://` 订阅，开启后允许 |
