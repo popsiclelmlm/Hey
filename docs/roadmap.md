@@ -16,7 +16,7 @@
 | 节点延迟测速 / 排序 | ✅ 86% | 节点菜单同时提供 TCP 延迟和 v2rayNG 风格真连接测速；真连接测速走 `CGoPing` + 独立 SOCKS 测试 inbound，优先使用 `CGoGetFreePorts` 动态端口，并按 `delayTestUrl` 设置访问目标 URL；批量测速并发数已按 v2rayNG 设置接线；需真机验证 |
 | 路由设置页 | ✅ 83% | 广告拦截、自定义规则、预设规则集导入/导出均已生效；路由域名策略按 v2rayNG `AsIs/IPIfNonMatch/IPOnDemand` 三值归一化后保存并写入 Xray；`routeOnly` 控制 process 规则输出和 sniffing routeOnly；运行配置生成时将路由 IP 匹配里的 `geoip:cn/private` 改写为 v2rayNG 同款 ext 引用；自定义规则可选择当前高级出站目标；真机规则回归待补 |
 | Geo 资产管理 | ✅ 93% | 下载 / 自定义 URL / 剪贴板备份还原 / WebDAV ZIP 云备份还原已实现，恢复兼容旧 JSON 包；Geo 文件 native 计数/校验已接线，待重建 `.so` 真机验证 |
-| 分应用代理 | 🟡 80% | 开关、黑白名单、手动包名、应用枚举、批量全选/清除/反选、自动选中需代理应用、剪贴板导入导出和 VPN 应用映射已接线；默认模式对齐 v2rayNG 为“代理选中的应用”，空列表仍阻断自身包名防回路；仍受平台可见性限制，待真机回归 |
+| 分应用代理 | 🟡 82% | 开关、黑白名单、手动包名、应用枚举、批量全选/清除/反选、自动选中需代理应用、剪贴板导入导出和 VPN 应用映射已接线；自动选择会先拉取 v2rayNG `androidpackagenamelist` 远程列表，失败时回退内置列表，并保留 `com.google*` 强制匹配/WebView 排除；默认模式对齐 v2rayNG 为“代理选中的应用”，空列表仍阻断自身包名防回路；仍受平台可见性限制，待真机回归 |
 | 设置页 | 🟡 94% | 核心项持久化并生效，`pref_mode` 已支持 VPN / Proxy only，本地 SOCKS 代理按 v2rayNG 默认开启，静态/动态端口、UDP、认证已写入运行配置；IPv6 启用与 IPv6 优先已按 v2rayNG 拆分；mux/XUDP/fragment 高级参数、fake DNS、DNS hosts、出站域名预解析方式（含启动前 live DNS 预解析）、速度显示、常驻速度通知、当前连接信息测试网址、语言跟随系统、UI 模式、显示所有分组、双列显示、删除配置确认、立即启动扫码与日志级别选择器已接线 |
 | 扫码导入 | ✅ 82% | 粘贴导入和 ScanKit 相机扫码已接线；`startScanImmediate` 开启时进入扫码页自动拉起相机，待真机相机权限/机型回归 |
 | 导出 / 分享 | ✅ 84% | 文本/文件导出、节点二维码、订阅链接二维码与系统分享面板已完成；后续主要是真机分享目标兼容回归 |
@@ -177,6 +177,7 @@
 | 2026-06-19 | 阶段 4 | ✅ 语言跟随系统完成；Settings 保存 v2rayNG `pref_language=auto/en/zh`，默认 `auto`，通过 Harmony 系统语言解析为中/英显示并补单测 |
 | 2026-06-19 | 阶段 3 | ✅ 分应用代理批处理完成；PerApp 页支持全选/清除/反选当前筛选列表，按 v2rayNG 剪贴板格式导入/导出 `bypass + package list`，默认“代理选中的应用”，导入后自动启用分应用代理 |
 | 2026-06-19 | 阶段 3 | ✅ 分应用自动选择完成；PerApp 页新增“自动选择代理应用”，按内置代理应用清单和 v2rayNG `com.google*` 强制匹配规则选择当前筛选列表，bypass 模式选择补集 |
+| 2026-06-19 | 阶段 3 | ✅ 分应用自动列表来源对齐 v2rayNG；自动选择先拉取 `2dust/androidpackagenamelist` 远程 `proxy.txt`，直连失败可经本地 HTTP 代理重试，空内容/失败回退内置列表；顺手修正 About 页 v2rayNG source 链接 |
 | 2026-06-19 | 阶段 4 | ✅ 订阅链接分享完成；订阅详情页可生成订阅 URL 二维码并复制/系统分享，订阅分组左滑分享走 Harmony 分享面板并回退剪贴板 |
 | 2026-06-19 | 协议点检 | ✅ `flow`/uTLS 指纹选项完成；NodeEdit 手动编辑补齐 `xtls-rprx-vision-udp443` 与 `ios/android/randomized`，分享链接导入导出 round-trip 保留 |
 | 2026-06-19 | 协议点检 | ✅ VMess QR TLS insecure 完成；旧版 VMess JSON `insecure=1` 导入为 `tlsSettings.allowInsecure`，导出再导入保留 |

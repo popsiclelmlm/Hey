@@ -5,6 +5,8 @@ export interface PerAppProxyImportResult {
   count: number;
 }
 
+export const ANDROID_PACKAGE_NAME_LIST_URL: string = 'https://raw.githubusercontent.com/2dust/androidpackagenamelist/master/proxy.txt';
+
 export const DEFAULT_PROXY_APP_PACKAGE_LIST: string = [
   'com.huawei.hbrowser',
   'com.android.chrome',
@@ -122,6 +124,13 @@ export function selectAutoProxyPackages(
     }
   }
   return selected;
+}
+
+export function resolveAutoProxyPackageListContent(remoteContent: string | undefined): string {
+  if (remoteContent !== undefined && remoteContent.trim().length > 0) {
+    return remoteContent;
+  }
+  return DEFAULT_PROXY_APP_PACKAGE_LIST;
 }
 
 export function exportPerAppProxyList(bypass: boolean, packages: Array<string>, selfPackageName: string = ''): string {

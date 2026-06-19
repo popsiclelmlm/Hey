@@ -10,10 +10,12 @@ import {
   selectAutoProxyPackages,
   selectAllPerAppPackages
 } from '../core/PerAppProxy';
+import { LOCAL_HTTP_PROXY_PORT } from '../core/XrayConfig';
 import { AppLanguage } from '../core/Profile';
 import { SettingToggleRow } from '../features/settings/SettingsControls';
 import { SETTINGS_CONTROLLER, SettingsDraft } from '../features/settings/SettingsController';
 import { SHARED_RUNTIME_CONTROLLER } from '../features/runtime/RuntimeController';
+import { PER_APP_PROXY_LIST_MANAGER } from '../services/PerAppProxyListManager';
 import { SectionHeader } from '../components/SectionHeader';
 import { PageHeader } from '../shell/PageHeader';
 import { formatOne } from '../utils/LocalizationPresenter';
@@ -54,6 +56,7 @@ struct PerAppPage {
   @State private searchQuery: string = ''; // 搜索关键字
   @State private newCustomPackage: string = ''; // 自定义包名输入框内容
   @State private newCustomLabel: string = ''; // 自定义包名标签名输入框内容
+  @State private isAutoSelectingProxyApps: boolean = false;
 
   private draft: SettingsDraft | null = null;
 
@@ -515,12 +518,39 @@ struct PerAppPage {
   }
 
   private async autoSelectProxyApps(): Promise<void> {
+    if (this.isAutoSelectingProxyApps) {
+      return;
+    }
+    this.isAutoSelectingProxyApps = true;
     this.enablePerAppProxy();
-    this.perAppProxyList = selectAutoProxyPackages(this.visiblePackageNames(), this.perAppProxyBypass, undefined, SELF_BUNDLE_NAME);
-    await this.saveSettings();
-    const message = this.f1('perApp.autoSelected', 'count', this.perAppProxyList.length.toString());
-    promptAction.showToast({ message });
-    SHARED_RUNTIME_CONTROLLER.appendLog(message);
+    promptAction.showToast({ message: this.f1('assets.downloading', 'title', this.t('perApp.action.autoProxy')) });
+    try {
+      const packageList = await PER_APP_PROXY_LIST_MANAGER.loadProxyPackageList(this.resolveAutoProxyListProxyPort());
+      this.perAppProxyList = selectAutoProxyPackages(
+        this.visiblePackageNames(),
+        this.perAppProxyBypass,
+        packageList.content,
+        SELF_BUNDLE_NAME
+      );
+      await this.saveSettings();
+      const message = this.f1('perApp.autoSelected', 'count', this.perAppProxyList.length.toString());
+      promptAction.showToast({ message });
+      const sourceLabel = packageList.source === 'remote' ? 'v2rayNG 远程列表' : '内置列表';
+      SHARED_RUNTIME_CONTROLLER.appendLog(`${message}（${sourceLabel}）`);
+      if (packageList.source === 'fallback' && packageList.error.length > 0) {
+        SHARED_RUNTIME_CONTROLLER.appendLog(`自动选择代理应用列表下载失败，已使用内置列表：${packageList.error}`);
+      }
+    } finally {
+      this.isAutoSelectingProxyApps = false;
+    }
+  }
+
+  private resolveAutoProxyListProxyPort(): number {
+    if (this.draft !== null && this.draft.appendHttpProxy && this.draft.localSocksEnabled &&
+      SHARED_RUNTIME_CONTROLLER.isRunning()) {
+      return LOCAL_HTTP_PROXY_PORT;
+    }
+    return 0;
   }
 
   private async importProxyAppsFromClipboard(): Promise<void> {

@@ -6,7 +6,7 @@ import { formatTranslation, missingTranslationKeys, normalizeLanguage, resolveLa
 import { defaultJsonConfigNodeName, resolveJsonConfigNodeName } from '../main/ets/core/JsonConfigNames';
 import { selectRuntimeLocalSocksPort, shouldUseDynamicLocalSocksPort, withRuntimeLocalSocksPort } from '../main/ets/core/LocalProxy';
 import { buildManualHysteria2Outbound, buildManualWireguardOutbound } from '../main/ets/core/ManualOutboundBuilder';
-import { clearVisiblePerAppPackages, exportPerAppProxyList, importPerAppProxyList, invertVisiblePerAppPackages, normalizePerAppPackageList, selectAllPerAppPackages, selectAutoProxyPackages } from '../main/ets/core/PerAppProxy';
+import { ANDROID_PACKAGE_NAME_LIST_URL, clearVisiblePerAppPackages, exportPerAppProxyList, importPerAppProxyList, invertVisiblePerAppPackages, normalizePerAppPackageList, resolveAutoProxyPackageListContent, selectAllPerAppPackages, selectAutoProxyPackages } from '../main/ets/core/PerAppProxy';
 import { APP_MODE_PROXY_ONLY, APP_MODE_VPN, AppSettings, ConnectionStatus, DEFAULT_DELAY_TEST_URL, DEFAULT_IP_API_URL, DEFAULT_VPN_MTU, OUTBOUND_DOMAIN_RESOLVE_DNS_HOSTS, OUTBOUND_DOMAIN_RESOLVE_NONE, OUTBOUND_DOMAIN_RESOLVE_REPLACE, OutboundDomainResolveMethod, normalizeAppRuntimeMode, normalizeRealPingConcurrency, normalizeRoutingDomainStrategy, normalizeUiModeNight, ProxyNode, resolveDelayTestUrl, RoutingRule, RuntimeStats, SubscriptionGroup } from '../main/ets/core/Profile';
 import { formatGeoCountSummary, formatGeoCountUnavailable, geoDataSpecForFile, parseGeoCountData } from '../main/ets/core/GeoAssets';
 import { DELAY_TEST_SOCKS_PORT, LOCAL_HTTP_PROXY_LAN_HOST, LOCAL_HTTP_PROXY_PORT, LOCAL_SOCKS_PROXY_PORT, buildDelayTestConfig, buildRuntimeXrayConfig, buildXrayConfig, buildXrayConfigWithSettings, collectOutboundDomainPreResolveHosts, normalizeOutboundInput, validateFullConfigJson, validateOutboundJson, validatePolicyGroupConfigJson, validateProxyChainConfigJson, withOutboundDomainResolvedHosts } from '../main/ets/core/XrayConfig';
@@ -1476,6 +1476,17 @@ export default function localUnitTest() {
       expect(autoBypass.length).assertEqual(2);
       expect(autoBypass[0]).assertEqual('com.tencent.mm');
       expect(autoBypass[1]).assertEqual('com.google.android.webview');
+
+      expect(ANDROID_PACKAGE_NAME_LIST_URL).assertEqual('https://raw.githubusercontent.com/2dust/androidpackagenamelist/master/proxy.txt');
+      const remoteContent = resolveAutoProxyPackageListContent('com.custom.browser\n');
+      const remoteAutoProxy = selectAutoProxyPackages([
+        'com.custom.browser',
+        'com.huawei.hbrowser',
+        'com.google.android.webview'
+      ], false, remoteContent, selfPackage, false);
+      expect(remoteAutoProxy.length).assertEqual(1);
+      expect(remoteAutoProxy[0]).assertEqual('com.custom.browser');
+      expect(resolveAutoProxyPackageListContent('').indexOf('com.openai.chatgpt') >= 0).assertTrue();
     });
 
     it('maps per-app vpn package lists like v2rayNG', 0, () => {

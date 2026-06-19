@@ -13,6 +13,8 @@ import { PageHeader } from '../shell/PageHeader';
 import { formatOne } from '../utils/LocalizationPresenter';
 import { AppColor, FontSz, Radius, Space } from '../theme/Theme';
 
+const V2RAYNG_SOURCE_URL: string = 'https://github.com/2dust/v2rayNG';
+
 @Entry
 @Component
 struct AboutPage {
@@ -114,7 +116,7 @@ struct AboutPage {
               title: this.t('about.source.title'),
               detail: this.t('about.source.detail'),
               onAction: () => {
-                this.openUrl('https://github.com/2rayng/v2rayNG', this.t('about.source.title'));
+                this.openUrl(V2RAYNG_SOURCE_URL, this.t('about.source.title'));
               }
             })
             this.RowDivider()
