@@ -226,6 +226,8 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
   （受系统自启动开关/权限控制，仍需真机重启回归）
 - ✅ **二维码生成**：节点分享与订阅链接分享生成 QR（ScanKit `generateBarcode.createBarcode`），
   节点补齐"显示二维码 / 单行链接 / 完整 JSON"三种分享形态；订阅详情页可显示订阅 URL 二维码并复制/系统分享
+- ✅ **资源 URL 二维码导入**：Assets 页新增 v2rayNG `add_qrcode` 等价入口，
+  扫描 Geo 资源 URL 后按文件名预填自定义资源添加表单
 - ✅ **剪贴板导入权限**：对应 v2rayNG 剪贴板导入配置/规则集路径，Harmony manifest 已声明
   `ohos.permission.READ_PASTEBOARD` 并在读取前统一请求，覆盖扫码页粘贴、JSON 导入、订阅粘贴、路由规则导入、分应用/备份恢复等读取入口
 - 🟡 **桌面服务卡片 / 快捷方式**：一键启停、扫码（对应 QSTile/Widget/Shortcuts）；
@@ -372,6 +374,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-18 | M2 | ✅ 自定义路由规则编辑/生效（规则模型 + Route 页增删改/启停/排序 + `routing.rules` 生成 + 单测） |
 | 2026-06-18 | M2 | ✅ 预设规则集导入/导出（5 组内置预设 + 剪贴板 JSON 导入/导出 + locked 规则保留 + 单测）；M2 路由规则主功能闭环，仍待真机验证规则实效 |
 | 2026-06-19 | M2 | ✅ 路由规则集二维码导入完成（Route 页新增二维码导入入口，扫码后确认并复用规则数组 JSON 导入，保留 locked 规则；补 QR payload 单测） |
+| 2026-06-19 | M4 | ✅ 资源 URL 二维码导入完成（Assets 页新增 v2rayNG `add_qrcode` 等价入口，扫码 URL 后预填自定义资源添加表单；补扫码 URL 归一化单测） |
 | 2026-06-19 | M2 | ✅ routeOnly process 路由语义完成（`routeOnlyEnabled` 开启时写入 TUN sniffing `routeOnly` 并允许自定义规则输出 `process`；关闭时过滤 process-only 规则或移除 process 条件；补配置生成单测） |
 | 2026-06-19 | M2 | ✅ routeOnly sniffing 边界对齐 v2rayNG（普通 sniffing 与 FakeDNS 都关闭时仍生成 `enabled=false`、空 `destOverride`、`routeOnly=true` 的 sniffing 对象；补配置生成单测） |
 | 2026-06-19 | M4 | ✅ FakeDNS sniffing 边界对齐 v2rayNG（sniffing 的 `fakedns` 仅跟随 `fakeDnsEnabled`；顶层 `fakedns` 与 DNS FakeDNS server 仍要求本地 DNS + FakeDNS；补配置生成单测） |

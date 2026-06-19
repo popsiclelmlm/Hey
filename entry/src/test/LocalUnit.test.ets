@@ -2,6 +2,7 @@ import { describe, it, expect } from '@ohos/hypium';
 import { buildPolicyGroupConfigFromNodes, buildPolicyGroupConfigFromSubscription, buildProxyChainConfigFromNodes, isAdvancedOutboundBuildableNode, normalizePolicyGroupBuilderStrategy, resolveDynamicPolicyGroupConfigJson } from '../main/ets/core/AdvancedOutboundBuilder';
 import { buildAppBackupPayload, buildAppBackupZipFromPayload, parseAppBackupData, parseAppBackupPayload } from '../main/ets/core/AppBackup';
 import { CONTROL_CARD_FORM_NAME, CONTROL_CARD_SCAN_URI, CONTROL_CARD_START_URI, CONTROL_CARD_STOP_URI, CONTROL_CARD_TOGGLE_URI, buildControlCardFormData } from '../main/ets/core/ControlCard';
+import { normalizeScannedAssetUrl } from '../main/ets/core/AssetUrls';
 import { formatTranslation, missingTranslationKeys, normalizeLanguage, resolveLanguage, resolveSystemLanguage, translate } from '../main/ets/core/I18n';
 import { defaultJsonConfigNodeName, resolveJsonConfigNodeName } from '../main/ets/core/JsonConfigNames';
 import { selectRuntimeLocalSocksPort, shouldUseDynamicLocalSocksPort, withRuntimeLocalSocksPort } from '../main/ets/core/LocalProxy';
@@ -1271,6 +1272,23 @@ export default function localUnitTest() {
         expect(formatGeoCountSummary('en', count)).assertEqual('2 categories / 345 rules');
       }
       expect(formatGeoCountUnavailable('en', 'CGoCountGeoData not exported')).assertContain('CGoCountGeoData not exported');
+    });
+
+    it('normalizes scanned asset URL payloads for QR import', 0, () => {
+      const result = normalizeScannedAssetUrl(' https://example.com/geosite.dat?download=1 ');
+      expect(result.valid).assertTrue();
+      expect(result.name).assertEqual('geosite');
+      expect(result.url).assertEqual('https://example.com/geosite.dat?download=1');
+
+      const root = normalizeScannedAssetUrl('https://example.com/');
+      expect(root.valid).assertTrue();
+      expect(root.name).assertEqual('asset');
+
+      const unsafeName = normalizeScannedAssetUrl('https://example.com/custom:rules?.dat');
+      expect(unsafeName.valid).assertTrue();
+      expect(unsafeName.name).assertEqual('custom_rules');
+
+      expect(normalizeScannedAssetUrl('ftp://example.com/geosite.dat').valid).assertFalse();
     });
 
     it('round-trips vpn settings through settings draft', 0, () => {

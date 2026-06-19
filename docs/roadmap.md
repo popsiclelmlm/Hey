@@ -1,7 +1,7 @@
 # Hey VPN 路线图（对标 v2rayNG）
 
 本文件记录 Hey 在 HarmonyOS Next 上对标 Android v2rayNG 的完成度评估与分阶段实施规划。
-评估基于真实代码（截至 2026-06-18），而非声称状态。配套页面/功能对照见
+评估基于真实代码（截至 2026-06-19），而非声称状态。配套页面/功能对照见
 [`v2rayng-feature-map.md`](v2rayng-feature-map.md)。
 
 ## 一、真实完成度评分
@@ -15,7 +15,7 @@
 | Xray 配置生成 | 🟡 93% | 普通节点生成 TUN/DNS/routing/HTTP 代理和本地 SOCKS 配置，本地 SOCKS 按 v2rayNG `pref_enable_local_proxy` 默认开启、默认端口 10808，且关闭时不生成 `socks-in`；追加 HTTP 代理也跟随该本地代理总开关，关闭本地代理时不再单独生成 `http-in`；速度显示开启时才生成 metrics/stats/policy；DNS hosts 支持 v2rayNG `domain:address,...` 格式写入 `dns.hosts`，并内置 v2rayNG `googleapis.cn` 与 Android Private DNS 默认 hosts，用户 hosts 可覆盖默认值；remote/domestic DNS 会按自定义 proxy/direct/block 规则生成 `domains`、`expectIPs`、DNS 专用路由和 block hosts，FakeDNS sniffing 按 v2rayNG 仅跟随 FakeDNS 开关，顶层 `fakedns` 与 DNS FakeDNS server 仍要求本地 DNS + FakeDNS；出站域名预解析方式 `0/1/2` 已持久化，并会在启动前用 Harmony 系统 DNS 补齐 live 解析结果，再按模式写入 DNS hosts/UseIP 或替换 outbound 域名；全局 Mux 按 v2rayNG 规则跳过 Shadowsocks/SOCKS/HTTP/Trojan/WireGuard/Hysteria2/XHTTP，保存 `-1..1024` 的 Mux/XUDP 并发并保留 `-1/0` 写入运行配置，且 VLESS flow 节点使用 `concurrency=-1`；全局 Fragment 按 v2rayNG 生成 TLS/Reality `finalmask.tcp/udp`，并跳过已有 finalmask 与代理链 dialerProxy；`routeOnly` 会按 v2rayNG 语义写入 TUN sniffing（普通 sniffing/FakeDNS 均关闭时仍保留 `enabled=false` + `routeOnly=true`）并控制 process 规则输出，运行前将 process 包名解析为 Harmony app UID，`__unknown_app__` 映射为 `-1`；生成 Xray routing 时会按 v2rayNG 将 `geoip:cn/private` 改写为 `geoip-only-cn-private.dat` ext 引用，DNS `expectIPs` 与设置展示保留原值；HTTP/SOCKS 代理支持局域网共享监听，SOCKS 支持启动前动态端口；完整自定义 Xray config 可校验后原样运行，且 `routing.rules.process` 仅在包名成功解析时按 v2rayNG 替换为 UID；代理链和策略组 JSON 可生成多跳/负载均衡 outbounds，添加节点页可从已有普通节点创建代理链/策略组，策略组支持按订阅分组与节点名正则动态成员，路由规则可选择当前高级出站目标 |
 | 节点延迟测速 / 排序 | ✅ 89% | 节点菜单同时提供 TCP 延迟、v2rayNG 风格真连接测速和手动按测试结果排序；真连接测速走 `CGoPing` + 独立 SOCKS 测试 inbound，优先使用 `CGoGetFreePorts` 动态端口，并按 `delayTestUrl` 设置访问目标 URL；批量测速并发数已按 v2rayNG 设置接线，手动/自动排序与删除失败节点均按订阅分组与 All 虚拟分组语义落盘；需真机验证 |
 | 路由设置页 | ✅ 84% | 广告拦截、自定义规则、预设规则集导入/导出均已生效，规则集支持 v2rayNG 风格剪贴板与二维码 JSON 导入；路由域名策略按 v2rayNG `AsIs/IPIfNonMatch/IPOnDemand` 三值归一化后保存并写入 Xray；`routeOnly` 控制 process 规则输出和 sniffing routeOnly，运行配置会将 process 包名转换为 Harmony app UID；运行配置生成时将路由 IP 匹配里的 `geoip:cn/private` 改写为 v2rayNG 同款 ext 引用；自定义规则可选择当前高级出站目标；真机规则回归待补 |
-| Geo 资产管理 | ✅ 93% | 下载 / 自定义 URL / 剪贴板备份还原 / WebDAV ZIP 云备份还原已实现，恢复兼容旧 JSON 包；Geo 文件 native 计数/校验已接线，待重建 `.so` 真机验证 |
+| Geo 资产管理 | ✅ 94% | 下载 / 自定义 URL / 本地 `.dat` 导入 / 资源 URL 二维码导入 / 剪贴板备份还原 / WebDAV ZIP 云备份还原已实现，恢复兼容旧 JSON 包；Geo 文件 native 计数/校验已接线，待重建 `.so` 真机验证 |
 | 分应用代理 | 🟡 82% | 开关、黑白名单、手动包名、应用枚举、批量全选/清除/反选、自动选中需代理应用、剪贴板导入导出和 VPN 应用映射已接线；自动选择会先拉取 v2rayNG `androidpackagenamelist` 远程列表，失败时回退内置列表，并保留 `com.google*` 强制匹配/WebView 排除；默认模式对齐 v2rayNG 为“代理选中的应用”，空列表仍阻断自身包名防回路；仍受平台可见性限制，待真机回归 |
 | 设置页 | 🟡 94% | 核心项持久化并生效，`pref_mode` 已支持 VPN / Proxy only，本地 SOCKS 代理按 v2rayNG 默认开启，静态/动态端口、UDP、认证已写入运行配置；IPv6 启用与 IPv6 优先已按 v2rayNG 拆分；mux/XUDP/fragment 高级参数、fake DNS、DNS hosts、出站域名预解析方式（含启动前 live DNS 预解析）、速度显示、常驻速度通知、当前连接信息测试网址、语言跟随系统、UI 模式、显示所有分组、双列显示、删除配置确认、立即启动扫码与日志级别选择器已接线 |
 | 扫码导入 | ✅ 82% | 粘贴导入和 ScanKit 相机扫码已接线，剪贴板读取已声明并运行时请求 Harmony `READ_PASTEBOARD` 权限；`startScanImmediate` 开启时进入扫码页自动拉起相机，待真机相机权限/机型回归 |
@@ -198,6 +198,7 @@
 | 2026-06-19 | 协议点检 | ✅ SOCKS 分享认证导出完成；用户密码导出为 v2rayNG `base64(user:pass)` userInfo，导入导出保留认证信息 |
 | 2026-06-19 | 协议点检 | ✅ SOCKS scheme 别名完成；`socks4://` / `socks5://` 分享和订阅导入归一为 `socks` outbound，导出继续使用 `socks://` |
 | 2026-06-19 | 协议点检 | ✅ Shadowsocks legacy 尾斜杠兼容完成；整段 base64 旧格式允许 `host:port/`，同时保留 method 小写化与密码冒号解析 |
+| 2026-06-19 | 阶段 5 | ✅ 资源 URL 二维码导入完成；Assets 页新增 v2rayNG `add_qrcode` 等价入口，扫码 URL 后预填自定义资源添加表单 |
 | 2026-06-19 | 协议点检 | ✅ Hysteria2 端口跳跃间隔完成；`mportHopInt` 可导入导出并在 NodeEdit 手动填写，导出时按 v2rayNG 规则规范化 |
 | 2026-06-19 | 协议点检 | ✅ Hysteria2 证书 pin 完成；`pinSHA256` 可从分享链接导入导出，并可在 NodeEdit 手动填写写入 outbound |
 | 2026-06-19 | 协议点检 | ✅ Hysteria2 bandwidth/obfs/port-hop 运行配置完成；启动配置生成 `finalmask.quicParams` brutal 带宽、`udpHop` 和 `salamander` mask |

@@ -14,6 +14,8 @@ export struct CustomAssetList {
   @Prop language: AppLanguage;
   @Link customAssets: Array<CustomAssetUrl>;
   @Link tempImportUri: string; // 用于从主页面传递过来本地导入的 URI
+  @Link tempAssetName: string;
+  @Link tempAssetUrl: string;
   onBack: () => void = () => {};
 
   @State private downloadingFile: string = '';
@@ -33,12 +35,18 @@ export struct CustomAssetList {
     this.checkAutoImport();
   }
 
-  // 监听 tempImportUri 的变化，如果主页面传入了临时 URI，则自动弹出添加弹窗
+  // 监听主页面传入的临时资源，自动弹出添加弹窗
   private checkAutoImport() {
     if (this.tempImportUri && this.tempImportUri.length > 0) {
       this.editId = '';
       this.initialName = '';
       this.initialUrl = 'local://import';
+      this.dialogTitle = this.t('assets.addUrlTitle');
+      this.showAddEditDialog = true;
+    } else if (this.tempAssetUrl && this.tempAssetUrl.length > 0) {
+      this.editId = '';
+      this.initialName = this.tempAssetName;
+      this.initialUrl = this.tempAssetUrl;
       this.dialogTitle = this.t('assets.addUrlTitle');
       this.showAddEditDialog = true;
     }
@@ -100,7 +108,7 @@ export struct CustomAssetList {
           initialUrl: this.initialUrl,
           onCancel: () => {
             this.showAddEditDialog = false;
-            this.tempImportUri = ''; // 清除主页面传递的临时 URI
+            this.clearTemporaryImport();
           },
           onConfirm: (name, url) => {
             this.saveCustomAsset(name, url);
@@ -207,6 +215,7 @@ export struct CustomAssetList {
   }
 
   private openAddDialog(): void {
+    this.clearTemporaryImport();
     this.editId = '';
     this.initialName = '';
     this.initialUrl = '';
@@ -306,6 +315,8 @@ export struct CustomAssetList {
       }
       this.tempImportUri = '';
     }
+    this.tempAssetName = '';
+    this.tempAssetUrl = '';
 
     if (this.editId.length > 0) {
       this.customAssets = this.customAssets.map(item => {
@@ -325,7 +336,14 @@ export struct CustomAssetList {
 
     await AssetStore.save(context, this.customAssets);
     this.showAddEditDialog = false;
+    this.clearTemporaryImport();
     promptAction.showToast({ message: '保存成功' });
+  }
+
+  private clearTemporaryImport(): void {
+    this.tempImportUri = '';
+    this.tempAssetName = '';
+    this.tempAssetUrl = '';
   }
 
   // 删除自定义 URL

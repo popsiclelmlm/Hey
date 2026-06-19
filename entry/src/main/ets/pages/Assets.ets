@@ -2,6 +2,8 @@ import { common } from '@kit.AbilityKit';
 import { promptAction } from '@kit.ArkUI';
 import { preferences } from '@kit.ArkData';
 import { picker } from '@kit.CoreFileKit';
+import { scanBarcode, scanCore } from '@kit.ScanKit';
+import { normalizeScannedAssetUrl } from '../core/AssetUrls';
 import { DEFAULT_LANGUAGE, translate } from '../core/I18n';
 import { AppLanguage } from '../core/Profile';
 import { DEFAULT_WEBDAV_BACKUP_DIR, DEFAULT_WEBDAV_BACKUP_FILE_NAME, WebDavConfig, WebDavConfigInput } from '../core/WebDav';
@@ -13,6 +15,7 @@ import { ASSETS_CONTROLLER, GEO_SOURCES } from '../features/assets/AssetsControl
 import { BuiltinGeoCard } from './assets/BuiltinGeoCard';
 import { CustomAssetList } from './assets/CustomAssetList';
 import { AppColor, FontSz, Radius, Space } from '../theme/Theme';
+import { formatOne } from '../utils/LocalizationPresenter';
 
 @Entry
 @Component
@@ -36,6 +39,8 @@ struct AssetsPage {
 
   // 暂存本地导入的 URI，双向绑定传递给 CustomAssetList
   @State private tempImportUri: string = '';
+  @State private tempAssetName: string = '';
+  @State private tempAssetUrl: string = '';
 
   @State private webDavBaseUrl: string = '';
   @State private webDavUsername: string = '';
@@ -76,6 +81,12 @@ struct AssetsPage {
                   $r('app.media.ic_folder'), AppColor.textSecondary, AppColor.surfaceAlt,
                   this.t('assets.action.importLocal'), this.t('assets.action.importLocal.detail'), false,
                   () => this.importLocalFile()
+                )
+                this.RowDivider()
+                this.EntryRow(
+                  $r('app.media.ic_qr_code'), AppColor.success, AppColor.successTint,
+                  this.t('assets.action.scanQr'), this.t('assets.action.scanQr.detail'), false,
+                  () => this.scanAssetUrlFromQr()
                 )
               }
               .width('100%')
@@ -183,6 +194,8 @@ struct AssetsPage {
           language: this.language,
           customAssets: $customAssets,
           tempImportUri: $tempImportUri,
+          tempAssetName: $tempAssetName,
+          tempAssetUrl: $tempAssetUrl,
           onBack: () => {
             this.showCustomUrls = false;
             this.updateFileStatus();
@@ -376,11 +389,46 @@ struct AssetsPage {
         } else if (result.index === 2) {
           // 自定义本地规则导入：记录临时 URI，并跳转到自定义列表以触发弹窗输入
           this.tempImportUri = fileUri;
+          this.tempAssetName = '';
+          this.tempAssetUrl = '';
           this.showCustomUrls = true;
         }
       });
     } catch (error) {
       promptAction.showToast({ message: `打开文件选择器失败: ${JSON.stringify(error)}` });
+    }
+  }
+
+  private async scanAssetUrlFromQr(): Promise<void> {
+    try {
+      const context = getContext(this) as common.UIAbilityContext;
+      const options: scanBarcode.ScanOptions = {
+        scanTypes: [scanCore.ScanType.QR_CODE],
+        enableMultiMode: false,
+        enableAlbum: true
+      };
+      const result = await scanBarcode.startScanForResult(context, options);
+      if (!result || !result.originalValue || result.originalValue.trim().length === 0) {
+        return;
+      }
+
+      const assetUrl = normalizeScannedAssetUrl(result.originalValue);
+      if (!assetUrl.valid) {
+        promptAction.showToast({ message: this.t('assets.scanInvalidUrl') });
+        return;
+      }
+
+      this.tempImportUri = '';
+      this.tempAssetName = assetUrl.name;
+      this.tempAssetUrl = assetUrl.url;
+      this.showCustomUrls = true;
+    } catch (error) {
+      const errorRecord = error as Record<string, Object>;
+      const code = errorRecord['code'];
+      if (code === 20001 || code === '20001') {
+        return;
+      }
+      promptAction.showToast({ message: this.f1('assets.scanFailed', 'error', JSON.stringify(error)) });
     }
   }
 
@@ -531,5 +579,9 @@ struct AssetsPage {
 
   private t(key: string): string {
     return translate(this.language, key);
+  }
+
+  private f1(key: string, name: string, value: string): string {
+    return formatOne(this.language, key, name, value);
   }
 }
