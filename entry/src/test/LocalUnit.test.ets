@@ -10,7 +10,7 @@ import { selectRuntimeLocalSocksPort, shouldUseDynamicLocalSocksPort, withRuntim
 import { buildManualHysteria2Outbound, buildManualWireguardOutbound } from '../main/ets/core/ManualOutboundBuilder';
 import { ANDROID_PACKAGE_NAME_LIST_URL, clearVisiblePerAppPackages, exportPerAppProxyList, importPerAppProxyList, invertVisiblePerAppPackages, normalizePerAppPackageList, resolveAutoProxyPackageListContent, selectAllPerAppPackages, selectAutoProxyPackages } from '../main/ets/core/PerAppProxy';
 import { APP_MODE_PROXY_ONLY, APP_MODE_VPN, AppSettings, ConnectionStatus, DEFAULT_DELAY_TEST_URL, DEFAULT_IP_API_URL, DEFAULT_VPN_MTU, OUTBOUND_DOMAIN_RESOLVE_DNS_HOSTS, OUTBOUND_DOMAIN_RESOLVE_NONE, OUTBOUND_DOMAIN_RESOLVE_REPLACE, OutboundDomainResolveMethod, normalizeAppRuntimeMode, normalizeRealPingConcurrency, normalizeRoutingDomainStrategy, normalizeUiModeNight, ProxyNode, resolveDelayTestUrl, RoutingRule, RuntimeStats, SubscriptionGroup } from '../main/ets/core/Profile';
-import { formatGeoCountSummary, formatGeoCountUnavailable, geoDataSpecForFile, parseGeoCountData } from '../main/ets/core/GeoAssets';
+import { BUILTIN_GEO_DATA_FILE_NAMES, GEOIP_ONLY_CN_PRIVATE_FILE_NAME, GEOIP_ONLY_CN_PRIVATE_URL, buildBuiltinGeoAssetUrl, formatGeoCountSummary, formatGeoCountUnavailable, geoDataSpecForFile, parseGeoCountData } from '../main/ets/core/GeoAssets';
 import { DELAY_TEST_SOCKS_PORT, LOCAL_HTTP_PROXY_LAN_HOST, LOCAL_HTTP_PROXY_PORT, LOCAL_SOCKS_PROXY_PORT, UNIDENTIFIED_PROCESS_PACKAGE, buildDelayTestConfig, buildRuntimeXrayConfig, buildXrayConfig, buildXrayConfigWithSettings, collectOutboundDomainPreResolveHosts, normalizeFullConfigRoutingProcesses, normalizeOutboundInput, normalizeRoutingRuleProcesses, validateFullConfigJson, validateOutboundJson, validatePolicyGroupConfigJson, validateProxyChainConfigJson, withOutboundDomainResolvedHosts } from '../main/ets/core/XrayConfig';
 import { parseDeepLink } from '../main/ets/core/DeepLink';
 import { extractOutboundsFromXrayConfig } from '../main/ets/core/XrayOutbounds';
@@ -1364,11 +1364,19 @@ export default function localUnitTest() {
     it('formats geo asset count status', 0, () => {
       const geosite = geoDataSpecForFile('geosite.dat');
       const geoip = geoDataSpecForFile('geoip.dat');
+      const geoipOnlyCnPrivate = geoDataSpecForFile(GEOIP_ONLY_CN_PRIVATE_FILE_NAME);
+      expect(BUILTIN_GEO_DATA_FILE_NAMES.length).assertEqual(3);
+      expect(BUILTIN_GEO_DATA_FILE_NAMES[2]).assertEqual(GEOIP_ONLY_CN_PRIVATE_FILE_NAME);
       expect(geosite?.name).assertEqual('geosite');
       expect(geosite?.geoType).assertEqual('domain');
       expect(geoip?.name).assertEqual('geoip');
       expect(geoip?.geoType).assertEqual('ip');
+      expect(geoipOnlyCnPrivate?.name).assertEqual('geoip-only-cn-private');
+      expect(geoipOnlyCnPrivate?.geoType).assertEqual('ip');
       expect(geoDataSpecForFile('custom.dat') === null).assertTrue();
+      expect(buildBuiltinGeoAssetUrl('https://example.com/release/', 'geosite.dat')).assertEqual('https://example.com/release/geosite.dat');
+      expect(buildBuiltinGeoAssetUrl('https://example.com/release', 'geoip.dat')).assertEqual('https://example.com/release/geoip.dat');
+      expect(buildBuiltinGeoAssetUrl('https://example.com/release/', GEOIP_ONLY_CN_PRIVATE_FILE_NAME)).assertEqual(GEOIP_ONLY_CN_PRIVATE_URL);
 
       const count = parseGeoCountData('{"categoryCount":2,"ruleCount":345,"codes":[{"code":"cn","ruleCount":100}]}');
       expect(count?.categoryCount).assertEqual(2);

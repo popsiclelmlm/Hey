@@ -14,14 +14,26 @@ export interface GeoCountData {
   ruleCount: number;
 }
 
+export const GEOSITE_FILE_NAME: string = 'geosite.dat';
+export const GEOIP_FILE_NAME: string = 'geoip.dat';
+export const GEOIP_ONLY_CN_PRIVATE_FILE_NAME: string = 'geoip-only-cn-private.dat';
+export const GEOIP_ONLY_CN_PRIVATE_URL: string =
+  'https://raw.githubusercontent.com/Loyalsoldier/geoip/release/geoip-only-cn-private.dat';
+export const BUILTIN_GEO_DATA_FILE_NAMES: Array<string> = [
+  GEOSITE_FILE_NAME,
+  GEOIP_FILE_NAME,
+  GEOIP_ONLY_CN_PRIVATE_FILE_NAME
+];
+
 interface RawGeoCountData {
   categoryCount?: number;
   ruleCount?: number;
 }
 
 export const GEO_DATA_FILE_SPECS: Array<GeoDataFileSpec> = [
-  { fileName: 'geosite.dat', name: 'geosite', geoType: 'domain' },
-  { fileName: 'geoip.dat', name: 'geoip', geoType: 'ip' }
+  { fileName: GEOSITE_FILE_NAME, name: 'geosite', geoType: 'domain' },
+  { fileName: GEOIP_FILE_NAME, name: 'geoip', geoType: 'ip' },
+  { fileName: GEOIP_ONLY_CN_PRIVATE_FILE_NAME, name: 'geoip-only-cn-private', geoType: 'ip' }
 ];
 
 export function geoDataSpecForFile(fileName: string): GeoDataFileSpec | null {
@@ -46,6 +58,14 @@ export function parseGeoCountData(raw: string): GeoCountData | null {
   } catch (error) {
     return null;
   }
+}
+
+export function buildBuiltinGeoAssetUrl(sourceUrl: string, fileName: string): string {
+  if (fileName === GEOIP_ONLY_CN_PRIVATE_FILE_NAME) {
+    return GEOIP_ONLY_CN_PRIVATE_URL;
+  }
+  const normalizedSource = sourceUrl.endsWith('/') ? sourceUrl : `${sourceUrl}/`;
+  return `${normalizedSource}${fileName}`;
 }
 
 export function formatGeoCountSummary(language: AppLanguage, count: GeoCountData): string {

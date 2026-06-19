@@ -4,6 +4,7 @@ import { preferences } from '@kit.ArkData';
 import { picker } from '@kit.CoreFileKit';
 import { scanBarcode, scanCore } from '@kit.ScanKit';
 import { normalizeScannedAssetUrl } from '../core/AssetUrls';
+import { buildBuiltinGeoAssetUrl, GEOIP_FILE_NAME, GEOIP_ONLY_CN_PRIVATE_FILE_NAME, GEOSITE_FILE_NAME } from '../core/GeoAssets';
 import { DEFAULT_LANGUAGE, translate } from '../core/I18n';
 import { AppLanguage } from '../core/Profile';
 import { DEFAULT_WEBDAV_BACKUP_DIR, DEFAULT_WEBDAV_BACKUP_FILE_NAME, WebDavConfig, WebDavConfigInput } from '../core/WebDav';
@@ -25,6 +26,7 @@ struct AssetsPage {
   // 文件状态信息
   @State private geositeStatus: string = '';
   @State private geoipStatus: string = '';
+  @State private geoipOnlyCnPrivateStatus: string = '';
 
   // 自定义 URL 管理视图控制
   @State private showCustomUrls: boolean = false;
@@ -101,6 +103,7 @@ struct AssetsPage {
                 language: this.language,
                 geositeStatus: this.geositeStatus,
                 geoipStatus: this.geoipStatus,
+                geoipOnlyCnPrivateStatus: this.geoipOnlyCnPrivateStatus,
                 currentSourceName: this.currentSourceName,
                 currentSourceUrl: this.currentSourceUrl,
                 downloadingFile: this.downloadingFile,
@@ -319,7 +322,7 @@ struct AssetsPage {
     await ASSETS_CONTROLLER.downloadAsset(
       context,
       fileName,
-      `${this.currentSourceUrl}${fileName}`,
+      buildBuiltinGeoAssetUrl(this.currentSourceUrl, fileName),
       this.language,
       () => {
         this.downloadingFile = fileName;
@@ -341,7 +344,7 @@ struct AssetsPage {
       return;
     }
     const context = getContext(this) as common.Context;
-    this.downloadingFile = 'geosite.dat';
+    this.downloadingFile = GEOSITE_FILE_NAME;
     this.updateFileStatus();
     await ASSETS_CONTROLLER.downloadAllAssets(
       context,
@@ -351,7 +354,7 @@ struct AssetsPage {
         this.downloadingFile = fileName;
         this.updateFileStatus();
       },
-      (successGeosite, successGeoip) => {
+      (_successGeosite: boolean, _successGeoip: boolean, _successGeoipOnlyCnPrivate: boolean) => {
         this.downloadingFile = '';
         this.updateFileStatus();
       }
@@ -371,9 +374,10 @@ struct AssetsPage {
       }
       const fileUri = uris[0];
 
-      const menu: [promptAction.Button, promptAction.Button, promptAction.Button] = [
+      const menu: [promptAction.Button, promptAction.Button, promptAction.Button, promptAction.Button] = [
         { text: this.t('assets.importType.geosite'), color: AppColor.brand } as promptAction.Button,
         { text: this.t('assets.importType.geoip'), color: AppColor.brand } as promptAction.Button,
+        { text: this.t('assets.importType.geoipOnlyCnPrivate'), color: AppColor.brand } as promptAction.Button,
         { text: this.t('assets.importType.custom'), color: AppColor.brand } as promptAction.Button
       ];
 
@@ -383,10 +387,12 @@ struct AssetsPage {
       }).then(async (result) => {
         const context = getContext(this) as common.Context;
         if (result.index === 0) {
-          await ASSETS_CONTROLLER.copyLocalFileToAssets(context, fileUri, 'geosite.dat', this.language, () => this.updateFileStatus(), () => {});
+          await ASSETS_CONTROLLER.copyLocalFileToAssets(context, fileUri, GEOSITE_FILE_NAME, this.language, () => this.updateFileStatus(), () => {});
         } else if (result.index === 1) {
-          await ASSETS_CONTROLLER.copyLocalFileToAssets(context, fileUri, 'geoip.dat', this.language, () => this.updateFileStatus(), () => {});
+          await ASSETS_CONTROLLER.copyLocalFileToAssets(context, fileUri, GEOIP_FILE_NAME, this.language, () => this.updateFileStatus(), () => {});
         } else if (result.index === 2) {
+          await ASSETS_CONTROLLER.copyLocalFileToAssets(context, fileUri, GEOIP_ONLY_CN_PRIVATE_FILE_NAME, this.language, () => this.updateFileStatus(), () => {});
+        } else if (result.index === 3) {
           // 自定义本地规则导入：记录临时 URI，并跳转到自定义列表以触发弹窗输入
           this.tempImportUri = fileUri;
           this.tempAssetName = '';
@@ -465,8 +471,9 @@ struct AssetsPage {
 
   private updateFileStatus(): void {
     const context = getContext(this) as common.Context;
-    this.geositeStatus = ASSETS_CONTROLLER.getFileStatus(context, 'geosite.dat', this.language);
-    this.geoipStatus = ASSETS_CONTROLLER.getFileStatus(context, 'geoip.dat', this.language);
+    this.geositeStatus = ASSETS_CONTROLLER.getFileStatus(context, GEOSITE_FILE_NAME, this.language);
+    this.geoipStatus = ASSETS_CONTROLLER.getFileStatus(context, GEOIP_FILE_NAME, this.language);
+    this.geoipOnlyCnPrivateStatus = ASSETS_CONTROLLER.getFileStatus(context, GEOIP_ONLY_CN_PRIVATE_FILE_NAME, this.language);
   }
 
   // 加载自定义 Geo 链接

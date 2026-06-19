@@ -7,7 +7,7 @@ import fs from '@ohos.file.fs';
 import { AppLanguage } from '../../core/Profile';
 import { translate } from '../../core/I18n';
 import { buildAppBackupPayload, buildAppBackupZipFromPayload, parseAppBackupData } from '../../core/AppBackup';
-import { formatGeoCountSummary, formatGeoCountUnavailable, geoDataSpecForFile, parseGeoCountData } from '../../core/GeoAssets';
+import { BUILTIN_GEO_DATA_FILE_NAMES, buildBuiltinGeoAssetUrl, formatGeoCountSummary, formatGeoCountUnavailable, geoDataSpecForFile, parseGeoCountData } from '../../core/GeoAssets';
 import { validateWebDavConfig, WebDavConfigInput } from '../../core/WebDav';
 import { countNativeGeoData } from '../../native/HeyNative';
 import { ensureReadPasteboardPermission } from '../../utils/ClipboardPermission';
@@ -183,30 +183,33 @@ export class AssetsController {
     currentSourceUrl: string,
     language: AppLanguage,
     onProgress: (fileName: string) => void,
-    onComplete: (successGeosite: boolean, successGeoip: boolean) => void
+    onComplete: (successGeosite: boolean, successGeoip: boolean, successGeoipOnlyCnPrivate: boolean) => void
   ): Promise<void> {
     try {
       promptAction.showToast({ message: this.t(language, 'assets.updatingAll') });
 
-      // 下载 geosite.dat
-      onProgress('geosite.dat');
-      const successGeosite = await this.performDownload(context, 'geosite.dat', `${currentSourceUrl}geosite.dat`);
+      const results = new Array<boolean>();
+      for (let index = 0; index < BUILTIN_GEO_DATA_FILE_NAMES.length; index++) {
+        const fileName = BUILTIN_GEO_DATA_FILE_NAMES[index];
+        onProgress(fileName);
+        results.push(await this.performDownload(context, fileName, buildBuiltinGeoAssetUrl(currentSourceUrl, fileName)));
+      }
 
-      // 下载 geoip.dat
-      onProgress('geoip.dat');
-      const successGeoip = await this.performDownload(context, 'geoip.dat', `${currentSourceUrl}geoip.dat`);
+      const successGeosite = results[0] === true;
+      const successGeoip = results[1] === true;
+      const successGeoipOnlyCnPrivate = results[2] === true;
 
-      if (successGeosite && successGeoip) {
+      if (successGeosite && successGeoip && successGeoipOnlyCnPrivate) {
         promptAction.showToast({ message: this.t(language, 'assets.updateAllSuccess') });
-      } else if (successGeosite || successGeoip) {
+      } else if (successGeosite || successGeoip || successGeoipOnlyCnPrivate) {
         promptAction.showToast({ message: '部分规则文件更新成功，部分失败。' });
       } else {
         promptAction.showToast({ message: '一键更新失败，请检查网络或更换下载源。' });
       }
-      onComplete(successGeosite, successGeoip);
+      onComplete(successGeosite, successGeoip, successGeoipOnlyCnPrivate);
     } catch (error) {
       promptAction.showToast({ message: `一键更新出错: ${JSON.stringify(error)}` });
-      onComplete(false, false);
+      onComplete(false, false, false);
     }
   }
 

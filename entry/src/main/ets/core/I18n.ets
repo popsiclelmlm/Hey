@@ -580,6 +580,7 @@ export const TRANSLATION_KEYS: Array<string> = [
   'assets.selectImportType',
   'assets.importType.geosite',
   'assets.importType.geoip',
+  'assets.importType.geoipOnlyCnPrivate',
   'assets.importType.custom'
 ];
 
@@ -966,6 +967,7 @@ const ZH_TRANSLATIONS: Record<string, string> = {
   'assets.selectImportType': '请选择导入的资源类型',
   'assets.importType.geosite': '导入为 geosite.dat',
   'assets.importType.geoip': '导入为 geoip.dat',
+  'assets.importType.geoipOnlyCnPrivate': '导入为 geoip-only-cn-private.dat',
   'assets.importType.custom': '导入为自定义资源',
   'about.section.detail': 'HarmonyOS NEXT Xray 客户端',
   'about.source.title': '源参考',
@@ -1546,6 +1548,7 @@ const EN_TRANSLATIONS: Record<string, string> = {
   'assets.selectImportType': 'Select asset type to import',
   'assets.importType.geosite': 'Import as geosite.dat',
   'assets.importType.geoip': 'Import as geoip.dat',
+  'assets.importType.geoipOnlyCnPrivate': 'Import as geoip-only-cn-private.dat',
   'assets.importType.custom': 'Import as custom asset',
   'about.section.detail': 'HarmonyOS NEXT Xray client',
   'about.source.title': 'Source Reference',

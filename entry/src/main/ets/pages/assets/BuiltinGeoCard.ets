@@ -1,9 +1,9 @@
 import { common } from '@kit.AbilityKit';
 import { promptAction } from '@kit.ArkUI';
 import fs from '@ohos.file.fs';
+import { GEOIP_FILE_NAME, GEOIP_ONLY_CN_PRIVATE_FILE_NAME, GEOSITE_FILE_NAME } from '../../core/GeoAssets';
 import { AppLanguage } from '../../core/Profile';
 import { translate } from '../../core/I18n';
-import { ASSETS_CONTROLLER } from '../../features/assets/AssetsController';
 import { AppColor, FontSz, Radius, Space } from '../../theme/Theme';
 
 @Component
@@ -11,6 +11,7 @@ export struct BuiltinGeoCard {
   @Prop language: AppLanguage;
   @Prop geositeStatus: string;
   @Prop geoipStatus: string;
+  @Prop geoipOnlyCnPrivateStatus: string;
   @Prop currentSourceName: string;
   @Prop currentSourceUrl: string;
   @Prop downloadingFile: string;
@@ -64,13 +65,15 @@ export struct BuiltinGeoCard {
 
       this.RowDivider()
 
-      // geosite.dat 项
-      this.GeoItemRow('geosite.dat', this.geositeStatus)
+      this.GeoItemRow(GEOSITE_FILE_NAME, this.geositeStatus)
 
       this.RowDivider()
 
-      // geoip.dat 项
-      this.GeoItemRow('geoip.dat', this.geoipStatus)
+      this.GeoItemRow(GEOIP_FILE_NAME, this.geoipStatus)
+
+      this.RowDivider()
+
+      this.GeoItemRow(GEOIP_ONLY_CN_PRIVATE_FILE_NAME, this.geoipOnlyCnPrivateStatus)
     }
     .width('100%')
     .backgroundColor(AppColor.surface)

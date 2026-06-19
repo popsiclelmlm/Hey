@@ -17,7 +17,7 @@
 
 - ✅ 相机扫码：`pages/Scanner.ets` 已接入 `@kit.ScanKit`（`scanBarcode.startScanForResult`）
 - ✅ 分应用代理：`pages/PerApp.ets` 已用 `bundleManager` 枚举已安装应用，并补齐全选/清除/反选、自动选择代理应用、剪贴板导入/导出包名列表；自动选择会先拉取 v2rayNG `androidpackagenamelist` 远程清单，失败回退内置列表
-- ✅ Assets 页模块化、NodeEdit 组件化、8 协议手动配置与解析
+- ✅ Assets 页模块化、NodeEdit 组件化、8 协议手动配置与解析；内置 Geo 下载已包含 v2rayNG 强制更新的 `geoip-only-cn-private.dat`
 
 仍是关键缺口：
 
@@ -389,6 +389,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-19 | M4 | ✅ 资源 URL 二维码导入完成（Assets 页新增 v2rayNG `add_qrcode` 等价入口，扫码 URL 后预填自定义资源添加表单；补扫码 URL 归一化单测） |
 | 2026-06-19 | M4 | ✅ 自定义资源名称唯一性校验完成（新增/编辑/扫码预填/本地导入保存时按 v2rayNG asset remarks 语义拒绝重复名称；补重复判断单测） |
 | 2026-06-19 | M4 | ✅ 本地文件资源编辑入口对齐完成（本地导入资源保留覆盖导入/删除，不再进入编辑表单；补 file/local URL 可编辑性单测） |
+| 2026-06-19 | M4 | ✅ 内置 Geo 文件更新对齐 v2rayNG（Assets 页新增 `geoip-only-cn-private.dat` 状态/单独更新/删除/本地覆盖，一键更新强制从 Loyalsoldier/geoip raw URL 拉取；补 URL 与规格单测） |
 | 2026-06-19 | M2 | ✅ routeOnly process 路由语义完成（`routeOnlyEnabled` 开启时写入 TUN sniffing `routeOnly` 并允许自定义规则输出 `process`；关闭时过滤 process-only 规则或移除 process 条件；补配置生成单测） |
 | 2026-06-19 | M2 | ✅ routeOnly sniffing 边界对齐 v2rayNG（普通 sniffing 与 FakeDNS 都关闭时仍生成 `enabled=false`、空 `destOverride`、`routeOnly=true` 的 sniffing 对象；补配置生成单测） |
 | 2026-06-19 | M4 | ✅ FakeDNS sniffing 边界对齐 v2rayNG（sniffing 的 `fakedns` 仅跟随 `fakeDnsEnabled`；顶层 `fakedns` 与 DNS FakeDNS server 仍要求本地 DNS + FakeDNS；补配置生成单测） |
