@@ -1363,6 +1363,7 @@ export default function localUnitTest() {
       expect(missingTranslationKeys('en').length).assertEqual(0);
       expect(translate('zh', 'screen.settings.title')).assertEqual('设置');
       expect(translate('en', 'screen.settings.title')).assertEqual('Settings');
+      expect(translate('en', 'settings.checkUpdatePreRelease')).assertEqual('Include pre-release versions');
       expect(translate('zh', 'missing.translation.key')).assertEqual('missing.translation.key');
       expect(formatTranslation('en', 'subscription.updateComplete', ['count'], ['3'])).assertContain('3');
       expect(formatOne('zh', 'subscription.updateComplete', 'count', '3')).assertContain('3');

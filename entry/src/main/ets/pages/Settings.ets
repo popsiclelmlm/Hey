@@ -127,6 +127,8 @@ struct SettingsPage {
             this.RowDivider()
             this.SettingToggle(this.t('settings.startOnBoot'), this.settingStartOnBoot, 'startOnBoot')
             this.RowDivider()
+            this.SettingToggle(this.t('settings.checkUpdatePreRelease'), this.settingCheckUpdatePreRelease, 'checkUpdatePreRelease')
+            this.RowDivider()
             this.SettingToggle(this.t('settings.groupAllDisplay'), this.settingGroupAllDisplay, 'groupAllDisplay')
             this.RowDivider()
             this.SettingToggle(this.t('settings.doubleColumnDisplay'), this.settingDoubleColumnDisplay, 'doubleColumnDisplay')
@@ -403,6 +405,9 @@ struct SettingsPage {
         break;
       case 'startOnBoot':
         this.settingStartOnBoot = !this.settingStartOnBoot;
+        break;
+      case 'checkUpdatePreRelease':
+        this.settingCheckUpdatePreRelease = !this.settingCheckUpdatePreRelease;
         break;
       case 'groupAllDisplay':
         this.settingGroupAllDisplay = !this.settingGroupAllDisplay;

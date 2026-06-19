@@ -251,7 +251,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
   每 3 秒按 `CGoQueryStats` 累计值差分刷新上传/下载速率，停止或关闭设置时取消
   （2026-06-18 代码完成，待真机通知权限与展示回归）
 - ✅ **关于页更新检查**：对应 v2rayNG `UpdateCheckerManager`；
-  About 页从 GitHub release API 拉取 tag/assets，比较当前版本 `1.1.0`，发现新版本时打开下载页/Release 页，失败时记录运行日志；`pref_check_update_pre_release` 等价开关可选择是否包含 pre-release
+  About 页从 GitHub release API 拉取 tag/assets，比较当前版本 `1.1.0`，发现新版本时打开下载页/Release 页，失败时记录运行日志；`pref_check_update_pre_release` 等价开关可在 About/Settings 配置是否包含 pre-release
 - ✅ **运行配置变更自动重启**：对应 v2rayNG `SettingsChangeManager.makeRestartService()`；
   Settings/Route/PerApp 保存、导入/扫码/新增/选择当前节点和编辑当前自定义节点时写入待重启标记，首页恢复时若服务运行且空闲则自动 stop/start 应用最新配置，忙碌时保留标记稍后继续
 
@@ -473,6 +473,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-18 | M4 | 🟡 桌面服务卡片动态状态刷新代码完成（保存卡片 formId 与最近运行态，首页运行态变化同步状态文案、详情、主按钮动作并按 3 秒节流通过 `formProvider.updateForm` 刷新）；待真机添加卡片、点击调起与系统刷新回归 |
 | 2026-06-18 | M4 | ✅ 关于页更新检查完成（About 页通过 GitHub latest release API 解析 tag/assets，比较当前版本 `1.1.0`，发现新版本时打开下载页/Release 页，失败写运行日志；补版本比较与 release 解析单测） |
 | 2026-06-18 | M4 | ✅ 关于页预发布更新检查开关完成（保存 `pref_check_update_pre_release` 等价设置，开启后检查 GitHub releases 列表并允许 pre-release 版本命中；补 release 列表选择与 Settings 往返单测） |
+| 2026-06-19 | M4 | ✅ pre-release 更新检查设置页入口完成（Settings 页新增 `pref_check_update_pre_release` 等价开关，与 About 页共用同一持久化值；补 Settings 文案覆盖） |
 | 2026-06-19 | M4 | ✅ 语言跟随系统完成（`pref_language=auto/en/zh` 三态、默认 `auto`，通过 Harmony `i18n.System.getSystemLanguage()` 解析系统语言，设置页三段切换，补语言归一化与解析单测） |
 | 2026-06-19 | M3 | ✅ 分应用代理批处理完成（PerApp 页支持全选/清除/反选当前筛选列表，按 v2rayNG 剪贴板格式导入/导出 `bypass + package list`，默认模式对齐为代理选中应用，导入后自动启用分应用代理；补包名列表与 VPN 映射单测） |
 | 2026-06-19 | M3 | ✅ 分应用自动选择完成（PerApp 页新增自动选择需代理应用，使用内置代理应用清单并保留 v2rayNG `com.google*` 强制匹配、WebView 排除和 bypass 补集语义；补 helper 单测） |
