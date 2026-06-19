@@ -542,6 +542,11 @@ export default function localUnitTest() {
       const trojan = buildXrayConfigWithSettings(TROJAN_OUTBOUND, settings);
       expect(trojan.configJson.indexOf('"mux"')).assertEqual(-1);
 
+      const trojanWithMux =
+        '{"protocol":"trojan","tag":"relay","settings":{"servers":[{"address":"relay.example.com","port":443,"password":"secret"}]},"mux":{"enabled":true,"concurrency":32,"xudpConcurrency":16,"xudpProxyUDP443":"allow"}}';
+      const trojanImportedMux = buildXrayConfigWithSettings(trojanWithMux, settings);
+      expect(trojanImportedMux.configJson).assertContain('"mux": {\n        "enabled": false,\n        "concurrency": -1');
+
       const xhttp = buildXrayConfigWithSettings(VLESS_XHTTP_OUTBOUND, settings);
       expect(xhttp.configJson.indexOf('"mux"')).assertEqual(-1);
 
@@ -578,6 +583,12 @@ export default function localUnitTest() {
       expect(hysteria2.success).assertTrue();
       const hy2Config = buildXrayConfigWithSettings(hysteria2.outboundJson, settings);
       expect(hy2Config.configJson.indexOf('"mux"')).assertEqual(-1);
+
+      settings.muxEnabled = false;
+      const vmessWithMux =
+        '{"protocol":"vmess","tag":"proxy","settings":{"vnext":[{"address":"vmess.example.com","port":443,"users":[{"id":"00000000-0000-0000-0000-000000000000","alterId":0,"security":"auto"}]}]},"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"serverName":"vmess.example.com"}},"mux":{"enabled":true,"concurrency":32,"xudpConcurrency":16,"xudpProxyUDP443":"allow"}}';
+      const disabledImportedMux = buildXrayConfigWithSettings(vmessWithMux, settings);
+      expect(disabledImportedMux.configJson).assertContain('"mux": {\n        "enabled": false,\n        "concurrency": -1');
     });
 
     it('controls speed metrics with the speed display setting', 0, () => {

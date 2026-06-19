@@ -1057,15 +1057,7 @@ function applyOutboundRuntimeSettings(outbound: XrayOutbound, settings: AppSetti
   applyPinnedCertificateAllowInsecureParity(outbound);
   applyWireguardIpv6Setting(outbound, settings);
   applyHysteria2FinalMaskSettings(outbound);
-  if (settings !== undefined && settings.muxEnabled && shouldApplyMux(outbound)) {
-    const mux: XrayMuxConfig = {
-      enabled: true,
-      concurrency: shouldUseVlessFlowMuxConcurrency(outbound) ? -1 : settings.muxConcurrency,
-      xudpConcurrency: settings.muxXudpConcurrency,
-      xudpProxyUDP443: settings.muxXudpQuic
-    };
-    outbound.mux = mux;
-  }
+  applyMuxRuntimeSettings(outbound, settings);
   if (settings !== undefined && settings.fragmentEnabled) {
     applyFragmentFinalMaskSettings(outbound, settings);
   }
@@ -1078,6 +1070,28 @@ function applyOutboundRuntimeSettings(outbound: XrayOutbound, settings: AppSetti
     sockopt['domainStrategy'] = 'UseIP';
     sockopt['happyEyeballs'] = happyEyeballs;
   }
+}
+
+function applyMuxRuntimeSettings(outbound: XrayOutbound, settings: AppSettings | undefined): void {
+  if (settings !== undefined && settings.muxEnabled && shouldApplyMux(outbound)) {
+    const mux: XrayMuxConfig = {
+      enabled: true,
+      concurrency: shouldUseVlessFlowMuxConcurrency(outbound) ? -1 : settings.muxConcurrency,
+      xudpConcurrency: settings.muxXudpConcurrency,
+      xudpProxyUDP443: settings.muxXudpQuic
+    };
+    outbound.mux = mux;
+    return;
+  }
+  disableExistingMux(outbound);
+}
+
+function disableExistingMux(outbound: XrayOutbound): void {
+  if (outbound.mux === undefined) {
+    return;
+  }
+  outbound.mux.enabled = false;
+  outbound.mux.concurrency = -1;
 }
 
 function applyTlsServerNameFallbackParity(outbound: XrayOutbound): void {

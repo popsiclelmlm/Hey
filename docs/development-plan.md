@@ -418,6 +418,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-18 | M4 | ✅ 本地 SOCKS 动态端口完成（`localSocksDynamicPort` 设置 + 启动前 `CGoGetFreePorts` 选择运行端口 + 设置/端口选择单测）；待重建 `.so` + 真机复测 |
 | 2026-06-18 | M4 | ✅ 传输高级设置完成（Settings 展开 mux 并发、XUDP 并发、UDP/443 策略、fragment packets/length/interval，日志级别改为 picker，并补 Settings draft 往返单测） |
 | 2026-06-19 | M4 | ✅ Mux 并发范围对齐 v2rayNG（`muxConcurrency` 与 `muxXudpConcurrency` 保存范围改为 `-1..1024`，运行配置保留 `-1/0`，XUDP 为负时隐藏 UDP/443 策略入口；补 Settings 与配置生成单测） |
+| 2026-06-19 | M4 | ✅ Mux 禁用语义对齐 v2rayNG（全局 Mux 关闭或协议不适用时，导入 outbound 自带 mux 会被写为 `enabled=false`、`concurrency=-1`；补配置生成单测） |
 | 2026-06-18 | M4 | ✅ DNS hosts 设置完成（Settings 保存 v2rayNG `domain:address,...` 输入，Xray 生成 `dns.hosts`；同时兼容 JSON object 输入并补配置生成单测） |
 | 2026-06-18 | M4 | ✅ 出站域名预解析方式设置完成（Settings 保存 v2rayNG `pref_outbound_domain_resolve_method=0/1/2`，静态 DNS hosts 命中时可为 outbound 写入 `UseIP`/`happyEyeballs` 或直接替换服务器域名；补配置生成与 Settings 往返单测） |
 | 2026-06-18 | M4 | ✅ 启动前 live DNS 预解析完成（连接启动前用 Harmony `connection.getAddressesByName` 解析 outbound 域名，合并到运行时 DNS hosts，不改持久化设置；普通节点、代理链、策略组均覆盖） |
