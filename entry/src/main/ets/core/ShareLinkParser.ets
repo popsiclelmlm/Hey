@@ -1349,6 +1349,13 @@ function normalizeHysteria2PortHoppingInterval(value: string | undefined): strin
   return String(Math.floor((minStart + minEnd) / 2));
 }
 
+function defaultUrlStyleStreamSettings(security: string): XrayStreamSettings {
+  return {
+    network: 'tcp',
+    security
+  };
+}
+
 function appendStreamSettingsToQuery(queryParams: Map<string, string>, stream?: XrayStreamSettings): void {
   if (!stream) return;
   const network = stream.network || 'tcp';
@@ -1561,7 +1568,7 @@ function formatVless(outbound: XrayOutbound, name: string): string {
     queryParams.set('flow', user.flow);
   }
 
-  appendStreamSettingsToQuery(queryParams, outbound.streamSettings);
+  appendStreamSettingsToQuery(queryParams, outbound.streamSettings ?? defaultUrlStyleStreamSettings('none'));
 
   const queryStr = formatQueryParams(queryParams);
   const hashStr = name.length > 0 ? `#${encodeURIComponent(name)}` : '';
@@ -1580,7 +1587,7 @@ function formatTrojan(outbound: XrayOutbound, name: string): string {
     queryParams.set('flow', server.flow);
   }
 
-  appendStreamSettingsToQuery(queryParams, outbound.streamSettings);
+  appendStreamSettingsToQuery(queryParams, outbound.streamSettings ?? defaultUrlStyleStreamSettings('tls'));
 
   const queryStr = formatQueryParams(queryParams);
   const hashStr = name.length > 0 ? `#${encodeURIComponent(name)}` : '';

@@ -2168,6 +2168,28 @@ export default function localUnitTest() {
       expect(exportedTcp).assertContain('path=%2Flogin%2C%2Fapi');
     });
 
+    it('exports bare url-style outbounds with v2rayNG tcp defaults', 0, () => {
+      const bareVlessJson = '{"protocol":"vless","tag":"proxy","settings":{"vnext":[{"address":"plain.example.com","port":443,"users":[{"id":"00000000-0000-0000-0000-000000000000","encryption":"none"}]}]}}';
+      const exportedVless = formatOutboundJsonToShareLink(bareVlessJson, 'plain-vless');
+      expect(exportedVless).assertContain('security=none');
+      expect(exportedVless).assertContain('type=tcp');
+      expect(exportedVless).assertContain('headerType=none');
+      const roundTripVless = parseShareLinkToOutboundJson(exportedVless);
+      expect(roundTripVless.success).assertTrue();
+      expect(roundTripVless.outboundJson).assertContain('"network": "tcp"');
+
+      const exportedTrojan = formatOutboundJsonToShareLink(TROJAN_OUTBOUND, 'plain-trojan');
+      expect(exportedTrojan).assertContain('security=tls');
+      expect(exportedTrojan).assertContain('insecure=0');
+      expect(exportedTrojan).assertContain('allowInsecure=0');
+      expect(exportedTrojan).assertContain('type=tcp');
+      expect(exportedTrojan).assertContain('headerType=none');
+      const roundTripTrojan = parseShareLinkToOutboundJson(exportedTrojan);
+      expect(roundTripTrojan.success).assertTrue();
+      expect(roundTripTrojan.outboundJson).assertContain('"tlsSettings"');
+      expect(roundTripTrojan.outboundJson).assertContain('"allowInsecure": false');
+    });
+
     it('round-trips httpupgrade and xhttp transport share parameters', 0, () => {
       const httpUpgrade = parseShareLinkToOutboundJson('vless://00000000-0000-0000-0000-000000000000@example.com:443?encryption=none&security=tls&sni=www.example.com&type=httpupgrade&host=cdn.example&path=%2Fup#http-up');
       expect(httpUpgrade.success).assertTrue();
