@@ -492,7 +492,7 @@ function parseVmessAeadLink(input: string): ShareLinkParseResult {
       users: [{
         id: parsed.userInfo,
         alterId: 0,
-        security: queryValue(parsed.query, 'encryption', queryValue(parsed.query, 'security', 'auto'))
+        security: 'auto'
       }]
     }]
   };

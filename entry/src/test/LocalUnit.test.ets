@@ -2200,6 +2200,12 @@ export default function localUnitTest() {
       expect(roundTripSecureVmess.success).assertTrue();
       expect(roundTripSecureVmess.outboundJson).assertContain('"allowInsecure": false');
 
+      const vmessStandard = parseShareLinkToOutboundJson('vmess://00000000-0000-0000-0000-000000000000@example.com:443?security=tls&sni=std.example&type=tcp#vmess-std');
+      expect(vmessStandard.success).assertTrue();
+      expect(vmessStandard.outboundJson).assertContain('"security": "auto"');
+      expect(vmessStandard.outboundJson).assertContain('"streamSettings": {\n    "network": "tcp",\n    "security": "tls"');
+      expect(vmessStandard.outboundJson).assertContain('"serverName": "std.example"');
+
       const ssResult = parseShareLinkToOutboundJson(ss);
       expect(ssResult.success).assertTrue();
       expect(ssResult.outboundJson).assertContain('"protocol": "shadowsocks"');
