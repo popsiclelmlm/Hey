@@ -301,7 +301,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 - ✅ finalMask（`fm`）：分享链接导入导出保留 `streamSettings.finalmask`，NodeEdit 可填写 FinalMask raw JSON（2026-06-19）
 - ✅ TCP HTTP 头伪装：`type=tcp&headerType=http` 可导入导出，NodeEdit 手动编辑可选择 `none/http` 并写入 `tcpSettings.header.request`（2026-06-19）
 - ✅ URL-style 默认 TCP query：无 `streamSettings` 的 VLESS/Trojan outbound 导出时会按 v2rayNG 手动普通 TCP 节点补齐 `security/type/headerType` 默认值，Trojan 同步写出 `insecure=0`/`allowInsecure=0`（2026-06-19）
-- ✅ HTTPUpgrade / XHTTP 传输参数：`httpupgrade` host/path 导入导出保留，NodeEdit 可选择；XHTTP `mode/extra` 可手动填写并导入导出保留（2026-06-19）
+- ✅ HTTPUpgrade / XHTTP 传输参数：`httpupgrade` host/path 导入导出保留，NodeEdit 可选择；XHTTP `mode/extra` 可手动填写并导入导出保留，`mode` 按 v2rayNG `auto/packet-up/stream-up/stream-one` 枚举在导入、导出、保存与运行配置中归一化（2026-06-19）
 - ✅ gRPC 传输模式：`mode=multi` 可导入导出为 `grpcSettings.multiMode`，NodeEdit 手动编辑可在 v2rayNG `gun/multi` 两种模式间选择（2026-06-19）
 - ✅ KCP 传输参数：`type=kcp` 的 `headerType`/`seed`/`mtu`/`tti` 可导入导出，运行 outbound 生成 v2rayNG 风格 `kcpSettings` + `finalmask.udp`，NodeEdit 可选择 KCP header/seed/MTU/TTI（2026-06-19）
 - ✅ 普通手动节点原位编辑：节点详情可按 v2rayNG `ServerActivity` 重新打开手动 VLESS/VMess/Trojan/Shadowsocks/SOCKS/HTTP/WireGuard/Hysteria2 节点，NodeEdit 会从已有 outbound 回填基础、认证、传输、TLS/Reality、WG/HY2 专属字段，保存时原位更新节点；编辑当前节点会标记运行配置待重启（2026-06-19）
@@ -512,6 +512,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-19 | 协议点检 | ✅ TCP HTTP 头伪装完成（NodeEdit 可选择 v2rayNG `none/http`，保存 `tcpSettings.header.request`；分享链接 `headerType=http` host/path round-trip 保留） |
 | 2026-06-19 | 协议点检 | ✅ URL-style 默认 TCP query 完成（无 `streamSettings` 的 VLESS/Trojan outbound 导出时补齐 v2rayNG 普通 TCP 默认 `security/type/headerType`，Trojan 补 `insecure=0`/`allowInsecure=0`；补 round-trip 单测） |
 | 2026-06-19 | 协议点检 | ✅ HTTPUpgrade/XHTTP 传输参数完成（分享链接 `type=httpupgrade` 的 host/path 导出不再丢失，NodeEdit 可选择 httpupgrade；XHTTP `mode/extra` 可手动填写并 round-trip 保留；补传输选项与参数单测） |
+| 2026-06-19 | 协议点检 | ✅ XHTTP mode 枚举完成（分享链接导入/导出、NodeEdit 保存与运行配置生成均按 v2rayNG `auto/packet-up/stream-up/stream-one` 限定，非法值兜底 `auto`；补归一化单测） |
 | 2026-06-19 | 协议点检 | ✅ gRPC 传输模式完成（NodeEdit 可选择 v2rayNG `gun/multi`，保存时写入 `grpcSettings.multiMode`；分享链接 `mode=multi` round-trip 保留） |
 | 2026-06-19 | 协议点检 | ✅ KCP 传输参数完成（分享链接 `type=kcp` 的 `headerType`/`seed`/`mtu`/`tti` 导入导出保留，运行 JSON 生成 `kcpSettings` 与 v2rayNG 风格 `finalmask.udp`，NodeEdit 可手动填写；补 KCP 参数与 VMess QR round-trip 单测） |
 | 2026-06-19 | 协议点检 | ✅ SOCKS 分享认证导出完成（用户密码导出为 v2rayNG `base64(user:pass)` userInfo，导入导出 round-trip 保留认证信息） |

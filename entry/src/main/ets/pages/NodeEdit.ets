@@ -6,7 +6,7 @@ import { isManualEditProtocol, ManualOutboundEditState, normalizeManualEditProto
 import { buildManualHysteria2Outbound, buildManualWireguardOutbound } from '../core/ManualOutboundBuilder';
 import { AppLanguage } from '../core/Profile';
 import { markRuntimeSettingsRestartNeeded } from '../core/SettingsChange';
-import { V2RAYNG_DEFAULT_VMESS_SECURITY, V2RAYNG_FLOW_OPTIONS, V2RAYNG_GRPC_MODE_OPTIONS, V2RAYNG_KCP_HEADER_TYPE_OPTIONS, V2RAYNG_SS_SECURITY_OPTIONS, V2RAYNG_STREAM_ALPN_OPTIONS, V2RAYNG_SUPPORTED_TRANSPORT_OPTIONS, V2RAYNG_TCP_HEADER_TYPE_OPTIONS, V2RAYNG_UTLS_FINGERPRINT_OPTIONS, V2RAYNG_VMESS_SECURITY_OPTIONS, V2RAYNG_XHTTP_MODE_OPTIONS, normalizeV2rayNgStreamAlpn } from '../core/V2rayNgOptions';
+import { V2RAYNG_DEFAULT_VMESS_SECURITY, V2RAYNG_FLOW_OPTIONS, V2RAYNG_GRPC_MODE_OPTIONS, V2RAYNG_KCP_HEADER_TYPE_OPTIONS, V2RAYNG_SS_SECURITY_OPTIONS, V2RAYNG_STREAM_ALPN_OPTIONS, V2RAYNG_SUPPORTED_TRANSPORT_OPTIONS, V2RAYNG_TCP_HEADER_TYPE_OPTIONS, V2RAYNG_UTLS_FINGERPRINT_OPTIONS, V2RAYNG_VMESS_SECURITY_OPTIONS, V2RAYNG_XHTTP_MODE_OPTIONS, normalizeV2rayNgStreamAlpn, normalizeV2rayNgXhttpMode } from '../core/V2rayNgOptions';
 import { NODES_CONTROLLER } from '../features/nodes/NodesController';
 import { SETTINGS_CONTROLLER } from '../features/settings/SettingsController';
 import { SHARED_RUNTIME_CONTROLLER } from '../features/runtime/RuntimeController';
@@ -1121,7 +1121,7 @@ struct NodeEditPage {
           const xhttpSettings: FormXhttpSettings = {
             path: this.valueOr(this.transportPath, '/'),
             host: this.transportHost.trim(),
-            mode: this.valueOr(this.transportXhttpMode, 'auto')
+            mode: normalizeV2rayNgXhttpMode(this.transportXhttpMode)
           };
           const xhttpExtraText = this.transportXhttpExtra.trim();
           if (xhttpExtraText.length > 0) {

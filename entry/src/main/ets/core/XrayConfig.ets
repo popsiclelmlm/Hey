@@ -1,7 +1,7 @@
 import { bundleManager } from '@kit.AbilityKit';
 import { AppSettings, DEFAULT_VPN_MTU, GeneratedXrayConfig, isProxyOnlyRuntimeMode, isVpnRuntimeMode, normalizeRoutingDomainStrategy, normalizeVpnMtuValue, OUTBOUND_DOMAIN_RESOLVE_DNS_HOSTS, OUTBOUND_DOMAIN_RESOLVE_NONE, OUTBOUND_DOMAIN_RESOLVE_REPLACE, resolveDelayTestUrl, RoutingRule, ValidationResult, XrayConfigType } from './Profile';
 import { isSupportedShareLink, isWireguardConfigFile, parseShareLinkToOutboundJson, parseWireguardConfigToOutboundJson } from './ShareLinkParser';
-import { V2RAYNG_DEFAULT_CORE_LOG_LEVEL, normalizeV2rayNgCoreLogLevel, normalizeV2rayNgFragmentPackets, normalizeV2rayNgMuxXudpQuic, normalizeV2rayNgStreamAlpnWithFallback } from './V2rayNgOptions';
+import { V2RAYNG_DEFAULT_CORE_LOG_LEVEL, normalizeV2rayNgCoreLogLevel, normalizeV2rayNgFragmentPackets, normalizeV2rayNgMuxXudpQuic, normalizeV2rayNgStreamAlpnWithFallback, normalizeV2rayNgXhttpMode } from './V2rayNgOptions';
 
 interface XrayOutbound {
   protocol?: string;
@@ -1079,6 +1079,7 @@ function cloneOutbound(outbound: XrayOutbound): XrayOutbound {
 }
 
 function applyOutboundRuntimeSettings(outbound: XrayOutbound, settings: AppSettings | undefined): void {
+  applyXhttpModeParity(outbound);
   applyTlsServerNameFallbackParity(outbound);
   applyPinnedCertificateAllowInsecureParity(outbound);
   applyWireguardIpv6Setting(outbound, settings);
@@ -1097,6 +1098,23 @@ function applyOutboundRuntimeSettings(outbound: XrayOutbound, settings: AppSetti
     sockopt['domainStrategy'] = 'UseIP';
     sockopt['happyEyeballs'] = happyEyeballs;
   }
+}
+
+function applyXhttpModeParity(outbound: XrayOutbound): void {
+  if (outbound.streamSettings === undefined) {
+    return;
+  }
+  const streamSettings = outbound.streamSettings as Record<string, Object | string | number | boolean | undefined>;
+  if (streamSettings['network'] !== 'xhttp') {
+    return;
+  }
+  const settingsValue = streamSettings['xhttpSettings'];
+  if (!isRecord(settingsValue)) {
+    return;
+  }
+  const xhttpSettings = settingsValue as Record<string, Object | string | number | boolean | undefined>;
+  const mode = xhttpSettings['mode'];
+  xhttpSettings['mode'] = normalizeV2rayNgXhttpMode(typeof mode === 'string' ? mode : '');
 }
 
 function applyMuxRuntimeSettings(outbound: XrayOutbound, settings: AppSettings | undefined): void {

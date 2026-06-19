@@ -31,7 +31,7 @@ import { buildSubscriptionAutoUpdateSchedulePlan } from '../main/ets/core/Subscr
 import { buildSpeedNotificationAdditionalText, buildSpeedNotificationText, calculateSpeedNotificationRates, sampleSpeedNotificationStats, shouldPublishSpeedNotification } from '../main/ets/core/SpeedNotification';
 import { DEFAULT_WEBDAV_BACKUP_FILE_NAME, buildWebDavAuthorizationHeader, buildWebDavMkcolUrls, buildWebDavRemoteUrl, isWebDavMkcolAcceptedStatus, normalizeWebDavConfig, validateWebDavConfig } from '../main/ets/core/WebDav';
 import { CURRENT_APP_VERSION, buildUpdateCheckResult, compareVersions, normalizeVersionTag } from '../main/ets/core/UpdateChecker';
-import { V2RAYNG_CORE_LOG_LEVEL_OPTIONS, V2RAYNG_DEFAULT_CORE_LOG_LEVEL, V2RAYNG_DEFAULT_FRAGMENT_PACKETS, V2RAYNG_DEFAULT_MUX_XUDP_QUIC, V2RAYNG_DEFAULT_STREAM_ALPN, V2RAYNG_DEFAULT_VMESS_SECURITY, V2RAYNG_FLOW_OPTIONS, V2RAYNG_FRAGMENT_PACKET_OPTIONS, V2RAYNG_GRPC_MODE_OPTIONS, V2RAYNG_KCP_HEADER_TYPE_OPTIONS, V2RAYNG_MUX_XUDP_QUIC_OPTIONS, V2RAYNG_SS_SECURITY_OPTIONS, V2RAYNG_STREAM_ALPN_OPTIONS, V2RAYNG_SUPPORTED_TRANSPORT_OPTIONS, V2RAYNG_TCP_HEADER_TYPE_OPTIONS, V2RAYNG_UTLS_FINGERPRINT_OPTIONS, V2RAYNG_VMESS_SECURITY_OPTIONS, V2RAYNG_XHTTP_MODE_OPTIONS, normalizeV2rayNgCoreLogLevel, normalizeV2rayNgFragmentPackets, normalizeV2rayNgMuxXudpQuic, normalizeV2rayNgStreamAlpn, normalizeV2rayNgStreamAlpnWithFallback } from '../main/ets/core/V2rayNgOptions';
+import { V2RAYNG_CORE_LOG_LEVEL_OPTIONS, V2RAYNG_DEFAULT_CORE_LOG_LEVEL, V2RAYNG_DEFAULT_FRAGMENT_PACKETS, V2RAYNG_DEFAULT_MUX_XUDP_QUIC, V2RAYNG_DEFAULT_STREAM_ALPN, V2RAYNG_DEFAULT_VMESS_SECURITY, V2RAYNG_FLOW_OPTIONS, V2RAYNG_FRAGMENT_PACKET_OPTIONS, V2RAYNG_GRPC_MODE_OPTIONS, V2RAYNG_KCP_HEADER_TYPE_OPTIONS, V2RAYNG_MUX_XUDP_QUIC_OPTIONS, V2RAYNG_SS_SECURITY_OPTIONS, V2RAYNG_STREAM_ALPN_OPTIONS, V2RAYNG_SUPPORTED_TRANSPORT_OPTIONS, V2RAYNG_TCP_HEADER_TYPE_OPTIONS, V2RAYNG_UTLS_FINGERPRINT_OPTIONS, V2RAYNG_VMESS_SECURITY_OPTIONS, V2RAYNG_XHTTP_MODE_OPTIONS, normalizeV2rayNgCoreLogLevel, normalizeV2rayNgFragmentPackets, normalizeV2rayNgMuxXudpQuic, normalizeV2rayNgStreamAlpn, normalizeV2rayNgStreamAlpnWithFallback, normalizeV2rayNgXhttpMode } from '../main/ets/core/V2rayNgOptions';
 import { filterLogItems, formatLogcatText } from '../main/ets/features/logs/LogOperations';
 import {
   applyDelayTestPostActionsToGroups,
@@ -2382,6 +2382,25 @@ export default function localUnitTest() {
       expect(exportedXhttp).assertContain('type=xhttp');
       expect(exportedXhttp).assertContain('mode=packet-up');
       expect(exportedXhttp).assertContain('extra=%7B%22headers%22%3A%7B%22X-Test%22%3A%22yes%22%7D%7D');
+    });
+
+    it('normalizes xhttp mode to v2rayNG options', 0, () => {
+      expect(V2RAYNG_XHTTP_MODE_OPTIONS.join('|')).assertEqual('auto|packet-up|stream-up|stream-one');
+      expect(normalizeV2rayNgXhttpMode('stream-up')).assertEqual('stream-up');
+      expect(normalizeV2rayNgXhttpMode('invalid')).assertEqual('auto');
+
+      const imported = parseShareLinkToOutboundJson('vless://00000000-0000-0000-0000-000000000000@example.com:443?encryption=none&security=tls&type=xhttp&host=x.example&path=%2Fx&mode=bad-mode#xhttp-bad');
+      expect(imported.success).assertTrue();
+      expect(imported.outboundJson).assertContain('"mode": "auto"');
+      expect(imported.outboundJson.indexOf('bad-mode')).assertEqual(-1);
+
+      const badModeOutbound = '{"protocol":"vless","tag":"proxy","settings":{"vnext":[{"address":"xhttp.example.com","port":443,"users":[{"id":"00000000-0000-0000-0000-000000000000","encryption":"none"}]}]},"streamSettings":{"network":"xhttp","security":"tls","xhttpSettings":{"path":"/xhttp","host":"cdn.example.com","mode":"bad-mode"}}}';
+      const exported = formatOutboundJsonToShareLink(badModeOutbound, 'xhttp-bad');
+      expect(exported).assertContain('mode=auto');
+      expect(exported.indexOf('bad-mode')).assertEqual(-1);
+      const runtime = buildXrayConfigWithSettings(badModeOutbound, buildSettingsFixture());
+      expect(runtime.configJson).assertContain('"mode": "auto"');
+      expect(runtime.configJson.indexOf('bad-mode')).assertEqual(-1);
     });
 
     it('round-trips grpc multi transport mode', 0, () => {

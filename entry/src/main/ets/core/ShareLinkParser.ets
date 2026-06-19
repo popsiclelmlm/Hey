@@ -1,5 +1,6 @@
 import { decodeBase64ToUtf8, encodeUtf8ToBase64, encodeUtf8ToBase64NoPadding } from './Encoding';
 import { buildKcpFinalMask, isCanonicalKcpFinalMask, readKcpShareParamsFromFinalMask } from './KcpTransport';
+import { normalizeV2rayNgXhttpMode } from './V2rayNgOptions';
 
 export interface ShareLinkParseResult {
   success: boolean;
@@ -990,7 +991,7 @@ function buildStreamSettings(query: Map<string, string>, defaultSecurity: string
       path: path.length > 0 ? path : '/',
       host
     };
-    const mode = queryValue(query, 'mode', '');
+    const mode = normalizeV2rayNgXhttpMode(queryValue(query, 'mode', ''));
     if (mode.length > 0) {
       xhttpSettings.mode = mode;
     }
@@ -1460,7 +1461,7 @@ function appendStreamSettingsToQuery(queryParams: Map<string, string>, stream?: 
       queryParams.set('host', stream.xhttpSettings.host);
     }
     if (stream.xhttpSettings.mode) {
-      queryParams.set('mode', stream.xhttpSettings.mode);
+      queryParams.set('mode', normalizeV2rayNgXhttpMode(stream.xhttpSettings.mode));
     }
     if (stream.xhttpSettings.extra) {
       queryParams.set('extra', JSON.stringify(stream.xhttpSettings.extra));
@@ -1546,7 +1547,7 @@ function formatVmess(outbound: XrayOutbound, name: string): string {
   } else if (network === 'xhttp' && stream?.xhttpSettings) {
     vmessObj.path = stream.xhttpSettings.path || '/';
     vmessObj.host = stream.xhttpSettings.host || '';
-    vmessObj.type = stream.xhttpSettings.mode || '';
+    vmessObj.type = normalizeV2rayNgXhttpMode(stream.xhttpSettings.mode || '');
   }
 
   const jsonStr = JSON.stringify(vmessObj);

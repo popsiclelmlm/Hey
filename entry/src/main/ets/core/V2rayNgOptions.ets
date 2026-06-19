@@ -74,6 +74,19 @@ export const V2RAYNG_XHTTP_MODE_OPTIONS: Array<string> = [
   'stream-one'
 ];
 
+export const V2RAYNG_DEFAULT_XHTTP_MODE: string = 'auto';
+
+export function normalizeV2rayNgXhttpMode(value: string, fallback: string = V2RAYNG_DEFAULT_XHTTP_MODE): string {
+  const trimmed = value.trim();
+  if (V2RAYNG_XHTTP_MODE_OPTIONS.indexOf(trimmed) >= 0) {
+    return trimmed;
+  }
+  if (V2RAYNG_XHTTP_MODE_OPTIONS.indexOf(fallback) >= 0) {
+    return fallback;
+  }
+  return V2RAYNG_DEFAULT_XHTTP_MODE;
+}
+
 export const V2RAYNG_GRPC_MODE_OPTIONS: Array<string> = [
   'gun',
   'multi'
