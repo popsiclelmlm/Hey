@@ -2445,6 +2445,22 @@ export default function localUnitTest() {
       expect(isSubscriptionAutoUpdateDue(group, 2000)).assertFalse();
     });
 
+    it('parses install deep links with v2rayNG outer fragment fallback', 0, () => {
+      const unnamedConfig = 'vless://00000000-0000-0000-0000-000000000000@example.com:443?encryption=none';
+      const config = parseDeepLink(`hey://install-config?url=${encodeURIComponent(unnamedConfig)}#outer-name`);
+      expect(config.kind).assertEqual('config');
+      expect(config.payload).assertEqual(`${unnamedConfig}#outer-name`);
+
+      const namedConfig = `${unnamedConfig}#inner-name`;
+      const named = parseDeepLink(`hey://install-config?url=${encodeURIComponent(namedConfig)}#outer-name`);
+      expect(named.kind).assertEqual('config');
+      expect(named.payload).assertEqual(namedConfig);
+
+      const sub = parseDeepLink(`hey://install-sub?url=${encodeURIComponent('https://example.com/sub')}#Sub%20Name`);
+      expect(sub.kind).assertEqual('sub');
+      expect(sub.payload).assertEqual('https://example.com/sub#Sub Name');
+    });
+
     it('parses control deep links for shortcut actions', 0, () => {
       const start = parseDeepLink('hey://control?action=start');
       expect(start.kind).assertEqual('control');

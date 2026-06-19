@@ -217,7 +217,8 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
   （2026-06-18 已完成；文件选择导入和高级编辑已补齐）
 - ✅ **文件导出**：Export 页保存当前分组节点到 `.txt` 文件（2026-06-18 已完成；系统分享面板已补齐）
 - ✅ **URL Scheme / Want 深链导入**：对应 v2rayNG `v2rayng://install-config` 与
-  `install-sub`，在 `EntryAbility.onCreate/onNewWant` 解析 Want 并导入
+  `install-sub`，在 `EntryAbility.onCreate/onNewWant` 解析 Want 并导入；外层
+  URI fragment 会按 v2rayNG 规则作为内层链接缺省名称兜底
 - ✅ **控制深链入口**：对应 v2rayNG Tasker/shortcuts/QS tile 的基础控制动作，
   支持 `hey://control?action=start|stop|toggle|scan` 和短 URI
   `hey://start` / `hey://stop` / `hey://toggle` / `hey://scan`
@@ -374,6 +375,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-19 | M3 | ✅ 手动按测试结果排序菜单完成；对齐 v2rayNG `sort_by_test_results`，按当前订阅分组或 All 虚拟分组分别排序并持久化 |
 | 2026-06-15 | M4 | ✅ 二维码生成（节点详情页 `generateBarcode.createBarcode` 渲染分享链接 QR + 复制链接） |
 | 2026-06-15 | M4 | ✅ URL Scheme / Want 深链导入（`hey://install-sub`/`install-config` scheme + EntryAbility 暂存 + Index 解析导入订阅/节点） |
+| 2026-06-19 | M4 | ✅ 深链 fragment 名称兜底对齐 v2rayNG（`install-sub`/`install-config` 的外层 URI fragment 仅在内层 URL 缺少 fragment 时补入；补解析单测） |
 | 2026-06-15 | 修复 | ✅ 预检改为非阻断（避免重建后 `CGoTestXray` 对 tun inbound 误报阻断已验证连接）；核对 ScanKit QR API 字段无误 |
 | 2026-06-15 | 自查 | ✅ i18n 总扫通过：registry≡zh≡en（327 键），246 处代码引用全部有定义，无需修改 |
 | 2026-06-15 | 自查 | ✅ ArkTS 严格性扫描：无 `any`、新增导入全部被用；清理 SubscriptionEdit 既有未用导入 `translate` |

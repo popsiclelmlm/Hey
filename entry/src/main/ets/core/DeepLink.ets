@@ -42,7 +42,7 @@ export function parseDeepLink(uri: string): DeepLinkIntent {
 }
 
 function buildIntent(kind: DeepLinkKind, uri: string): DeepLinkIntent {
-  const payload = extractUrlParam(uri);
+  const payload = withOuterFragmentFallback(extractUrlParam(uri), extractOuterFragment(uri));
   if (payload.length === 0) {
     return { kind: 'none', payload: '' };
   }
@@ -71,7 +71,9 @@ function extractQueryParam(uri: string, key: string): string {
   if (queryStart < 0) {
     return '';
   }
-  const query = uri.substring(queryStart + 1);
+  const fragmentStart = uri.indexOf('#', queryStart + 1);
+  const queryEnd = fragmentStart >= 0 ? fragmentStart : uri.length;
+  const query = uri.substring(queryStart + 1, queryEnd);
   const pairs = query.split('&');
   for (let index = 0; index < pairs.length; index++) {
     const pair = pairs[index];
@@ -86,6 +88,35 @@ function extractQueryParam(uri: string, key: string): string {
     }
   }
   return '';
+}
+
+function extractOuterFragment(uri: string): string {
+  const queryStart = uri.indexOf('?');
+  const fragmentStart = uri.indexOf('#', queryStart >= 0 ? queryStart + 1 : 0);
+  if (fragmentStart < 0) {
+    return '';
+  }
+  const raw = uri.substring(fragmentStart + 1);
+  try {
+    return decodeURIComponent(raw);
+  } catch (error) {
+    return raw;
+  }
+}
+
+function withOuterFragmentFallback(payload: string, outerFragment: string): string {
+  if (payload.length === 0 || outerFragment.length === 0 || payloadFragment(payload).length > 0) {
+    return payload;
+  }
+  return `${payload}#${outerFragment}`;
+}
+
+function payloadFragment(payload: string): string {
+  const fragmentStart = payload.indexOf('#');
+  if (fragmentStart < 0) {
+    return '';
+  }
+  return payload.substring(fragmentStart + 1);
 }
 
 function extractControlPath(uri: string): string {
