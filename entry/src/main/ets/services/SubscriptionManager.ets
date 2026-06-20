@@ -3,6 +3,7 @@ import { http } from '@kit.NetworkKit';
 import { toIdnUrl } from '../core/IdnUrl';
 import { ProxyNode } from '../core/Profile';
 import { decodeBase64ToUtf8, encodeUtf8ToBase64 } from '../core/Encoding';
+import { isLoopbackOrPrivateHttpUrl } from '../core/PrivateNetwork';
 import {
   isSupportedShareLink,
   parseShareLinkToOutboundJson,
@@ -246,7 +247,7 @@ export class SubscriptionManager {
     if (!SubscriptionManager.isHttpUrl(trimmedUrl)) {
       return '订阅链接必须是 http:// 或 https://。';
     }
-    if (!allowInsecureUrl && SubscriptionManager.isInsecureHttpUrl(trimmedUrl)) {
+    if (!allowInsecureUrl && SubscriptionManager.isInsecureHttpUrl(trimmedUrl) && !isLoopbackOrPrivateHttpUrl(trimmedUrl)) {
       return 'HTTP 订阅链接不安全，请开启允许不安全订阅链接后重试。';
     }
     return '';

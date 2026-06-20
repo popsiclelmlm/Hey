@@ -4,6 +4,7 @@ import { CONTROL_CARD_FORM_NAME, CONTROL_CARD_SCAN_URI, CONTROL_CARD_START_URI, 
 import { V2RAYNG_DNS_DIRECT, V2RAYNG_DNS_PROXY, isV2rayNgCoreDnsAddress, isV2rayNgPureIpAddress, normalizeV2rayNgDnsServers } from '../main/ets/core/DnsAddresses';
 import { AssetNameEntry, hasDuplicateAssetName, isEditableCustomAssetUrl, normalizeScannedAssetUrl } from '../main/ets/core/AssetUrls';
 import { decodeBase64ToUtf8 } from '../main/ets/core/Encoding';
+import { isIpv4InCidr, isLoopbackOrPrivateHttpUrl, isLoopbackOrPrivateIpv4Host, PRIVATE_IP_LIST } from '../main/ets/core/PrivateNetwork';
 import { buildV2rayNgH2HttpSettings, splitV2rayNgH2Hosts } from '../main/ets/core/H2Transport';
 import { toIdnDomain, toIdnUrl } from '../main/ets/core/IdnUrl';
 import { formatTranslation, missingTranslationKeys, normalizeLanguage, resolveLanguage, resolveSystemLanguage, translate } from '../main/ets/core/I18n';
@@ -3007,6 +3008,36 @@ export default function localUnitTest() {
       const ipv6Json = '{"protocol":"shadowsocks","tag":"proxy","settings":{"servers":[{"address":"2001:db8::1","port":8388,"method":"aes-256-gcm","password":"password"}]}}';
       const ipv6Uri = formatOutboundJsonToShareLink(ipv6Json, 'IPv6 Server');
       expect(ipv6Uri).assertContain('@[2001:db8::1]:8388');
+    });
+
+    it('matches v2rayNG isIpInCidr and private subscription host rules', 0, () => {
+      // v2rayNG UtilsTest.test_IsIpInCidr
+      expect(isIpv4InCidr('192.168.1.1', '192.168.1.0/24')).assertTrue();
+      expect(isIpv4InCidr('192.168.1.254', '192.168.1.0/24')).assertTrue();
+      expect(isIpv4InCidr('192.168.2.1', '192.168.1.0/24')).assertFalse();
+      expect(isIpv4InCidr('10.0.0.0', '10.0.0.0/8')).assertTrue();
+      expect(isIpv4InCidr('10.255.255.255', '10.0.0.0/8')).assertTrue();
+      expect(isIpv4InCidr('11.0.0.0', '10.0.0.0/8')).assertFalse();
+      expect(isIpv4InCidr('invalid-ip', '192.168.1.0/24')).assertFalse();
+      expect(isIpv4InCidr('192.168.1.1', 'invalid-cidr')).assertFalse();
+
+      // Loopback/private IPv4 hosts (v2rayNG AppConfig.PRIVATE_IP_LIST)
+      expect(PRIVATE_IP_LIST.length).assertEqual(7);
+      expect(isLoopbackOrPrivateIpv4Host('127.0.0.1')).assertTrue();
+      expect(isLoopbackOrPrivateIpv4Host('10.1.2.3')).assertTrue();
+      expect(isLoopbackOrPrivateIpv4Host('172.16.5.5')).assertTrue();
+      expect(isLoopbackOrPrivateIpv4Host('192.168.0.10')).assertTrue();
+      expect(isLoopbackOrPrivateIpv4Host('169.254.1.1')).assertTrue();
+      expect(isLoopbackOrPrivateIpv4Host('8.8.8.8')).assertFalse();
+      expect(isLoopbackOrPrivateIpv4Host('example.com')).assertFalse();
+
+      // v2rayNG Utils.isValidSubUrl host exemption: plaintext HTTP allowed for
+      // loopback/private hosts, rejected for public hosts.
+      expect(isLoopbackOrPrivateHttpUrl('http://127.0.0.1:8080/sub')).assertTrue();
+      expect(isLoopbackOrPrivateHttpUrl('http://192.168.1.5/subscribe?token=abc')).assertTrue();
+      expect(isLoopbackOrPrivateHttpUrl('http://user:pass@10.0.0.2:9090/sub')).assertTrue();
+      expect(isLoopbackOrPrivateHttpUrl('http://example.com/sub')).assertFalse();
+      expect(isLoopbackOrPrivateHttpUrl('http://8.8.8.8/sub')).assertFalse();
     });
 
     it('defaults unnamed url-style share links to v2rayNG none remarks', 0, () => {
