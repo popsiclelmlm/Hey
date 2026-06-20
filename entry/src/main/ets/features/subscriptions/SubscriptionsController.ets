@@ -243,6 +243,44 @@ export class SubscriptionsController {
     };
   }
 
+  async updateDueGroup(context: common.Context, groupId: string, language: AppLanguage, now: number = Date.now(), proxyPort: number = 0): Promise<SubscriptionAutoUpdateResult> {
+    let subscription = await SubscriptionStore.load(context);
+    const group = this.findGroup(subscription.groups, groupId);
+    if (group === null || !isSubscriptionAutoUpdateDue(group, now)) {
+      return {
+        state: this.buildState(subscription, language, ''),
+        updatedCount: 0,
+        failedCount: 0
+      };
+    }
+
+    let updatedCount = 0;
+    let failedCount = 0;
+    try {
+      const result = await this.updateGroupNodes(context, group, false, proxyPort);
+      subscription = result.subscription;
+      if (result.ok) {
+        updatedCount++;
+      } else {
+        failedCount++;
+      }
+    } catch (error) {
+      failedCount++;
+    }
+
+    await this.syncBackgroundSchedule(context);
+
+    const message = failedCount === 0
+      ? `已自动更新订阅分组：${group.name}`
+      : `自动更新订阅分组失败：${group.name}`;
+
+    return {
+      state: this.buildState(subscription, language, message),
+      updatedCount,
+      failedCount
+    };
+  }
+
   async selectGroup(context: common.Context, group: SubscriptionGroup, language: AppLanguage): Promise<SubscriptionsControllerState> {
     try {
       const subscription = await SubscriptionStore.selectGroup(context, group.id);
@@ -303,6 +341,15 @@ export class SubscriptionsController {
     for (let index = 0; index < nodes.length; index++) {
       if (nodes[index].id === nodeId) {
         return nodes[index];
+      }
+    }
+    return null;
+  }
+
+  private findGroup(groups: Array<SubscriptionGroup>, groupId: string): SubscriptionGroup | null {
+    for (let index = 0; index < groups.length; index++) {
+      if (groups[index].id === groupId) {
+        return groups[index];
       }
     }
     return null;

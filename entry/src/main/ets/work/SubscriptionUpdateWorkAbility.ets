@@ -24,14 +24,17 @@ export default class SubscriptionUpdateWorkAbility extends WorkSchedulerExtensio
     const context = this.context as common.Context;
     try {
       const settings = await SETTINGS_CONTROLLER.load(context);
-      const result = await SUBSCRIPTIONS_CONTROLLER.updateDue(context, settings.language, Date.now(), 0);
+      const groupId = this.workGroupId(work);
+      const result = groupId.length > 0
+        ? await SUBSCRIPTIONS_CONTROLLER.updateDueGroup(context, groupId, settings.language, Date.now(), 0)
+        : await SUBSCRIPTIONS_CONTROLLER.updateDue(context, settings.language, Date.now(), 0);
       const schedule = await SubscriptionBackgroundScheduler.sync(context);
       DiagnosticLog.append(context, {
         at: Date.now(),
         level: result.failedCount > 0 ? 'warn' : 'info',
         source: 'subscription-work',
         message: `Subscription background update completed: ${result.updatedCount} success, ${result.failedCount} failed.`,
-        details: `workId=${work.workId}; scheduled=${schedule.scheduled}; repeatCycleTimeMs=${schedule.repeatCycleTimeMs}`
+        details: `workId=${work.workId}; groupId=${groupId}; scheduled=${schedule.scheduled}; repeatCycleTimeMs=${schedule.repeatCycleTimeMs}`
       });
     } catch (error) {
       DiagnosticLog.append(context, {
@@ -42,6 +45,15 @@ export default class SubscriptionUpdateWorkAbility extends WorkSchedulerExtensio
         details: this.stringifyError(error)
       });
     }
+  }
+
+  private workGroupId(work: workScheduler.WorkInfo): string {
+    const parameters = work.parameters;
+    if (parameters === undefined) {
+      return '';
+    }
+    const groupId = parameters['groupId'];
+    return typeof groupId === 'string' ? groupId.trim() : '';
   }
 
   private stringifyError(error: Error | Object): string {

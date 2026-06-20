@@ -31,7 +31,7 @@ import {
   moveSubscriptionGroup,
   normalizeSubscriptionUpdateInterval
 } from '../main/ets/core/SubscriptionGroups';
-import { buildSubscriptionAutoUpdateSchedulePlan } from '../main/ets/core/SubscriptionSchedulerPlan';
+import { buildSubscriptionAutoUpdateGroupSchedulePlans, buildSubscriptionAutoUpdateSchedulePlan, subscriptionAutoUpdateWorkIdForGroup } from '../main/ets/core/SubscriptionSchedulerPlan';
 import { findMatchedSubscriptionNode, resolveRetainedSelectedNodeId } from '../main/ets/core/SubscriptionSelection';
 import { buildSpeedNotificationAdditionalText, buildSpeedNotificationText, calculateSpeedNotificationRates, sampleSpeedNotificationStats, shouldPublishSpeedNotification } from '../main/ets/core/SpeedNotification';
 import { DEFAULT_WEBDAV_BACKUP_FILE_NAME, buildWebDavAuthorizationHeader, buildWebDavMkcolUrls, buildWebDavRemoteUrl, isWebDavMkcolAcceptedStatus, normalizeWebDavConfig, validateWebDavConfig } from '../main/ets/core/WebDav';
@@ -3442,33 +3442,51 @@ export default function localUnitTest() {
       expect(withPreRelease.downloadUrl).assertEqual('https://example.com/beta.hap');
     });
 
-    it('builds subscription background auto update schedule plan', 0, () => {
+    it('builds v2rayNG-style per-subscription background auto update schedule plans', 0, () => {
       const disabled = buildSubscriptionAutoUpdateSchedulePlan([]);
       expect(disabled.enabled).assertFalse();
       expect(disabled.enabledGroupCount).assertEqual(0);
       expect(disabled.repeatCycleTimeMs).assertEqual(0);
+      expect(disabled.groupPlans.length).assertEqual(0);
 
       const hourly = buildSubscriptionGroupFixture('sub-hourly', 'Hourly');
       hourly.autoUpdate = true;
       hourly.updateIntervalMinutes = 60;
+      hourly.updatedAt = 1000;
       const fast = buildSubscriptionGroupFixture('sub-fast', 'Fast');
       fast.autoUpdate = true;
       fast.updateIntervalMinutes = 5;
+      fast.updatedAt = 0;
       const skipped = buildSubscriptionGroupFixture('sub-skipped', 'Skipped');
       skipped.autoUpdate = true;
       skipped.url = '';
 
-      const plan = buildSubscriptionAutoUpdateSchedulePlan([hourly, fast, skipped]);
+      const plan = buildSubscriptionAutoUpdateSchedulePlan([hourly, fast, skipped], 1000 + 30 * 60 * 1000);
       expect(plan.enabled).assertTrue();
       expect(plan.enabledGroupCount).assertEqual(2);
       expect(plan.intervalMinutes).assertEqual(MIN_SUBSCRIPTION_UPDATE_INTERVAL_MINUTES);
       expect(plan.repeatCycleTimeMs).assertEqual(MIN_SUBSCRIPTION_UPDATE_INTERVAL_MINUTES * 60 * 1000);
+      expect(plan.groupPlans.length).assertEqual(2);
+      expect(plan.groupPlans[0].groupId).assertEqual('sub-hourly');
+      expect(plan.groupPlans[0].workId).assertEqual(subscriptionAutoUpdateWorkIdForGroup('sub-hourly'));
+      expect(plan.groupPlans[0].intervalMinutes).assertEqual(60);
+      expect(plan.groupPlans[0].repeatCycleTimeMs).assertEqual(60 * 60 * 1000);
+      expect(plan.groupPlans[0].nextDelayTimeMs).assertEqual(30 * 60 * 1000);
+      expect(plan.groupPlans[1].groupId).assertEqual('sub-fast');
+      expect(plan.groupPlans[1].intervalMinutes).assertEqual(MIN_SUBSCRIPTION_UPDATE_INTERVAL_MINUTES);
+      expect(plan.groupPlans[1].nextDelayTimeMs).assertEqual(0);
+      expect(plan.groupPlans[0].workId === plan.groupPlans[1].workId).assertFalse();
 
       fast.enabled = false;
       const hourlyOnly = buildSubscriptionAutoUpdateSchedulePlan([hourly, fast, skipped]);
       expect(hourlyOnly.enabled).assertTrue();
       expect(hourlyOnly.enabledGroupCount).assertEqual(1);
       expect(hourlyOnly.intervalMinutes).assertEqual(60);
+      expect(hourlyOnly.groupPlans[0].groupId).assertEqual('sub-hourly');
+
+      const groupPlans = buildSubscriptionAutoUpdateGroupSchedulePlans([hourly, fast, skipped], 1000 + 70 * 60 * 1000);
+      expect(groupPlans.length).assertEqual(1);
+      expect(groupPlans[0].nextDelayTimeMs).assertEqual(0);
     });
   });
 }
