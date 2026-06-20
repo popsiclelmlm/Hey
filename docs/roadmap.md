@@ -203,7 +203,7 @@
 | 2026-06-18 | 阶段 5 | ✅ 关于页更新检查完成；About 页通过 GitHub latest release API 解析 tag/assets，比较当前版本 `1.1.0`，发现新版本时打开下载页/Release 页，失败写运行日志 |
 | 2026-06-18 | 阶段 5 | ✅ 关于页预发布更新检查开关完成；About 页保存 `pref_check_update_pre_release` 等价设置，开启后检查 GitHub releases 列表并允许 pre-release 命中 |
 | 2026-06-19 | 阶段 4 | ✅ pre-release 更新检查设置页入口完成；Settings 页新增 v2rayNG `pref_check_update_pre_release` 等价开关，与 About 页共用同一设置 |
-| 2026-06-19 | 阶段 4 | ✅ 语言跟随系统完成；Settings 保存 v2rayNG `pref_language=auto/en/zh`，默认 `auto`，通过 Harmony 系统语言解析为中/英显示并补单测 |
+| 2026-06-20 | 阶段 4 | ✅ v2rayNG 语言枚举完成；Settings 保存 `pref_language=auto/en/zh-rCN/zh-rTW/vi/ru/fa/ar/bn/bqi-rIR`，默认 `auto`，通过 Harmony 系统语言解析为 v2rayNG 语言码，旧 `zh`/`zh-Hans` 迁移到 `zh-rCN`，非中英语言值保留并回退英文显示 |
 | 2026-06-19 | 阶段 3 | ✅ 分应用代理批处理完成；PerApp 页支持全选/清除/反选当前筛选列表，按 v2rayNG 剪贴板格式导入/导出 `bypass + package list`，默认“代理选中的应用”，导入后自动启用分应用代理 |
 | 2026-06-19 | 阶段 3 | ✅ 分应用自动选择完成；PerApp 页新增“自动选择代理应用”，按内置代理应用清单和 v2rayNG `com.google*` 强制匹配规则选择当前筛选列表，bypass 模式选择补集 |
 | 2026-06-19 | 阶段 3 | ✅ 分应用自动列表来源对齐 v2rayNG；自动选择先拉取 `2dust/androidpackagenamelist` 远程 `proxy.txt`，直连失败可经本地 HTTP 代理重试，空内容/失败回退内置列表；顺手修正 About 页 v2rayNG source 链接 |

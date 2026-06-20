@@ -593,7 +593,7 @@ export default function localUnitTest() {
 
     it('applies app settings when generating xray config', 0, () => {
       const settings: AppSettings = {
-        language: 'zh',
+        language: 'zh-rCN',
         uiModeNight: '0',
         speedEnabled: false,
         confirmRemove: false,
@@ -1630,17 +1630,19 @@ export default function localUnitTest() {
       expect(matchedRule.indexOf('"outboundTag"')).assertEqual(-1);
     });
 
-    it('has complete zh and en translations with fallback helpers', 0, () => {
-      expect(missingTranslationKeys('zh').length).assertEqual(0);
+    it('normalizes v2rayNG language values with fallback helpers', 0, () => {
+      expect(missingTranslationKeys('zh-rCN').length).assertEqual(0);
       expect(missingTranslationKeys('en').length).assertEqual(0);
-      expect(translate('zh', 'screen.settings.title')).assertEqual('设置');
+      expect(translate('zh-rCN', 'screen.settings.title')).assertEqual('设置');
+      expect(translate('zh-rTW', 'settings.language.zhTw')).assertEqual('中文繁體');
+      expect(translate('vi', 'screen.settings.title')).assertEqual('Settings');
       expect(translate('en', 'screen.settings.title')).assertEqual('Settings');
       expect(translate('en', 'settings.checkUpdatePreRelease')).assertEqual('Include pre-release versions');
       expect(translate('en', 'prompt.clipboardReadFailed')).assertEqual('Could not read clipboard');
-      expect(translate('zh', 'prompt.pastedJsonConfig')).assertEqual('已粘贴 JSON 配置');
-      expect(translate('zh', 'missing.translation.key')).assertEqual('missing.translation.key');
+      expect(translate('zh-rCN', 'prompt.pastedJsonConfig')).assertEqual('已粘贴 JSON 配置');
+      expect(translate('zh-rCN', 'missing.translation.key')).assertEqual('missing.translation.key');
       expect(formatTranslation('en', 'subscription.updateComplete', ['count'], ['3'])).assertContain('3');
-      expect(formatOne('zh', 'subscription.updateComplete', 'count', '3')).assertContain('3');
+      expect(formatOne('zh-rCN', 'subscription.updateComplete', 'count', '3')).assertContain('3');
       expect(localizedProfileSavedText('en', 0)).assertEqual('Not saved');
       expect(localizeCoreMessage('en', '请先粘贴 Xray outbound JSON。')).assertEqual('Paste Xray outbound JSON first.');
       const unsupportedShare = parseShareLinkToOutboundJson('ftp://example.com/node');
@@ -1657,14 +1659,22 @@ export default function localUnitTest() {
       expect(normalizeLanguage('auto')).assertEqual('auto');
       expect(normalizeLanguage('en')).assertEqual('en');
       expect(normalizeLanguage('en-US')).assertEqual('en');
-      expect(normalizeLanguage('zh')).assertEqual('zh');
-      expect(normalizeLanguage('zh-Hans')).assertEqual('zh');
+      expect(normalizeLanguage('zh')).assertEqual('zh-rCN');
+      expect(normalizeLanguage('zh-Hans')).assertEqual('zh-rCN');
+      expect(normalizeLanguage('zh-rCN')).assertEqual('zh-rCN');
+      expect(normalizeLanguage('zh-Hant')).assertEqual('zh-rTW');
+      expect(normalizeLanguage('zh-rTW')).assertEqual('zh-rTW');
+      expect(normalizeLanguage('vi-VN')).assertEqual('vi');
+      expect(normalizeLanguage('bqi-IR')).assertEqual('bqi-rIR');
       expect(normalizeLanguage('fr')).assertEqual('auto');
       expect(resolveSystemLanguage('en-US')).assertEqual('en');
-      expect(resolveSystemLanguage('zh-Hans')).assertEqual('zh');
-      expect(resolveSystemLanguage('fr-FR')).assertEqual('zh');
+      expect(resolveSystemLanguage('zh-Hans')).assertEqual('zh-rCN');
+      expect(resolveSystemLanguage('zh-Hant-TW')).assertEqual('zh-rTW');
+      expect(resolveSystemLanguage('vi-VN')).assertEqual('vi');
+      expect(resolveSystemLanguage('fr-FR')).assertEqual('zh-rCN');
       expect(resolveLanguage('auto', 'en-US')).assertEqual('en');
-      expect(resolveLanguage('auto', 'zh-Hans')).assertEqual('zh');
+      expect(resolveLanguage('auto', 'zh-Hans')).assertEqual('zh-rCN');
+      expect(resolveLanguage('auto', 'zh-Hant-TW')).assertEqual('zh-rTW');
       expect(resolveLanguage('fr', 'en-US')).assertEqual('en');
     });
 
@@ -1697,7 +1707,7 @@ export default function localUnitTest() {
       expect(count?.ruleCount).assertEqual(345);
       expect(parseGeoCountData('{"bad":true}') === null).assertTrue();
       if (count !== null) {
-        expect(formatGeoCountSummary('zh', count)).assertEqual('2 类 / 345 条规则');
+        expect(formatGeoCountSummary('zh-rCN', count)).assertEqual('2 类 / 345 条规则');
         expect(formatGeoCountSummary('en', count)).assertEqual('2 categories / 345 rules');
       }
       expect(formatGeoCountUnavailable('en', 'CGoCountGeoData not exported')).assertContain('CGoCountGeoData not exported');
@@ -3510,7 +3520,7 @@ export default function localUnitTest() {
 
 function buildSettingsFixture(): AppSettings {
   return {
-    language: 'zh',
+    language: 'zh-rCN',
     uiModeNight: '0',
     speedEnabled: false,
     confirmRemove: false,

@@ -1,8 +1,23 @@
 export const DEFAULT_PROFILE_ID: string = 'default-profile';
 
-export type ResolvedAppLanguage = 'zh' | 'en';
+export type ResolvedAppLanguage = 'en' | 'zh-rCN' | 'zh-rTW' | 'vi' | 'ru' | 'fa' | 'ar' | 'bn' | 'bqi-rIR';
 export type AppLanguage = 'auto' | ResolvedAppLanguage;
 export const APP_LANGUAGE_AUTO: AppLanguage = 'auto';
+export const APP_LANGUAGE_EN: ResolvedAppLanguage = 'en';
+export const APP_LANGUAGE_ZH_CN: ResolvedAppLanguage = 'zh-rCN';
+export const APP_LANGUAGE_ZH_TW: ResolvedAppLanguage = 'zh-rTW';
+export const V2RAYNG_LANGUAGE_OPTIONS: AppLanguage[] = [
+  APP_LANGUAGE_AUTO,
+  APP_LANGUAGE_EN,
+  APP_LANGUAGE_ZH_CN,
+  APP_LANGUAGE_ZH_TW,
+  'vi',
+  'ru',
+  'fa',
+  'ar',
+  'bn',
+  'bqi-rIR'
+];
 
 export type XrayConfigType = 'outbound' | 'full' | 'proxy-chain' | 'policy-group';
 

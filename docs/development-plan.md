@@ -378,7 +378,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 - [x] 删除配置确认：Settings 保存 `confirmRemove`，默认关闭；开启后单节点删除与订阅分组删除弹二次确认（2026-06-18）
 - [x] 立即启动扫码：Settings 保存 `startScanImmediate`，默认关闭；开启后进入 Scanner 页自动拉起 ScanKit 相机扫码（2026-06-18）
 - [x] 速度显示：Settings 保存 `speedEnabled`，默认关闭；开启后生成 metrics/stats/policy 并显示上传/下载，关闭时不启动 VPN stats 轮询（2026-06-18）
-- [x] 语言跟随系统：Settings 保存 v2rayNG `pref_language=auto/en/zh`，默认 `auto`；`auto` 通过 Harmony 系统语言解析为中/英显示，设置页三段切换并补单测（2026-06-19）
+- [x] 语言跟随系统：Settings 保存 v2rayNG `pref_language=auto/en/zh-rCN/zh-rTW/vi/ru/fa/ar/bn/bqi-rIR`，默认 `auto`；`auto` 通过 Harmony 系统语言解析为 v2rayNG 语言码，设置页分页选择完整语言列表，非中英语言值保留并回退英文显示（2026-06-20 扩展完整语言枚举）
 - [x] UI 模式：Settings 保存 v2rayNG `uiModeNight=0/1/2`，应用启动/回前台/保存设置后切换 Harmony 跟随系统/浅色/深色 colorMode（2026-06-18）
 - [x] 显示所有分组：Settings 保存 `groupAllDisplay`，节点页开启 All 虚拟分组并聚合所有订阅分组节点，搜索/测速/导出/删除全部/去重/删除测速失败节点按聚合可见节点执行（2026-06-19 补批处理语义）
 - [x] 双列显示：Settings 保存 `doubleColumnDisplay`，默认关闭；开启后节点页以双列列表展示配置并保留选择/滑动操作（2026-06-18）
@@ -530,7 +530,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-18 | M4 | ✅ 关于页更新检查完成（About 页通过 GitHub latest release API 解析 tag/assets，比较当前版本 `1.1.0`，发现新版本时打开下载页/Release 页，失败写运行日志；补版本比较与 release 解析单测） |
 | 2026-06-18 | M4 | ✅ 关于页预发布更新检查开关完成（保存 `pref_check_update_pre_release` 等价设置，开启后检查 GitHub releases 列表并允许 pre-release 版本命中；补 release 列表选择与 Settings 往返单测） |
 | 2026-06-19 | M4 | ✅ pre-release 更新检查设置页入口完成（Settings 页新增 `pref_check_update_pre_release` 等价开关，与 About 页共用同一持久化值；补 Settings 文案覆盖） |
-| 2026-06-19 | M4 | ✅ 语言跟随系统完成（`pref_language=auto/en/zh` 三态、默认 `auto`，通过 Harmony `i18n.System.getSystemLanguage()` 解析系统语言，设置页三段切换，补语言归一化与解析单测） |
+| 2026-06-20 | M4 | ✅ v2rayNG 语言枚举完成（`pref_language=auto/en/zh-rCN/zh-rTW/vi/ru/fa/ar/bn/bqi-rIR` 完整取值、旧 `zh`/`zh-Hans` 迁移到 `zh-rCN`，`auto` 解析系统语言，设置页分页选择完整语言列表，非中英语言值保留并回退英文显示） |
 | 2026-06-19 | M3 | ✅ 分应用代理批处理完成（PerApp 页支持全选/清除/反选当前筛选列表，按 v2rayNG 剪贴板格式导入/导出 `bypass + package list`，默认模式对齐为代理选中应用，导入后自动启用分应用代理；补包名列表与 VPN 映射单测） |
 | 2026-06-19 | M3 | ✅ 分应用自动选择完成（PerApp 页新增自动选择需代理应用，使用内置代理应用清单并保留 v2rayNG `com.google*` 强制匹配、WebView 排除和 bypass 补集语义；补 helper 单测） |
 | 2026-06-19 | M3 | ✅ 分应用自动列表来源对齐 v2rayNG（自动选择先拉取 `2dust/androidpackagenamelist` 远程 `proxy.txt`，直连失败可经本地 HTTP 代理重试，失败/空内容回退内置列表；补 URL 与回退 helper 单测；顺手修正 About 页 v2rayNG source 链接） |

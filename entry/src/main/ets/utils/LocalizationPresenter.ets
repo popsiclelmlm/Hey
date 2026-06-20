@@ -55,12 +55,12 @@ export function localizeCoreMessage(language: AppLanguage, message: string): str
     return '';
   }
   if (message === 'Native bridge not queried yet.' ||
-    message === translate('zh', 'runtime.nativeBridgeNotQueried') ||
+    message === translate('zh-rCN', 'runtime.nativeBridgeNotQueried') ||
     message === translate('en', 'runtime.nativeBridgeNotQueried')) {
     return translate(language, 'runtime.nativeBridgeNotQueried');
   }
   if (message === 'VPN extension owns the native bridge. Xray is handling the TUN inbound directly.' ||
-    message === translate('zh', 'runtime.vpnOwnsBridge') ||
+    message === translate('zh-rCN', 'runtime.vpnOwnsBridge') ||
     message === translate('en', 'runtime.vpnOwnsBridge')) {
     return translate(language, 'runtime.vpnOwnsBridge');
   }

@@ -3,6 +3,10 @@ import { promptAction } from '@kit.ArkUI';
 import { SectionHeader } from '../components/SectionHeader';
 import { DEFAULT_LANGUAGE, translate } from '../core/I18n';
 import {
+  APP_LANGUAGE_AUTO,
+  APP_LANGUAGE_EN,
+  APP_LANGUAGE_ZH_CN,
+  APP_LANGUAGE_ZH_TW,
   APP_MODE_PROXY_ONLY,
   APP_MODE_VPN,
   AppLanguage,
@@ -26,13 +30,13 @@ import {
   VPN_BYPASS_LAN_BYPASS,
   VPN_BYPASS_LAN_FOLLOW_CONFIG,
   VPN_BYPASS_LAN_PROXY,
-  VPN_INTERFACE_ADDRESS_CONFIGS
+  VPN_INTERFACE_ADDRESS_CONFIGS,
+  V2RAYNG_LANGUAGE_OPTIONS
 } from '../core/Profile';
 import { applyColorMode } from '../core/ColorMode';
 import { markRuntimeSettingsRestartNeeded } from '../core/SettingsChange';
 import { V2RAYNG_CORE_LOG_LEVEL_OPTIONS, V2RAYNG_FRAGMENT_PACKET_OPTIONS, V2RAYNG_MUX_XUDP_QUIC_OPTIONS, normalizeV2rayNgCoreLogLevel, normalizeV2rayNgFragmentPackets, normalizeV2rayNgMuxXudpQuic } from '../core/V2rayNgOptions';
 import {
-  LanguageToggleRow,
   SettingInputRow,
   SettingToggleRow
 } from '../features/settings/SettingsControls';
@@ -330,16 +334,7 @@ struct SettingsPage {
 
   @Builder
   private LanguageToggle() {
-    LanguageToggleRow({
-      title: this.t('settings.language.title'),
-      autoLabel: this.t('settings.language.auto'),
-      zhLabel: this.t('settings.language.zh'),
-      enLabel: this.t('settings.language.en'),
-      language: this.language,
-      onChange: (nextLanguage: AppLanguage) => {
-        this.changeLanguage(nextLanguage);
-      }
-    })
+    this.SettingOption(this.t('settings.language.title'), this.languageLabel(this.language), 'language')
   }
 
   @Builder
@@ -592,13 +587,34 @@ struct SettingsPage {
   }
 
   private languageLabel(language: AppLanguage): string {
-    if (language === 'zh') {
-      return this.t('settings.language.zh');
+    if (language === APP_LANGUAGE_AUTO) {
+      return this.t('settings.language.auto');
     }
-    if (language === 'en') {
+    if (language === APP_LANGUAGE_EN) {
       return this.t('settings.language.en');
     }
-    return this.t('settings.language.auto');
+    if (language === APP_LANGUAGE_ZH_CN) {
+      return this.t('settings.language.zhCn');
+    }
+    if (language === APP_LANGUAGE_ZH_TW) {
+      return this.t('settings.language.zhTw');
+    }
+    if (language === 'vi') {
+      return this.t('settings.language.vi');
+    }
+    if (language === 'ru') {
+      return this.t('settings.language.ru');
+    }
+    if (language === 'fa') {
+      return this.t('settings.language.fa');
+    }
+    if (language === 'ar') {
+      return this.t('settings.language.ar');
+    }
+    if (language === 'bn') {
+      return this.t('settings.language.bn');
+    }
+    return this.t('settings.language.bqiIr');
   }
 
   private buildDraft(): SettingsDraft {
@@ -747,6 +763,10 @@ struct SettingsPage {
   }
 
   private showSettingOptionMenu(action: string): void {
+    if (action === 'language') {
+      this.showLanguageMenu();
+      return;
+    }
     if (action === 'vpnBypassLan') {
       this.showVpnBypassLanMenu();
       return;
@@ -782,6 +802,51 @@ struct SettingsPage {
     if (action === 'fragmentPackets') {
       this.showFragmentPacketsMenu();
     }
+  }
+
+  private showLanguageMenu(startIndex: number = 0): void {
+    const values: AppLanguage[] = V2RAYNG_LANGUAGE_OPTIONS.slice();
+    const buttons = new Array<promptAction.Button>();
+    const actions = new Array<number>();
+    const hasPrevious = startIndex > 0;
+    let itemLimit = 6 - (hasPrevious ? 1 : 0);
+    if (startIndex + itemLimit < values.length) {
+      itemLimit -= 1;
+    }
+    const endIndex = Math.min(values.length, startIndex + itemLimit);
+    for (let index = startIndex; index < endIndex; index++) {
+      buttons.push({ text: this.languageLabel(values[index]), color: AppColor.brand } as promptAction.Button);
+      actions.push(index);
+    }
+    if (endIndex < values.length) {
+      buttons.push({ text: this.t('action.more'), color: AppColor.brand } as promptAction.Button);
+      actions.push(-2);
+    }
+    if (hasPrevious) {
+      buttons.push({ text: this.t('action.previous'), color: AppColor.textSecondary } as promptAction.Button);
+      actions.push(-1);
+    }
+
+    promptAction.showActionMenu({
+      title: this.t('settings.language.title'),
+      buttons: this.toActionMenuButtons(buttons)
+    }).then((result) => {
+      if (result.index < 0 || result.index >= actions.length) {
+        return;
+      }
+      const actionIndex = actions[result.index];
+      if (actionIndex === -2) {
+        this.showLanguageMenu(endIndex);
+        return;
+      }
+      if (actionIndex === -1) {
+        this.showLanguageMenu(Math.max(0, startIndex - 5));
+        return;
+      }
+      if (actionIndex >= 0 && actionIndex < values.length) {
+        this.changeLanguage(values[actionIndex]);
+      }
+    });
   }
 
   private showVpnBypassLanMenu(): void {

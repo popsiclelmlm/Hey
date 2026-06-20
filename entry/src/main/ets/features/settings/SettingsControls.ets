@@ -1,10 +1,7 @@
-import { DEFAULT_LANGUAGE } from '../../core/I18n';
-import { AppLanguage } from '../../core/Profile';
 import { AppColor, FontSz, Radius, Space } from '../../theme/Theme';
 
 export type ToggleSettingHandler = (action: string) => void;
 export type TextSettingHandler = (action: string, value: string) => void;
-export type LanguageSelectHandler = (language: AppLanguage) => void;
 
 @Component
 export struct SettingToggleRow {
@@ -46,61 +43,6 @@ export struct SettingToggleRow {
     .height(54)
     .padding({ left: Space.lg, right: Space.lg })
     .backgroundColor(AppColor.surface)
-  }
-}
-
-@Component
-export struct LanguageToggleRow {
-  @Prop title: string = '';
-  @Prop settingKey: string = '';
-  @Prop autoLabel: string = '';
-  @Prop zhLabel: string = '';
-  @Prop enLabel: string = '';
-  @Prop language: AppLanguage = DEFAULT_LANGUAGE;
-  onChange: LanguageSelectHandler = (_language: AppLanguage) => {};
-
-  build() {
-    Row({ space: Space.md }) {
-      Text(this.title)
-        .fontSize(FontSz.callout)
-        .fontColor(AppColor.textPrimary)
-        .layoutWeight(1)
-
-      Row() {
-        this.SegItem(this.autoLabel, this.language === 'auto', () => {
-          this.onChange('auto');
-        })
-        this.SegItem(this.zhLabel, this.language === 'zh', () => {
-          this.onChange('zh');
-        })
-        this.SegItem(this.enLabel, this.language === 'en', () => {
-          this.onChange('en');
-        })
-      }
-      .padding(2)
-      .backgroundColor(AppColor.surfaceAlt)
-      .borderRadius(Radius.md)
-    }
-    .width('100%')
-    .height(54)
-    .padding({ left: Space.lg, right: Space.lg })
-    .backgroundColor(AppColor.surface)
-  }
-
-  @Builder
-  private SegItem(label: string, selected: boolean, action: () => void) {
-    Text(label)
-      .fontSize(FontSz.footnote)
-      .fontWeight(selected ? FontWeight.Medium : FontWeight.Regular)
-      .fontColor(selected ? AppColor.onBrand : AppColor.textSecondary)
-      .textAlign(TextAlign.Center)
-      .height(28)
-      .width(64)
-      .borderRadius(Radius.sm)
-      .backgroundColor(selected ? AppColor.brand : Color.Transparent)
-      .onClick(() => {
-        action();
-      })
   }
 }
 

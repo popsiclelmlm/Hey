@@ -1,7 +1,7 @@
 import { i18n } from '@kit.LocalizationKit';
-import { APP_LANGUAGE_AUTO, AppLanguage, ResolvedAppLanguage } from './Profile';
+import { APP_LANGUAGE_AUTO, APP_LANGUAGE_EN, APP_LANGUAGE_ZH_CN, APP_LANGUAGE_ZH_TW, AppLanguage, ResolvedAppLanguage } from './Profile';
 
-export const DEFAULT_RESOLVED_LANGUAGE: ResolvedAppLanguage = 'zh';
+export const DEFAULT_RESOLVED_LANGUAGE: ResolvedAppLanguage = APP_LANGUAGE_ZH_CN;
 export const DEFAULT_LANGUAGE: AppLanguage = APP_LANGUAGE_AUTO;
 export const TRANSLATION_KEYS: Array<string> = [
   'runtime.nativeBridgeNotQueried',
@@ -232,8 +232,15 @@ export const TRANSLATION_KEYS: Array<string> = [
   'settings.language.title',
   'settings.language.key',
   'settings.language.auto',
-  'settings.language.zh',
+  'settings.language.zhCn',
+  'settings.language.zhTw',
   'settings.language.en',
+  'settings.language.vi',
+  'settings.language.ru',
+  'settings.language.fa',
+  'settings.language.ar',
+  'settings.language.bn',
+  'settings.language.bqiIr',
   'settings.uiModeNight',
   'settings.uiModeNight.system',
   'settings.uiModeNight.light',
@@ -839,8 +846,15 @@ const ZH_TRANSLATIONS: Record<string, string> = {
   'settings.language.title': '语言',
   'settings.language.key': 'pref_language',
   'settings.language.auto': '跟随系统',
-  'settings.language.zh': '中文简体',
+  'settings.language.zhCn': '中文简体',
+  'settings.language.zhTw': '中文繁體',
   'settings.language.en': 'English',
+  'settings.language.vi': 'Tiếng Việt',
+  'settings.language.ru': 'Русский',
+  'settings.language.fa': 'فارسی',
+  'settings.language.ar': 'عربي',
+  'settings.language.bn': 'বাংলা',
+  'settings.language.bqiIr': 'لۊری بختیاری',
   'settings.uiModeNight': 'UI 模式设置',
   'settings.uiModeNight.system': '跟随系统',
   'settings.uiModeNight.light': '浅色',
@@ -1446,8 +1460,15 @@ const EN_TRANSLATIONS: Record<string, string> = {
   'settings.language.title': 'Language',
   'settings.language.key': 'pref_language',
   'settings.language.auto': 'Follow system',
-  'settings.language.zh': '中文简体',
+  'settings.language.zhCn': '中文简体',
+  'settings.language.zhTw': '中文繁體',
   'settings.language.en': 'English',
+  'settings.language.vi': 'Tiếng Việt',
+  'settings.language.ru': 'Русский',
+  'settings.language.fa': 'فارسی',
+  'settings.language.ar': 'عربي',
+  'settings.language.bn': 'বাংলা',
+  'settings.language.bqiIr': 'لۊری بختیاری',
   'settings.uiModeNight': 'UI mode settings',
   'settings.uiModeNight.system': 'Follow system',
   'settings.uiModeNight.light': 'Light',
@@ -1830,21 +1851,53 @@ export function normalizeLanguage(value: string | undefined): AppLanguage {
     return APP_LANGUAGE_AUTO;
   }
   if (normalized === 'en' || normalized.indexOf('en-') === 0) {
-    return 'en';
+    return APP_LANGUAGE_EN;
   }
-  if (normalized === 'zh' || normalized.indexOf('zh-') === 0) {
-    return 'zh';
+  if (
+    normalized === 'zh-rtw' ||
+    normalized === 'zh-tw' ||
+    normalized === 'zh-hk' ||
+    normalized === 'zh-mo' ||
+    normalized === 'zh-hant' ||
+    normalized.indexOf('zh-hant-') === 0
+  ) {
+    return APP_LANGUAGE_ZH_TW;
+  }
+  if (
+    normalized === 'zh' ||
+    normalized === 'zh-rcn' ||
+    normalized === 'zh-cn' ||
+    normalized === 'zh-hans' ||
+    normalized.indexOf('zh-hans-') === 0 ||
+    normalized.indexOf('zh-') === 0
+  ) {
+    return APP_LANGUAGE_ZH_CN;
+  }
+  if (normalized === 'vi' || normalized.indexOf('vi-') === 0) {
+    return 'vi';
+  }
+  if (normalized === 'ru' || normalized.indexOf('ru-') === 0) {
+    return 'ru';
+  }
+  if (normalized === 'fa' || normalized.indexOf('fa-') === 0) {
+    return 'fa';
+  }
+  if (normalized === 'ar' || normalized.indexOf('ar-') === 0) {
+    return 'ar';
+  }
+  if (normalized === 'bn' || normalized.indexOf('bn-') === 0) {
+    return 'bn';
+  }
+  if (normalized === 'bqi' || normalized === 'bqi-rir' || normalized === 'bqi-ir') {
+    return 'bqi-rIR';
   }
   return DEFAULT_LANGUAGE;
 }
 
 export function resolveSystemLanguage(systemLanguage: string | undefined): ResolvedAppLanguage {
-  const normalized = systemLanguage === undefined ? '' : systemLanguage.trim().toLowerCase();
-  if (normalized.indexOf('en') === 0) {
-    return 'en';
-  }
-  if (normalized.indexOf('zh') === 0) {
-    return 'zh';
+  const normalized = normalizeLanguage(systemLanguage);
+  if (normalized !== APP_LANGUAGE_AUTO) {
+    return normalized as ResolvedAppLanguage;
   }
   return DEFAULT_RESOLVED_LANGUAGE;
 }
@@ -1862,14 +1915,12 @@ export function resolveLanguage(language: AppLanguage | string | undefined, syst
   if (normalized === APP_LANGUAGE_AUTO) {
     return resolveSystemLanguage(systemLanguage === undefined ? currentSystemLanguage() : systemLanguage);
   }
-  if (normalized === 'en') {
-    return 'en';
-  }
-  return 'zh';
+  return normalized as ResolvedAppLanguage;
 }
 
 export function translate(language: AppLanguage, key: string): string {
-  const bundle = resolveLanguage(language) === 'en' ? EN_TRANSLATIONS : ZH_TRANSLATIONS;
+  const resolved = resolveLanguage(language);
+  const bundle = (resolved === APP_LANGUAGE_ZH_CN || resolved === APP_LANGUAGE_ZH_TW) ? ZH_TRANSLATIONS : EN_TRANSLATIONS;
   return bundle[key] ?? EN_TRANSLATIONS[key] ?? key;
 }
 
