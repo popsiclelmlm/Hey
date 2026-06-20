@@ -2974,6 +2974,41 @@ export default function localUnitTest() {
       expect(legacySlash.outboundJson).assertContain('"port": 8388');
     });
 
+    it('matches v2rayNG ShadowsocksFmt parsing parity', 0, () => {
+      // SIP002 with plain-text userinfo (no base64) — v2rayNG parseSip002 validUrlWithPlainTextUserinfo
+      const plainUserInfo = parseShareLinkToOutboundJson('ss://aes-256-gcm:mypassword@example.com:8388#Plain%20Server');
+      expect(plainUserInfo.success).assertTrue();
+      expect(plainUserInfo.name).assertEqual('Plain Server');
+      expect(plainUserInfo.outboundJson).assertContain('"protocol": "shadowsocks"');
+      expect(plainUserInfo.outboundJson).assertContain('"method": "aes-256-gcm"');
+      expect(plainUserInfo.outboundJson).assertContain('"password": "mypassword"');
+      expect(plainUserInfo.outboundJson).assertContain('"address": "example.com"');
+      expect(plainUserInfo.outboundJson).assertContain('"port": 8388');
+
+      // chacha20-ietf-poly1305 method is preserved
+      const chacha = parseShareLinkToOutboundJson('ss://chacha20-ietf-poly1305:secret123@ss.example.com:443#ChaCha20');
+      expect(chacha.success).assertTrue();
+      expect(chacha.outboundJson).assertContain('"method": "chacha20-ietf-poly1305"');
+
+      // Empty host is rejected — v2rayNG parseSip002 returnsNullForEmptyHost
+      const emptyHost = parseShareLinkToOutboundJson('ss://aes-256-gcm:password@:8388#No%20Host');
+      expect(emptyHost.success).assertFalse();
+
+      // Invalid (negative) port is rejected — v2rayNG parseSip002 returnsNullForInvalidPort
+      const badPort = parseShareLinkToOutboundJson('ss://aes-256-gcm:password@example.com:-1#Invalid%20Port');
+      expect(badPort.success).assertFalse();
+
+      // Empty remarks fall back to v2rayNG "none" — parse handlesEmptyRemarksGracefully
+      const emptyRemarks = parseShareLinkToOutboundJson('ss://YWVzLTEyOC1nY206c2VjcmV0@example.com:8388#');
+      expect(emptyRemarks.success).assertTrue();
+      expect(emptyRemarks.name).assertEqual('none');
+
+      // toUri brackets IPv6 server addresses — v2rayNG toUri handlesIpv6Address
+      const ipv6Json = '{"protocol":"shadowsocks","tag":"proxy","settings":{"servers":[{"address":"2001:db8::1","port":8388,"method":"aes-256-gcm","password":"password"}]}}';
+      const ipv6Uri = formatOutboundJsonToShareLink(ipv6Json, 'IPv6 Server');
+      expect(ipv6Uri).assertContain('@[2001:db8::1]:8388');
+    });
+
     it('defaults unnamed url-style share links to v2rayNG none remarks', 0, () => {
       const unnamedVlessLink = 'vless://00000000-0000-0000-0000-000000000000@example.com:443?encryption=none&type=tcp';
       const unnamedVless = parseShareLinkToOutboundJson(unnamedVlessLink);
