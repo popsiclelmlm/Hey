@@ -72,6 +72,7 @@ struct Index {
   private tabsController: TabsController = new TabsController();
   private nodeListScroller: Scroller = new Scroller();
   private lastAutoSubscriptionCheckAt: number = 0;
+  private pendingExternalIntentHandling: boolean = false;
 
   @State private currentTab: number = 0;
   @State private showSearch: boolean = false;
@@ -100,6 +101,8 @@ struct Index {
   @State private groupAllDisplay: boolean = false;
   @State private doubleColumnDisplay: boolean = false;
   @State private allGroupsSelected: boolean = false;
+  @StorageLink('pendingDeepLink') @Watch('onPendingExternalIntentChanged') private pendingDeepLinkSignal: string = '';
+  @StorageLink('pendingSharedTextImport') @Watch('onPendingExternalIntentChanged') private pendingSharedTextImportSignal: string = '';
 
   aboutToAppear(): void {
     this.loadInitialState();
@@ -131,6 +134,38 @@ struct Index {
     await this.handlePendingDeepLink();
     await this.refreshDueSubscriptions();
     await this.syncSubscriptionBackgroundSchedule();
+  }
+
+  private onPendingExternalIntentChanged(): void {
+    if (!this.hasPendingExternalIntent()) {
+      return;
+    }
+    this.consumePendingExternalIntentSoon();
+  }
+
+  private hasPendingExternalIntent(): boolean {
+    return this.pendingDeepLinkSignal.trim().length > 0 || this.pendingSharedTextImportSignal.trim().length > 0;
+  }
+
+  private consumePendingExternalIntentSoon(): void {
+    if (this.pendingExternalIntentHandling) {
+      return;
+    }
+    this.pendingExternalIntentHandling = true;
+    setTimeout(async () => {
+      try {
+        await this.loadSettings();
+        await this.loadNodes();
+        await this.handlePendingSharedTextImport();
+        await this.handlePendingDeepLink();
+        await this.syncSubscriptionBackgroundSchedule();
+      } finally {
+        this.pendingExternalIntentHandling = false;
+        if (this.hasPendingExternalIntent()) {
+          this.consumePendingExternalIntentSoon();
+        }
+      }
+    }, 0);
   }
 
   private async handlePendingRuntimeSettingsRestart(): Promise<void> {

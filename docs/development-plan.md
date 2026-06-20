@@ -254,7 +254,8 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
   `hey://start` / `hey://stop` / `hey://toggle` / `hey://scan`；
   start/toggle 可携带 `guid`/`nodeId`/`id` 指定目标节点，先切换节点再启动，
   快捷方式/Want 参数也兼容 `tasker_extra_bundle_switch/guid` 扁平 Tasker 键，
-  `guid=Default` 保持当前选中节点，对齐 v2rayNG Tasker `switch + guid`
+  `guid=Default` 保持当前选中节点，对齐 v2rayNG Tasker `switch + guid`；
+  首页监听 EntryAbility 写入的 pending deep link/share text，应用已在前台时再次收到外部 Want 也会消费
 - ✅ **开机自动连接设置**：对应 v2rayNG `pref_is_booted`/`BootReceiver`，
   设置页可持久化“开机自动连接”；Harmony `AUTO_STARTUP` 启动原因会在主页加载设置和当前节点后触发启动当前节点
   （不声明会阻断普通调试签名安装的 `ohos.permission.RECEIVER_STARTUP_COMPLETED`；受系统自启动开关控制，仍需真机重启回归）
@@ -540,6 +541,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-20 | M5 | 🟡 备份能力暂缓（无云服务器）：暂停 WebDAV 与剪贴板备份功能；保留配置与资源功能的主链路 |
 | 2026-06-20 | M4 | ✅ 扫码相册图片导入完成（新增 v2rayNG `select_photo` 等价入口，选择图片后用 ScanKit `detectBarcode.decode` 解码并复用现有导入链路） |
 | 2026-06-18 | M4 | ✅ 控制深链入口完成（manifest 注册 `hey://control`/`start`/`stop`/`toggle`/`switch`/`scan`，Index 处理 start/stop/toggle/scan，补解析单测） |
+| 2026-06-20 | M4 | ✅ 控制深链热启动消费完成（Index 通过 `@StorageLink` 监听 pending deep link/share text，前台状态收到 `hey://scan` 会从首页跳转扫码页；模拟器布局验证 Index→Scanner） |
 | 2026-06-20 | M4 | ✅ 声明式桌面快捷方式完成（`ohos.ability.shortcuts` + `shortcuts_config` 暴露开关/启动/停止/扫码四个入口，`EntryAbility` 解析快捷方式参数并复用控制深链，补参数解析单测）；待真机 launcher 展示/点击回归 |
 | 2026-06-20 | M4 | ✅ Tasker 指定节点控制完成（控制深链支持 `guid`/`nodeId`/`id` 目标节点，快捷方式参数可传 `hey.control.guid`/`hey.control.nodeId` 或 flat Tasker `tasker_extra_bundle_switch/guid`，start/toggle 会先选择目标节点再启动） |
 | 2026-06-18 | M4 | 🟡 常驻速度通知代码完成（`SpeedNotificationManager` 接 Harmony NotificationKit，运行中且 speedEnabled 开启时每 3 秒刷新速率/累计流量，停止或关闭设置时取消，补速率/节流文案单测）；待真机通知权限与通知中心展示回归 |
