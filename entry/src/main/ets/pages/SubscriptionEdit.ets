@@ -12,6 +12,7 @@ import { AppRoute } from '../shell/AppRoute';
 import { SectionHeader } from '../components/SectionHeader';
 import { PageHeader } from '../shell/PageHeader';
 import { ensureReadPasteboardPermission } from '../utils/ClipboardPermission';
+import { formatOne, formatTwo } from '../utils/LocalizationPresenter';
 import { router, promptAction } from '@kit.ArkUI';
 import { pasteboard } from '@kit.BasicServicesKit';
 import { AppColor, FontSz, Radius, Space } from '../theme/Theme';
@@ -21,7 +22,6 @@ import { AppColor, FontSz, Radius, Space } from '../theme/Theme';
 struct SubscriptionEditPage {
   @State private language: AppLanguage = DEFAULT_LANGUAGE;
   @State private groupId: string = '';
-  @State private pageTitle: string = '新建订阅分组';
   @State private groupName: string = '';
   @State private subscriptionUrl: string = '';
   @State private userAgent: string = '';
@@ -37,18 +37,13 @@ struct SubscriptionEditPage {
   aboutToAppear(): void {
     const params = router.getParams() as Record<string, Object>;
     this.groupId = (params?.groupId as string) ?? '';
-    if (this.groupId.length > 0) {
-      this.pageTitle = '编辑订阅分组';
-    } else {
-      this.pageTitle = '新建订阅分组';
-    }
     this.loadState();
   }
 
   build() {
     Column() {
       PageHeader({
-        title: this.pageTitle,
+        title: this.pageTitleText(),
         showBack: true
       })
 
@@ -58,9 +53,9 @@ struct SubscriptionEditPage {
           Column({ space: Space.lg }) {
 
             // 卡片一：分组名称
-            SectionHeader({ title: '分组名称' })
+            SectionHeader({ title: this.t('subscription.edit.groupName') })
             Column() {
-              TextInput({ text: this.groupName, placeholder: '请输入分组名称' })
+              TextInput({ text: this.groupName, placeholder: this.t('subscription.edit.groupName.placeholder') })
                 .height(48)
                 .width('100%')
                 .fontSize(FontSz.body)
@@ -79,7 +74,7 @@ struct SubscriptionEditPage {
             .clip(true)
             .margin({ left: Space.lg, right: Space.lg })
 
-            Text('为您的配置订阅起一个好记的名字，例如“极速专线”或“主力订阅”。')
+            Text(this.t('subscription.edit.groupName.detail'))
               .fontSize(FontSz.footnote)
               .fontColor(AppColor.textTertiary)
               .width('100%')
@@ -87,7 +82,7 @@ struct SubscriptionEditPage {
               .padding({ left: Space.lg + Space.xs, right: Space.lg + Space.xs })
 
             // 卡片二：订阅链接
-            SectionHeader({ title: '订阅链接 (URL)' })
+            SectionHeader({ title: this.t('subscription.edit.url') })
             Column() {
               Row() {
                 Image($r('app.media.ic_link'))
@@ -97,7 +92,7 @@ struct SubscriptionEditPage {
                   .margin({ left: Space.lg, right: Space.sm })
 
                 TextInput({
-                  placeholder: '请输入 http:// 或 https:// 链接',
+                  placeholder: this.t('subscription.edit.url.placeholder'),
                   text: this.subscriptionUrl
                 })
                   .layoutWeight(1)
@@ -167,7 +162,7 @@ struct SubscriptionEditPage {
             .clip(true)
             .margin({ left: Space.lg, right: Space.lg })
 
-            Text('目前支持导入解析标准的 Shadowsocks、VMess、VLESS 和 Trojan 等格式的链接内容。')
+            Text(this.t('subscription.edit.url.detail'))
               .fontSize(FontSz.footnote)
               .fontColor(AppColor.textTertiary)
               .width('100%')
@@ -177,10 +172,10 @@ struct SubscriptionEditPage {
             Column() {
               Row() {
                 Column({ space: 4 }) {
-                  Text('允许不安全订阅链接')
+                  Text(this.t('subscription.edit.allowInsecure'))
                     .fontSize(FontSz.body)
                     .fontColor(AppColor.textPrimary)
-                  Text('开启后允许使用 http:// 订阅地址；默认仅允许 https://。')
+                  Text(this.t('subscription.edit.allowInsecure.detail'))
                     .fontSize(FontSz.footnote)
                     .fontColor(AppColor.textTertiary)
                     .maxLines(2)
@@ -205,14 +200,14 @@ struct SubscriptionEditPage {
             .clip(true)
             .margin({ left: Space.lg, right: Space.lg })
 
-            SectionHeader({ title: '自动更新订阅' })
+            SectionHeader({ title: this.t('subscription.edit.autoUpdate') })
             Column() {
               Row() {
                 Column({ space: 4 }) {
-                  Text('启用自动更新')
+                  Text(this.t('subscription.edit.autoUpdate.enable'))
                     .fontSize(FontSz.body)
                     .fontColor(AppColor.textPrimary)
-                  Text('开启后会在应用前台按间隔检查并刷新该订阅。')
+                  Text(this.t('subscription.edit.autoUpdate.enable.detail'))
                     .fontSize(FontSz.footnote)
                     .fontColor(AppColor.textTertiary)
                     .maxLines(2)
@@ -233,10 +228,12 @@ struct SubscriptionEditPage {
 
               Row() {
                 Column({ space: 4 }) {
-                  Text('更新间隔（分钟）')
+                  Text(this.t('subscription.edit.updateInterval'))
                     .fontSize(FontSz.body)
                     .fontColor(AppColor.textPrimary)
-                  Text(`最小 ${MIN_SUBSCRIPTION_UPDATE_INTERVAL_MINUTES} 分钟，默认 ${DEFAULT_SUBSCRIPTION_UPDATE_INTERVAL_MINUTES} 分钟。`)
+                  Text(this.f2('subscription.edit.updateInterval.detail',
+                    'min', MIN_SUBSCRIPTION_UPDATE_INTERVAL_MINUTES.toString(),
+                    'default', DEFAULT_SUBSCRIPTION_UPDATE_INTERVAL_MINUTES.toString()))
                     .fontSize(FontSz.footnote)
                     .fontColor(AppColor.textTertiary)
                 }
@@ -267,9 +264,12 @@ struct SubscriptionEditPage {
             .margin({ left: Space.lg, right: Space.lg })
 
             // 卡片四：自定义 User-Agent
-            SectionHeader({ title: '自定义 User-Agent' })
+            SectionHeader({ title: this.t('subscription.edit.userAgent') })
             Column() {
-              TextInput({ text: this.userAgent, placeholder: `留空默认 ${DEFAULT_SUBSCRIPTION_USER_AGENT}` })
+              TextInput({
+                text: this.userAgent,
+                placeholder: this.f1('subscription.edit.userAgent.placeholder', 'userAgent', DEFAULT_SUBSCRIPTION_USER_AGENT)
+              })
                 .height(48)
                 .width('100%')
                 .fontSize(FontSz.body)
@@ -288,7 +288,7 @@ struct SubscriptionEditPage {
             .clip(true)
             .margin({ left: Space.lg, right: Space.lg })
 
-            Text('订阅服务器常按 User-Agent 返回不同格式或节点。默认以 clash.meta 拉取 Clash 配置；若某订阅缺节点，可改成 v2rayNG、sing-box 等再试。')
+            Text(this.t('subscription.edit.userAgent.detail'))
               .fontSize(FontSz.footnote)
               .fontColor(AppColor.textTertiary)
               .width('100%')
@@ -296,9 +296,9 @@ struct SubscriptionEditPage {
               .padding({ left: Space.lg + Space.xs, right: Space.lg + Space.xs })
 
             // 卡片五：节点过滤（正则）
-            SectionHeader({ title: '节点过滤 (正则)' })
+            SectionHeader({ title: this.t('subscription.edit.filter') })
             Column() {
-              TextInput({ text: this.filter, placeholder: '留空导入全部节点，例如 香港|HK' })
+              TextInput({ text: this.filter, placeholder: this.t('subscription.edit.filter.placeholder') })
                 .height(48)
                 .width('100%')
                 .fontSize(FontSz.body)
@@ -317,16 +317,16 @@ struct SubscriptionEditPage {
             .clip(true)
             .margin({ left: Space.lg, right: Space.lg })
 
-            Text('更新订阅时，仅保留节点名称匹配该正则的节点。留空或正则无效时导入全部；若匹配不到任何节点则自动回退为全部。')
+            Text(this.t('subscription.edit.filter.detail'))
               .fontSize(FontSz.footnote)
               .fontColor(AppColor.textTertiary)
               .width('100%')
               .lineHeight(16)
               .padding({ left: Space.lg + Space.xs, right: Space.lg + Space.xs })
 
-            SectionHeader({ title: '前/后置 Profile' })
+            SectionHeader({ title: this.t('subscription.edit.profilePair') })
             Column() {
-              TextInput({ text: this.prevProfile, placeholder: '更新前引用的节点备注' })
+              TextInput({ text: this.prevProfile, placeholder: this.t('subscription.edit.prevProfile.placeholder') })
                 .height(48)
                 .width('100%')
                 .fontSize(FontSz.body)
@@ -339,7 +339,7 @@ struct SubscriptionEditPage {
                   this.prevProfile = val;
                 })
               this.RowDivider()
-              TextInput({ text: this.nextProfile, placeholder: '更新后引用的节点备注' })
+              TextInput({ text: this.nextProfile, placeholder: this.t('subscription.edit.nextProfile.placeholder') })
                 .height(48)
                 .width('100%')
                 .fontSize(FontSz.body)
@@ -358,7 +358,7 @@ struct SubscriptionEditPage {
             .clip(true)
             .margin({ left: Space.lg, right: Space.lg })
 
-            Text('保存 v2rayNG SubEditActivity 同名字段；填写已有普通节点备注。')
+            Text(this.t('subscription.edit.profilePair.detail'))
               .fontSize(FontSz.footnote)
               .fontColor(AppColor.textTertiary)
               .width('100%')
@@ -385,7 +385,7 @@ struct SubscriptionEditPage {
                   .color(AppColor.onBrand)
                   .margin({ right: Space.sm })
               }
-              Text('保存配置分组')
+              Text(this.t('subscription.edit.save'))
                 .fontSize(FontSz.headline)
                 .fontWeight(FontWeight.Medium)
                 .fontColor(this.isSaveEnabled() ? AppColor.onBrand : AppColor.textTertiary)
@@ -429,7 +429,6 @@ struct SubscriptionEditPage {
     this.language = (await SETTINGS_CONTROLLER.load(context)).language;
 
     if (this.groupId.length > 0) {
-      this.pageTitle = '编辑订阅分组';
       const state = await SUBSCRIPTIONS_CONTROLLER.load(context, this.language);
       for (let i = 0; i < state.subscriptionGroups.length; i++) {
         if (state.subscriptionGroups[i].id === this.groupId) {
@@ -448,7 +447,6 @@ struct SubscriptionEditPage {
         }
       }
     } else {
-      this.pageTitle = '新建订阅分组';
       this.originalUpdateIntervalMinutes = DEFAULT_SUBSCRIPTION_UPDATE_INTERVAL_MINUTES;
       this.updateInterval = DEFAULT_SUBSCRIPTION_UPDATE_INTERVAL_MINUTES.toString();
     }
@@ -458,7 +456,7 @@ struct SubscriptionEditPage {
     const name = this.groupName.trim();
     const url = this.subscriptionUrl.trim();
     if (name.length === 0) {
-      promptAction.showToast({ message: '分组名称不能为空' });
+      promptAction.showToast({ message: this.t('subscription.edit.groupName.empty') });
       return;
     }
 
@@ -482,7 +480,7 @@ struct SubscriptionEditPage {
       promptAction.showToast({ message: state.subscriptionMessage });
       router.back();
     } catch (err) {
-      promptAction.showToast({ message: '保存失败' });
+      promptAction.showToast({ message: this.t('subscription.edit.saveFailed') });
     } finally {
       this.isBusy = false;
     }
@@ -520,7 +518,10 @@ struct SubscriptionEditPage {
         return DEFAULT_SUBSCRIPTION_UPDATE_INTERVAL_MINUTES;
       }
       if (parsed < MIN_SUBSCRIPTION_UPDATE_INTERVAL_MINUTES) {
-        promptAction.showToast({ message: `自动更新间隔不能小于 ${MIN_SUBSCRIPTION_UPDATE_INTERVAL_MINUTES} 分钟` });
+        promptAction.showToast({
+          message: this.f1('subscription.edit.updateInterval.tooSmall',
+            'min', MIN_SUBSCRIPTION_UPDATE_INTERVAL_MINUTES.toString())
+        });
         return -1;
       }
       return parsed;
@@ -546,5 +547,17 @@ struct SubscriptionEditPage {
 
   private t(key: string): string {
     return translate(this.language, key);
+  }
+
+  private f1(key: string, name: string, value: string): string {
+    return formatOne(this.language, key, name, value);
+  }
+
+  private f2(key: string, name1: string, value1: string, name2: string, value2: string): string {
+    return formatTwo(this.language, key, name1, value1, name2, value2);
+  }
+
+  private pageTitleText(): string {
+    return this.groupId.length > 0 ? this.t('subscription.edit.title.edit') : this.t('subscription.edit.title.new');
   }
 }

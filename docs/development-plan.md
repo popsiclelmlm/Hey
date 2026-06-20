@@ -26,7 +26,7 @@
 | 真机 VPN 闭环 | ✅ **已真机验证通过（2026-06-15）**：`TUN fd → CGoSetTunFd → Xray native TUN → 出站` 端到端可上网 | 阻塞项解除，主线推进至 M1 |
 | Native 桥接 | M1 已接通当前打包库导出的 12 个 CGo 符号（含 `CGoQueryStats`/`CGoTestXray`/`CGoXrayVersion`/`CGoReadGeoFiles`/`CGoCountGeoData`/`CGoGetFreePorts`/`CGoConvertShareLinksToXrayJson`/`CGOConvertXrayJsonToShareLinks`），且预构建 `libxray.so` 已重建并验证导出符号 | **待真机复测**流量、预检、版本、Geo 计数、动态端口与 native 分享转换；上游旧入口 `CGoRunXray` 不作为 Hey 运行目标 |
 | 路由规则 | ✅ 广告拦截、自定义规则、预设规则集导入/导出均已写入 `routing.rules`，规则集可按 v2rayNG 从剪贴板或二维码 JSON 导入并保留 locked 规则，`routeOnly` 会控制 sniffing routeOnly；process 规则输出按 v2rayNG `canUseProcessRouting` 受 `routeOnly` 与 Hev TUN 共同约束，并在可用时将包名解析为 Harmony app UID；生成 Xray routing 时会按 v2rayNG 将 `geoip:cn/private` 改写为 `geoip-only-cn-private.dat` ext 引用 | 仍待真机验证规则实效；高级出站目标（策略组/负载均衡）归入 M5 |
-| 订阅 | 多分组 + 手动/批量更新 + 前台到期刷新 + 本地 HTTP 代理经由更新 + v2rayNG 风格每订阅独立 WorkScheduler 后台调度；订阅编辑页保存/回填 v2rayNG `prevProfile`/`nextProfile` 备注字段；订阅请求保留自定义 User-Agent，按 v2rayNG 支持 URL 内嵌 `user:pass@host` Basic Auth，并会将非 ASCII host 转 punycode 后请求；本地 SOCKS 入口按 v2rayNG 默认开启，可供代理经由能力使用 | 待真机触发回归后台唤醒路径 |
+| 订阅 | 多分组 + 手动/批量更新 + 前台到期刷新 + 本地 HTTP 代理经由更新 + v2rayNG 风格每订阅独立 WorkScheduler 后台调度；订阅编辑页保存/回填 v2rayNG `prevProfile`/`nextProfile` 备注字段，且字段、占位符、校验与保存按钮跟随当前语言；订阅请求保留自定义 User-Agent，按 v2rayNG 支持 URL 内嵌 `user:pass@host` Basic Auth，并会将非 ASCII host 转 punycode 后请求；本地 SOCKS 入口按 v2rayNG 默认开启，可供代理经由能力使用 | 待真机触发回归后台唤醒路径 |
 | 分享导出 | 文本/文件导出 + 节点二维码 + 订阅链接二维码 + 系统分享面板；批量导出已按 v2rayNG `shareNonCustomConfigsToClipboard` 只输出可分享普通节点并跳过自定义/高级/无效配置；节点详情可按 v2rayNG `shareFullContent2Clipboard` 复制完整运行配置；URL-style 普通 TCP 节点导出会按 v2rayNG 写出 `security/type/headerType` 默认 query，并按 `FmtBase.toUri` 将 IDN server/endpoint host 转 punycode；剪贴板导入路径不声明受限 Harmony `READ_PASTEBOARD`，读取失败由各入口现有提示处理；运行中导入/扫码/新增/选择当前节点后会标记待重启，返回首页自动应用新配置 | 仍待真机回归不同分享目标兼容性 |
 | 速度通知 | 🟡 常驻通知代码完成；连接运行且速度显示开启时每 3 秒刷新上传/下载速率与累计流量，停止或关闭设置时取消 | 待真机通知权限弹窗、通知中心展示与后台留存回归 |
 | 深链导入 | ✅ Harmony Want / `hey://install-sub` / `hey://install-config` 已接入 EntryAbility 与首页解析；外部应用 `sendData/text/plain` 分享文本会复用订阅、单节点与 native 批量兜底导入路径 | 仍待真机回归外部应用触发路径 |
@@ -180,6 +180,11 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 - 模型：`SubscriptionGroup.prevProfile` / `nextProfile` 持久化并兼容旧存储默认空字符串
 - UI：订阅编辑页新增与 v2rayNG `SubEditActivity` 同名字段，编辑已有分组时回填
 - 测试：新增复制/批量节点操作单测，确保分组排序和可见节点批处理不会丢失字段
+
+**进展（2026-06-20 续）**：订阅编辑页本地化已落地：
+- UI：`SubEditActivity` 对应的新建/编辑标题、分组名称、订阅 URL、不安全链接、自动更新、更新间隔、User-Agent、节点过滤、前/后置 Profile 和保存按钮均从 i18n 字典读取
+- 校验：空分组名称、自动更新间隔过小、保存失败等 toast 跟随当前语言
+- 验证：模拟器英文环境打开新增订阅分组页，布局中可见 `New subscription group`、`Group name`、`Subscription URL`、`Auto update subscription` 与 `Save subscription group`，且无旧中文编辑页文案残留
 
 **进展（2026-06-18 续，2026-06-20 补模式边界）**：运行中经由本地 HTTP 代理更新订阅已落地：
 - Xray：VPN 模式下设置开启时生成 `http-in` 本地 HTTP inbound（`127.0.0.1:10809`），并将该 inbound 显式路由到 `proxy`；Proxy-only 模式按 v2rayNG 仅保留本地 SOCKS 入口，不暴露追加 HTTP 代理
