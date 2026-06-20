@@ -1,5 +1,6 @@
 import { bundleManager } from '@kit.AbilityKit';
 import { V2RAYNG_DNS_DIRECT, V2RAYNG_DNS_PROXY, normalizeV2rayNgDnsServers } from './DnsAddresses';
+import { shouldExposeLocalHttpProxy } from './LocalProxy';
 import { AppSettings, DEFAULT_VPN_MTU, GeneratedXrayConfig, isProxyOnlyRuntimeMode, isVpnRuntimeMode, normalizeRoutingDomainStrategy, normalizeVpnMtuValue, OUTBOUND_DOMAIN_RESOLVE_DNS_HOSTS, OUTBOUND_DOMAIN_RESOLVE_NONE, OUTBOUND_DOMAIN_RESOLVE_REPLACE, resolveDelayTestUrl, RoutingRule, ValidationResult, XrayConfigType } from './Profile';
 import { isSupportedShareLink, isWireguardConfigFile, parseShareLinkToOutboundJson, parseWireguardConfigToOutboundJson } from './ShareLinkParser';
 import { V2RAYNG_DEFAULT_CORE_LOG_LEVEL, normalizeV2rayNgCoreLogLevel, normalizeV2rayNgFragmentPackets, normalizeV2rayNgMuxXudpQuic, normalizeV2rayNgStreamAlpnWithFallback, normalizeV2rayNgXhttpMode } from './V2rayNgOptions';
@@ -1625,7 +1626,7 @@ function buildXrayConfigFromOutbounds(
   const vpnMode = settings === undefined || isVpnRuntimeMode(settings.mode);
   const proxyOnlyMode = settings !== undefined && isProxyOnlyRuntimeMode(settings.mode);
   const localSocksEnabled = settings !== undefined && (settings.localSocksEnabled || proxyOnlyMode);
-  const appendHttpProxy = settings !== undefined && settings.appendHttpProxy && settings.localSocksEnabled;
+  const appendHttpProxy = shouldExposeLocalHttpProxy(settings);
   const directOutbound: XrayOutbound = {
     tag: 'direct',
     protocol: 'freedom',

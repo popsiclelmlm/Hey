@@ -1,4 +1,15 @@
-import { AppSettings, isProxyOnlyRuntimeMode } from './Profile';
+import { AppSettings, isProxyOnlyRuntimeMode, isVpnRuntimeMode } from './Profile';
+
+export function shouldExposeLocalHttpProxy(settings: AppSettings | undefined): boolean {
+  if (settings === undefined) {
+    return false;
+  }
+  return shouldExposeLocalHttpProxyState(settings.mode, settings.appendHttpProxy, settings.localSocksEnabled);
+}
+
+export function shouldExposeLocalHttpProxyState(mode: string | undefined, appendHttpProxy: boolean, localSocksEnabled: boolean): boolean {
+  return isVpnRuntimeMode(mode) && appendHttpProxy && localSocksEnabled;
+}
 
 export function shouldUseDynamicLocalSocksPort(settings: AppSettings | undefined): boolean {
   return settings !== undefined && (settings.localSocksEnabled || isProxyOnlyRuntimeMode(settings.mode)) && settings.localSocksDynamicPort;

@@ -1,6 +1,7 @@
 import { common } from '@kit.AbilityKit';
 import { IconButton } from '../components/IconButton';
 import { DEFAULT_LANGUAGE, translate } from '../core/I18n';
+import { shouldExposeLocalHttpProxy } from '../core/LocalProxy';
 import { AppLanguage, SubscriptionGroup } from '../core/Profile';
 import { LOCAL_HTTP_PROXY_PORT } from '../core/XrayConfig';
 import { SUBSCRIPTIONS_CONTROLLER, SubscriptionsControllerState } from '../features/subscriptions/SubscriptionsController';
@@ -253,8 +254,8 @@ struct SubscriptionsPage {
       const settings = await SETTINGS_CONTROLLER.load(context);
       this.language = settings.language;
       this.confirmRemove = settings.confirmRemove;
-      this.subscriptionProxyPort = settings.appendHttpProxy && settings.localSocksEnabled &&
-        SHARED_RUNTIME_CONTROLLER.isRunning() ? LOCAL_HTTP_PROXY_PORT : 0;
+      this.subscriptionProxyPort = shouldExposeLocalHttpProxy(settings) && SHARED_RUNTIME_CONTROLLER.isRunning() ?
+        LOCAL_HTTP_PROXY_PORT : 0;
       this.applySubscriptionsState(await SUBSCRIPTIONS_CONTROLLER.load(context, this.language));
     } finally {
       this.isBusy = false;

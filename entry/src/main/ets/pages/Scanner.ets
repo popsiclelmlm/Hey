@@ -4,6 +4,7 @@ import { scanBarcode, scanCore } from '@kit.ScanKit';
 import { pasteboard } from '@kit.BasicServicesKit';
 import { DEFAULT_LANGUAGE, translate } from '../core/I18n';
 import { resolveImportedNodeName } from '../core/ImportedNodeNames';
+import { shouldExposeLocalHttpProxy } from '../core/LocalProxy';
 import { AppLanguage } from '../core/Profile';
 import { markRuntimeSettingsRestartNeeded } from '../core/SettingsChange';
 import { LOCAL_HTTP_PROXY_PORT } from '../core/XrayConfig';
@@ -258,8 +259,8 @@ struct ScannerPage {
       const settings = await SETTINGS_CONTROLLER.load(context);
       this.language = settings.language;
       this.startScanImmediate = settings.startScanImmediate;
-      this.subscriptionProxyPort = settings.appendHttpProxy && settings.localSocksEnabled &&
-        SHARED_RUNTIME_CONTROLLER.isRunning() ? LOCAL_HTTP_PROXY_PORT : 0;
+      this.subscriptionProxyPort = shouldExposeLocalHttpProxy(settings) && SHARED_RUNTIME_CONTROLLER.isRunning() ?
+        LOCAL_HTTP_PROXY_PORT : 0;
       this.selectedNodeId = (await NODES_CONTROLLER.load(context, this.language)).selectedNodeId;
       this.tryStartImmediateScan();
     } catch (error) {

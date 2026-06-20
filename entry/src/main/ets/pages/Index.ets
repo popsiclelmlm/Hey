@@ -3,6 +3,7 @@ import { router, promptAction } from '@kit.ArkUI';
 import { pasteboard } from '@kit.BasicServicesKit';
 import { IconButton } from '../components/IconButton';
 import { DEFAULT_LANGUAGE, translate } from '../core/I18n';
+import { shouldExposeLocalHttpProxy } from '../core/LocalProxy';
 import { AppLanguage, AppSettings, ConnectionStatus, normalizeRealPingConcurrency, ProxyNode, resolveDelayTestUrl, RuntimeStats, SubscriptionGroup, SubscriptionProfile } from '../core/Profile';
 import { LOCAL_HTTP_PROXY_PORT } from '../core/XrayConfig';
 import { DeepLinkControlAction, DeepLinkIntent, parseDeepLink, subscriptionNameFromDeepLink } from '../core/DeepLink';
@@ -1827,7 +1828,7 @@ struct Index {
   }
 
   private subscriptionProxyPort(): number {
-    return this.isRunning() && this.currentSettings.appendHttpProxy && this.currentSettings.localSocksEnabled ?
+    return this.isRunning() && shouldExposeLocalHttpProxy(this.currentSettings) ?
       LOCAL_HTTP_PROXY_PORT : 0;
   }
 

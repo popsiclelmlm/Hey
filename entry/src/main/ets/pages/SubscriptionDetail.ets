@@ -1,5 +1,6 @@
 import { common } from '@kit.AbilityKit';
 import { DEFAULT_LANGUAGE, translate } from '../core/I18n';
+import { shouldExposeLocalHttpProxy } from '../core/LocalProxy';
 import { AppLanguage, ProxyNode, SubscriptionGroup } from '../core/Profile';
 import { LOCAL_HTTP_PROXY_PORT } from '../core/XrayConfig';
 import { NODES_CONTROLLER, NodesControllerState } from '../features/nodes/NodesController';
@@ -360,8 +361,8 @@ struct SubscriptionDetailPage {
     const context = getContext(this) as common.Context;
     const settings = await SETTINGS_CONTROLLER.load(context);
     this.language = settings.language;
-    this.subscriptionProxyPort = settings.appendHttpProxy && settings.localSocksEnabled &&
-      SHARED_RUNTIME_CONTROLLER.isRunning() ? LOCAL_HTTP_PROXY_PORT : 0;
+    this.subscriptionProxyPort = shouldExposeLocalHttpProxy(settings) && SHARED_RUNTIME_CONTROLLER.isRunning() ?
+      LOCAL_HTTP_PROXY_PORT : 0;
     let state = await SUBSCRIPTIONS_CONTROLLER.load(context, this.language);
 
     // 寻找对应的分组，激活它以加载节点

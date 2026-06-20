@@ -4,7 +4,7 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { APP_MODE_PROXY_ONLY, APP_MODE_VPN, AppRuntimeMode, AppSettings, ConnectionStatus, GeneratedXrayConfig, normalizeAppRuntimeMode, ProxyProfile, RuntimeStats } from '../core/Profile';
 import { resolveDynamicPolicyGroupConfigJson } from '../core/AdvancedOutboundBuilder';
-import { selectRuntimeLocalSocksPort, shouldUseDynamicLocalSocksPort, withRuntimeLocalSocksPort } from '../core/LocalProxy';
+import { selectRuntimeLocalSocksPort, shouldExposeLocalHttpProxy, shouldUseDynamicLocalSocksPort, withRuntimeLocalSocksPort } from '../core/LocalProxy';
 import { buildRuntimeXrayConfig, LOCAL_HTTP_PROXY_PORT, METRICS_PORT, normalizeConfigInput } from '../core/XrayConfig';
 import { SubscriptionStore } from '../storage/SubscriptionStore';
 import { createStopCommandVpnWant, createStopVpnWant, createVpnWant } from '../vpn/VpnConstants';
@@ -179,7 +179,7 @@ export class ConnectionController {
 
   private reservedRuntimePorts(settings: AppSettings): Array<number> {
     const ports: Array<number> = [METRICS_PORT];
-    if (settings.appendHttpProxy && settings.localSocksEnabled) {
+    if (shouldExposeLocalHttpProxy(settings)) {
       ports.push(LOCAL_HTTP_PROXY_PORT);
     }
     return ports;

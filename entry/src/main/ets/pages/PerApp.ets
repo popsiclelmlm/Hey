@@ -2,6 +2,7 @@ import { common } from '@kit.AbilityKit';
 import { promptAction } from '@kit.ArkUI';
 import { pasteboard } from '@kit.BasicServicesKit';
 import { DEFAULT_LANGUAGE, translate } from '../core/I18n';
+import { shouldExposeLocalHttpProxyState } from '../core/LocalProxy';
 import { markRuntimeSettingsRestartNeeded } from '../core/SettingsChange';
 import {
   clearVisiblePerAppPackages,
@@ -548,8 +549,11 @@ struct PerAppPage {
   }
 
   private resolveAutoProxyListProxyPort(): number {
-    if (this.draft !== null && this.draft.appendHttpProxy && this.draft.localSocksEnabled &&
-      SHARED_RUNTIME_CONTROLLER.isRunning()) {
+    if (this.draft !== null && shouldExposeLocalHttpProxyState(
+      this.draft.mode,
+      this.draft.appendHttpProxy,
+      this.draft.localSocksEnabled
+    ) && SHARED_RUNTIME_CONTROLLER.isRunning()) {
       return LOCAL_HTTP_PROXY_PORT;
     }
     return 0;

@@ -1,5 +1,6 @@
 import { common } from '@kit.AbilityKit';
 import { DEFAULT_LANGUAGE, translate } from '../../core/I18n';
+import { shouldExposeLocalHttpProxy } from '../../core/LocalProxy';
 import { APP_MODE_PROXY_ONLY, APP_MODE_VPN, AppLanguage, AppRuntimeMode, AppSettings, ConnectionStatus, normalizeAppRuntimeMode, ProxyProfile, RuntimeStats } from '../../core/Profile';
 import { LOCAL_HTTP_PROXY_PORT } from '../../core/XrayConfig';
 import { ConnectionController, ConnectionSnapshot } from '../../services/ConnectionController';
@@ -138,7 +139,7 @@ export class RuntimeController {
   }
 
   private async appendRemoteIpInfo(profile: ProxyProfile, settings: AppSettings, language: AppLanguage): Promise<void> {
-    if (this.status !== ConnectionStatus.RUNNING || !settings.appendHttpProxy || !settings.localSocksEnabled ||
+    if (this.status !== ConnectionStatus.RUNNING || !shouldExposeLocalHttpProxy(settings) ||
       (profile.configType ?? 'outbound') === 'full') {
       return;
     }

@@ -176,8 +176,8 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 - 同步：订阅增删改、启停、批量/到期更新以及首页启动/回前台都会刷新 WorkScheduler 注册
 - 测试：新增调度计划纯函数单测覆盖无任务、最短间隔和最小 15 分钟归一化
 
-**进展（2026-06-18 续）**：运行中经由本地 HTTP 代理更新订阅已落地：
-- Xray：设置开启时生成 `http-in` 本地 HTTP inbound（`127.0.0.1:10809`），并将该 inbound 显式路由到 `proxy`
+**进展（2026-06-18 续，2026-06-20 补模式边界）**：运行中经由本地 HTTP 代理更新订阅已落地：
+- Xray：VPN 模式下设置开启时生成 `http-in` 本地 HTTP inbound（`127.0.0.1:10809`），并将该 inbound 显式路由到 `proxy`；Proxy-only 模式按 v2rayNG 仅保留本地 SOCKS 入口，不暴露追加 HTTP 代理
 - 共享：开启「允许来自局域网的连接」时，`http-in.listen` 改为 `0.0.0.0:10809`；SOCKS 默认端口保留 v2rayNG 的 `10808`，HTTP inbound 作为 Harmony 兼容近似实现单独避让一个端口；内部订阅更新仍走 loopback
 - 设置：Settings 页新增「追加本地 HTTP 代理」开关，保存后参与运行配置生成
 - 更新：手动更新、订阅详情更新、扫码订阅导入、批量更新全部和前台到期刷新均可优先使用本地 HTTP 代理；代理不可用时回退直连
@@ -327,6 +327,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 - ✅ SOCKS 端口/UDP/认证/动态端口：Settings 已可配置本地 SOCKS inbound，`localSocksEnabled` 按 v2rayNG `pref_enable_local_proxy` 默认开启，默认端口按 v2rayNG 为 `10808`，写入 `socks-in` 端口、UDP 与用户名/密码认证，并随代理共享监听 LAN；动态端口开启时连接前通过 `CGoGetFreePorts` 选择运行端口，失败回退用户设置端口（2026-06-19 补默认端口/开启语义）
 - ✅ Hev TUN 设置偏好：Settings/存储/控制器补齐 v2rayNG `pref_use_hev_tunnel_v2`、`pref_hev_tunnel_loglevel`、`pref_hev_tunnel_rw_timeout_v2`，默认开启、日志级别限定 `error/warn/info/debug`、读写超时保存 `tcp,udp` 秒数；开启 Hev 时保持本地 SOCKS 开启，Harmony 运行时仍使用 Xray TUN（2026-06-20）
 - ✅ Settings 依赖门禁：Settings 页面、控制器和旧数据读取按 v2rayNG `SettingsActivity` 联动本地 DNS/FakeDNS、本地代理/追加 HTTP/代理共享与 Hev 强制本地代理关系，关闭上游开关时清理下游无效状态（2026-06-20）
+- ✅ 追加 HTTP 代理模式边界：`appendHttpProxy` 只在 VPN 模式暴露 Harmony HTTP proxy substitute，Proxy-only 运行配置只提供本地 SOCKS 入口；订阅更新、远端 IP 查询、分应用自动列表重试和动态端口避让共用同一判定（2026-06-20）
 - ✅ Mux 协议适用范围：全局 Mux 只应用到 v2rayNG 允许的 VMess/VLESS 等出站，自动跳过 Shadowsocks/SOCKS/HTTP/Trojan/WireGuard/Hysteria2 与 XHTTP，并对 VLESS flow 节点写入 `concurrency=-1`（2026-06-19）
 - ✅ Mux XUDP UDP/443 策略枚举：Settings 按 v2rayNG `mux_xudp_quic_value` 固定为 `reject/allow/skip`，保存、存储归一化和运行配置均对旧非法值兜底到 `reject`（2026-06-19）
 - ✅ Fragment 运行配置：全局 Fragment 按 v2rayNG 只在 TLS/Reality 且无 `dialerProxy`/既有 `finalmask` 时生成 `streamSettings.finalmask.tcp/udp`，Reality 默认 packets 从 `tlshello` 改为 `1-3`，TLS 强制使用 `tlshello`（2026-06-19）
@@ -437,7 +438,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-18 | M3 | ✅ 当前分组删除全部配置（Nodes 菜单确认弹窗 + Store/Controller 清空 active group nodes + 删除数量日志）；补齐 v2rayNG `removeAllServer` 的日常批处理路径 |
 | 2026-06-18 | M3 | ✅ 订阅自动更新设置与前台到期刷新（`autoUpdate`/`updateIntervalMinutes` + 1440/15 分钟规则 + 首页节流到期刷新 + 单测）；当时后台任务调度尚未接入 |
 | 2026-06-18 | M3 | 🟡 订阅 WorkScheduler 后台调度接线（持久重复任务 + `SubscriptionUpdateWorkAbility` 到期刷新 + 增删改/首页同步注册 + 诊断日志 + 调度计划单测）；待真机触发回归 |
-| 2026-06-18 | M3 | ✅ 运行中经由本地 HTTP 代理更新订阅（`appendHttpProxy` 设置 + `http-in` inbound 10809 + 订阅拉取 `usingProxy` 优先/直连回退 + 单测） |
+| 2026-06-18 | M3 | ✅ 运行中经由本地 HTTP 代理更新订阅（VPN 模式 `appendHttpProxy` 设置 + `http-in` inbound 10809 + 订阅拉取 `usingProxy` 优先/直连回退 + 单测；2026-06-20 补 Proxy-only 不暴露 HTTP 代理边界） |
 | 2026-06-20 | M3 | ✅ 订阅 URL 内嵌 Basic Auth 对齐 v2rayNG（抓取请求从 `user:pass@host` 解码 userInfo 并写入 `Authorization` 头；补请求头构建单测） |
 | 2026-06-20 | M3 | ✅ 订阅刷新选中节点保留完成（新增订阅节点身份匹配 helper，更新/更新全部按 v2rayNG 备注/server/port/password 多级匹配旧选中节点，匹配失败回退首个新节点；补纯函数单测） |
 | 2026-06-18 | M3 | ✅ 本地 HTTP 代理共享开关生效（`proxySharingEnabled` 开启时 `http-in.listen=0.0.0.0`，默认仍为 `127.0.0.1`，补配置生成单测） |
@@ -466,6 +467,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-19 | M4 | ✅ 本地代理总开关对齐 v2rayNG（关闭本地代理时同步清理/忽略追加 HTTP 代理，旧设置归一化后不再生成 `http-in`；补 SettingsController 与配置生成单测） |
 | 2026-06-20 | M4 | ✅ Hev TUN 设置偏好对齐 v2rayNG（`pref_use_hev_tunnel_v2` 默认 true，日志级别限定 `error/warn/info/debug`，读写超时规范化为 `tcp,udp` 秒数；开启 Hev 时保持本地 SOCKS 开启；Harmony 运行时仍使用 Xray TUN） |
 | 2026-06-20 | M4 | ✅ Settings 依赖门禁对齐 v2rayNG（关闭本地 DNS 清理 FakeDNS，关闭本地代理清理追加 HTTP 与代理共享；Hev 强制本地代理时保留可用下游开关；补 Settings 归一化单测） |
+| 2026-06-20 | M4 | ✅ 追加 HTTP 代理模式边界对齐 v2rayNG（`appendHttpProxy` 只在 VPN 模式生成 `http-in`/代理端口；Proxy-only 策略组只经本地 SOCKS 入站；补配置生成与端口判定单测） |
 | 2026-06-18 | M4 | ✅ 本地 SOCKS 动态端口完成（`localSocksDynamicPort` 设置 + 启动前 `CGoGetFreePorts` 选择运行端口 + 设置/端口选择单测）；`.so` 已重建，待真机复测 |
 | 2026-06-18 | M4 | ✅ 传输高级设置完成（Settings 展开 mux 并发、XUDP 并发、UDP/443 策略、fragment packets/length/interval，日志级别改为 picker，并补 Settings draft 往返单测） |
 | 2026-06-19 | M4 | ✅ Mux 并发范围对齐 v2rayNG（`muxConcurrency` 与 `muxXudpConcurrency` 保存范围改为 `-1..1024`，运行配置保留 `-1/0`，XUDP 为负时隐藏 UDP/443 策略入口；补 Settings 与配置生成单测） |
