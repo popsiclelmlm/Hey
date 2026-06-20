@@ -9,6 +9,7 @@ import { AssetStore, CustomAssetUrl } from '../../storage/AssetStore';
 import { AssetAddEditDialog } from './AssetAddEditDialog';
 import { PageHeader } from '../../shell/PageHeader';
 import { AppColor, FontSz, Radius, Space } from '../../theme/Theme';
+import { formatOne } from '../../utils/LocalizationPresenter';
 
 @Component
 export struct CustomAssetList {
@@ -30,6 +31,10 @@ export struct CustomAssetList {
 
   private t(key: string): string {
     return translate(this.language, key);
+  }
+
+  private f1(key: string, name: string, value: string): string {
+    return formatOne(this.language, key, name, value);
   }
 
   aboutToAppear() {
@@ -144,7 +149,7 @@ export struct CustomAssetList {
           .fontColor(AppColor.textPrimary)
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
-        Text(item.url.startsWith('local://') ? '本地导入规则库' : item.url)
+        Text(item.url.startsWith('local://') ? this.t('assets.localImportedLabel') : item.url)
           .fontSize(FontSz.footnote)
           .fontColor(AppColor.textTertiary)
           .maxLines(1)
@@ -178,7 +183,7 @@ export struct CustomAssetList {
   private RowSwipeActions(item: CustomAssetUrl) {
     Row() {
       if (item.url.startsWith('local://')) {
-        this.SwipeButton($r('app.media.ic_folder'), '覆盖导入', AppColor.brand, () => {
+        this.SwipeButton($r('app.media.ic_folder'), this.t('assets.action.reimportLocal'), AppColor.brand, () => {
           this.reimportLocalCustomAsset(item);
         })
       } else {
@@ -245,7 +250,7 @@ export struct CustomAssetList {
   // 网络下载更新
   private async downloadCustomAsset(name: string, url: string): Promise<void> {
     if (this.downloadingFile.length > 0) {
-      promptAction.showToast({ message: '已有文件在下载中，请稍后' });
+      promptAction.showToast({ message: this.t('assets.downloadBusy') });
       return;
     }
     const context = getContext(this) as common.Context;
@@ -283,7 +288,7 @@ export struct CustomAssetList {
         () => {}
       );
     } catch (error) {
-      promptAction.showToast({ message: `覆盖导入失败: ${JSON.stringify(error)}` });
+      promptAction.showToast({ message: this.f1('assets.reimportLocalFailed', 'error', JSON.stringify(error)) });
     }
   }
 
@@ -347,7 +352,7 @@ export struct CustomAssetList {
     await AssetStore.save(context, this.customAssets);
     this.showAddEditDialog = false;
     this.clearTemporaryImport();
-    promptAction.showToast({ message: '保存成功' });
+    promptAction.showToast({ message: this.t('assets.saveSuccess') });
   }
 
   private clearTemporaryImport(): void {
@@ -359,6 +364,6 @@ export struct CustomAssetList {
   // 删除自定义 URL
   private async deleteCustomAsset(item: CustomAssetUrl): Promise<void> {
     const context = getContext(this) as common.Context;
-    this.customAssets = await ASSETS_CONTROLLER.deleteCustomAsset(context, item, this.customAssets);
+    this.customAssets = await ASSETS_CONTROLLER.deleteCustomAsset(context, item, this.customAssets, this.language);
   }
 }

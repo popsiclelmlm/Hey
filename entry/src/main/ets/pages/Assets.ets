@@ -42,6 +42,7 @@ struct AssetsPage {
   @State private tempImportUri: string = '';
   @State private tempAssetName: string = '';
   @State private tempAssetUrl: string = '';
+  @State private isStateLoaded: boolean = false;
 
   aboutToAppear(): void {
     this.loadState();
@@ -50,7 +51,19 @@ struct AssetsPage {
 
   build() {
     Stack() {
-      if (!this.showCustomUrls) {
+      if (!this.isStateLoaded) {
+        Column() {
+          LoadingProgress()
+            .width(32)
+            .height(32)
+            .color(AppColor.brand)
+        }
+        .width('100%')
+        .height('100%')
+        .justifyContent(FlexAlign.Center)
+        .alignItems(HorizontalAlign.Center)
+        .backgroundColor(AppColor.bg)
+      } else if (!this.showCustomUrls) {
         // 主视图
         Column() {
           PageHeader({
@@ -63,11 +76,11 @@ struct AssetsPage {
             Column({ space: Space.lg }) {
 
               // 快捷操作
-              SectionHeader({ title: '快捷操作' })
+              SectionHeader({ title: this.t('assets.quickActions.title') })
               Column() {
                 this.EntryRow(
                   $r('app.media.ic_refresh'), AppColor.brand, AppColor.brandTint,
-                  this.t('assets.action.updateAll'), '更新全部 Geo 规则资源', false,
+                  this.t('assets.action.updateAll'), this.t('assets.action.updateAll.detail'), false,
                   () => this.downloadAllAssets()
                 )
                 this.RowDivider()
@@ -90,7 +103,7 @@ struct AssetsPage {
               .margin({ left: Space.lg, right: Space.lg })
 
               // 内置 Geo 资源
-              SectionHeader({ title: '内置 Geo 资源', detail: this.t('assets.source.detail') })
+              SectionHeader({ title: this.t('assets.builtin.title'), detail: this.t('assets.source.detail') })
               BuiltinGeoCard({
                 language: this.language,
                 geositeStatus: this.geositeStatus,
@@ -110,7 +123,7 @@ struct AssetsPage {
                 this.EntryRow(
                   $r('app.media.ic_link'), AppColor.success, AppColor.successTint,
                   this.t('assets.userUrls.title'),
-                  `${this.t('assets.userUrls.detail')} (已配置 ${this.customAssets.length} 个)`,
+                  this.f1('assets.userUrls.countDetail', 'count', this.customAssets.length.toString()),
                   true,
                   () => { this.showCustomUrls = true; }
                 )
@@ -206,7 +219,7 @@ struct AssetsPage {
   // 执行资源网络更新下载
   private async downloadAsset(fileName: string): Promise<void> {
     if (this.downloadingFile.length > 0) {
-      promptAction.showToast({ message: '已有文件在下载中，请稍后' });
+      promptAction.showToast({ message: this.t('assets.downloadBusy') });
       return;
     }
     const context = getContext(this) as common.Context;
@@ -231,7 +244,7 @@ struct AssetsPage {
   // 顺序一键更新全部 Geo 资源
   private async downloadAllAssets(): Promise<void> {
     if (this.downloadingFile.length > 0) {
-      promptAction.showToast({ message: '已有文件在下载中，请稍后' });
+      promptAction.showToast({ message: this.t('assets.downloadBusy') });
       return;
     }
     const context = getContext(this) as common.Context;
@@ -292,7 +305,7 @@ struct AssetsPage {
         }
       });
     } catch (error) {
-      promptAction.showToast({ message: `打开文件选择器失败: ${JSON.stringify(error)}` });
+      promptAction.showToast({ message: this.f1('assets.openPickerFailed', 'error', JSON.stringify(error)) });
     }
   }
 
@@ -349,7 +362,7 @@ struct AssetsPage {
         const assetStore = await preferences.getPreferences(context, 'hey_vpn_assets');
         await assetStore.put('geo_source_url', this.currentSourceUrl);
         await assetStore.flush();
-        promptAction.showToast({ message: `下载源已切换为 ${selected.name}` });
+        promptAction.showToast({ message: this.f1('assets.source.changed', 'name', selected.name) });
       }
     });
   }
@@ -378,6 +391,7 @@ struct AssetsPage {
   }
 
   private async loadState(): Promise<void> {
+    this.isStateLoaded = false;
     const context = getContext(this) as common.Context;
     this.language = (await SETTINGS_CONTROLLER.load(context)).language;
 
@@ -388,6 +402,7 @@ struct AssetsPage {
     const found = GEO_SOURCES.find(s => s.url === this.currentSourceUrl);
     this.currentSourceName = found ? found.name : GEO_SOURCES[0].name;
     this.updateFileStatus();
+    this.isStateLoaded = true;
   }
 
   private t(key: string): string {

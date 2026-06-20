@@ -180,13 +180,13 @@ export class AssetsController {
       if (successGeosite && successGeoip && successGeoipOnlyCnPrivate) {
         promptAction.showToast({ message: this.t(language, 'assets.updateAllSuccess') });
       } else if (successGeosite || successGeoip || successGeoipOnlyCnPrivate) {
-        promptAction.showToast({ message: '部分规则文件更新成功，部分失败。' });
+        promptAction.showToast({ message: this.t(language, 'assets.partialUpdateSuccess') });
       } else {
-        promptAction.showToast({ message: '一键更新失败，请检查网络或更换下载源。' });
+        promptAction.showToast({ message: this.t(language, 'assets.updateAllFailed') });
       }
       onComplete(successGeosite, successGeoip, successGeoipOnlyCnPrivate);
     } catch (error) {
-      promptAction.showToast({ message: `一键更新出错: ${JSON.stringify(error)}` });
+      promptAction.showToast({ message: this.t(language, 'assets.updateAllError').replace('{error}', JSON.stringify(error)) });
       onComplete(false, false, false);
     }
   }
@@ -344,14 +344,14 @@ export class AssetsController {
         promptAction.showToast({ message: this.t(language, 'assets.deleteSuccess').replace('{title}', fileName) });
       }
     } catch (error) {
-      promptAction.showToast({ message: `删除失败: ${JSON.stringify(error)}` });
+      promptAction.showToast({ message: this.t(language, 'assets.deleteFailed').replace('{error}', JSON.stringify(error)) });
     } finally {
       onComplete();
     }
   }
 
   // 删除自定义 URL 链接及本地 dat 文件
-  async deleteCustomAsset(context: common.Context, item: CustomAssetUrl, customAssets: Array<CustomAssetUrl>): Promise<Array<CustomAssetUrl>> {
+  async deleteCustomAsset(context: common.Context, item: CustomAssetUrl, customAssets: Array<CustomAssetUrl>, language: AppLanguage): Promise<Array<CustomAssetUrl>> {
     const path = `${context.filesDir}/${item.name}.dat`;
     try {
       if (fs.accessSync(path)) {
@@ -361,7 +361,7 @@ export class AssetsController {
 
     const updated = customAssets.filter(asset => asset.id !== item.id);
     await AssetStore.save(context, updated);
-    promptAction.showToast({ message: '已删除自定义链接及本地缓存' });
+    promptAction.showToast({ message: this.t(language, 'assets.customDeleteSuccess') });
     return updated;
   }
 
