@@ -1,6 +1,7 @@
 import { common } from '@kit.AbilityKit';
 import { router, promptAction } from '@kit.ArkUI';
-import { scanBarcode, scanCore } from '@kit.ScanKit';
+import { picker } from '@kit.CoreFileKit';
+import { scanBarcode, scanCore, detectBarcode } from '@kit.ScanKit';
 import { pasteboard } from '@kit.BasicServicesKit';
 import { DEFAULT_LANGUAGE, translate } from '../core/I18n';
 import { resolveImportedNodeName } from '../core/ImportedNodeNames';
@@ -30,6 +31,7 @@ struct ScannerPage {
   @State private selectedNodeId: string = '';
   @State private hasAutoScanned: boolean = false;
   @State private isPressedScanCard: boolean = false;
+  @State private isPressedPhotoCard: boolean = false;
   @State private isPressedImportBtn: boolean = false;
   private subscriptionProxyPort: number = 0;
   private startScanImmediate: boolean = false;
@@ -61,11 +63,11 @@ struct ScannerPage {
                 .margin({ right: 12 })
 
               Column() {
-                Text('相机扫码导入')
+                Text(this.t('scanner.camera.title'))
                   .fontSize(16)
                   .fontWeight(FontWeight.Bold)
                   .fontColor(AppColor.textPrimary)
-                Text('点击拉起相机扫码，支持从相册选择二维码图片')
+                Text(this.t('scanner.camera.detail'))
                   .fontSize(12)
                   .fontColor(AppColor.textSecondary)
                   .margin({ top: 2 })
@@ -99,10 +101,58 @@ struct ScannerPage {
             this.startCameraScan();
           })
 
-          // 模块二：手动粘贴与输入卡片
+          // 模块二：从相册图片解码二维码
           Column({ space: 12 }) {
             Row() {
-              Text('手动粘贴与解析')
+              Image($r('app.media.ic_folder'))
+                .width(28)
+                .height(28)
+                .fillColor(AppColor.brand)
+                .margin({ right: 12 })
+
+              Column() {
+                Text(this.t('scanner.photo.title'))
+                  .fontSize(16)
+                  .fontWeight(FontWeight.Bold)
+                  .fontColor(AppColor.textPrimary)
+                Text(this.t('scanner.photo.detail'))
+                  .fontSize(12)
+                  .fontColor(AppColor.textSecondary)
+                  .margin({ top: 2 })
+              }
+              .alignItems(HorizontalAlign.Start)
+              .layoutWeight(1)
+
+              Image($r('app.media.ic_chevron_right'))
+                .width(18)
+                .height(18)
+                .fillColor(AppColor.textTertiary)
+            }
+            .width('100%')
+            .alignItems(VerticalAlign.Center)
+          }
+          .width('100%')
+          .padding(16)
+          .backgroundColor(AppColor.surface)
+          .borderRadius(16)
+          .shadow({ radius: 8, color: AppColor.shadowCard, offsetX: 0, offsetY: 2 })
+          .scale({ x: this.isPressedPhotoCard ? 0.98 : 1.0, y: this.isPressedPhotoCard ? 0.98 : 1.0 })
+          .animation({ duration: 100, curve: Curve.EaseOut })
+          .onTouch((event) => {
+            if (event.type === TouchType.Down) {
+              this.isPressedPhotoCard = true;
+            } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+              this.isPressedPhotoCard = false;
+            }
+          })
+          .onClick(() => {
+            this.selectPhotoQr();
+          })
+
+          // 模块三：手动粘贴与输入卡片
+          Column({ space: 12 }) {
+            Row() {
+              Text(this.t('scanner.manual.title'))
                 .fontSize(15)
                 .fontWeight(FontWeight.Bold)
                 .fontColor(AppColor.textPrimary)
@@ -110,7 +160,7 @@ struct ScannerPage {
               Blank()
 
               Row({ space: 8 }) {
-                Button('粘贴')
+                Button(this.t('action.paste'))
                   .fontSize(12)
                   .fontColor(AppColor.textSecondary)
                   .backgroundColor(AppColor.border)
@@ -122,7 +172,7 @@ struct ScannerPage {
                   })
 
                 if (this.importBuffer.length > 0) {
-                  Button('清空')
+                  Button(this.t('action.clear'))
                     .fontSize(12)
                     .fontColor(AppColor.danger)
                     .backgroundColor(AppColor.dangerTint)
@@ -153,7 +203,7 @@ struct ScannerPage {
                 this.importBuffer = value;
               })
 
-            Text('支持粘贴 vmess://、vless://、ss://、socks5://、wireguard://、hysteria2://、hy2:// 等协议链接、v2rayN 多行/base64、Clash.Meta YAML，或 http://、https:// 订阅地址。')
+            Text(this.t('scanner.supportedPayloads'))
               .fontSize(11)
               .fontColor(AppColor.textTertiary)
               .width('100%')
@@ -165,7 +215,7 @@ struct ScannerPage {
           .borderRadius(16)
           .shadow({ radius: 8, color: AppColor.shadowCard, offsetX: 0, offsetY: 2 })
 
-          // 模块三：错误提示卡片
+          // 模块四：错误提示卡片
           if (this.lastError.length > 0) {
             Column({ space: 8 }) {
               Row({ space: 6 }) {
@@ -175,7 +225,7 @@ struct ScannerPage {
                   .borderRadius(3)
                   .backgroundColor(AppColor.danger)
 
-                Text('导入解析失败')
+                Text(this.t('scanner.importFailedTitle'))
                   .fontSize(14)
                   .fontWeight(FontWeight.Bold)
                   .fontColor(AppColor.danger)
@@ -197,7 +247,7 @@ struct ScannerPage {
             .borderColor(AppColor.danger)
           }
 
-          // 模块四：解析导入按钮
+          // 模块五：解析导入按钮
           Button() {
             Row() {
               if (this.isBusy) {
@@ -264,7 +314,7 @@ struct ScannerPage {
       this.selectedNodeId = (await NODES_CONTROLLER.load(context, this.language)).selectedNodeId;
       this.tryStartImmediateScan();
     } catch (error) {
-      this.lastError = '加载配置状态失败: ' + JSON.stringify(error);
+      this.lastError = this.f1('scanner.loadStateFailed', 'error', JSON.stringify(error));
     }
   }
 
@@ -283,26 +333,66 @@ struct ScannerPage {
     try {
       const context = getContext(this) as common.UIAbilityContext;
       const options: scanBarcode.ScanOptions = {
-        scanTypes: [scanCore.ScanType.ALL],
+        scanTypes: [scanCore.ScanType.QR_CODE],
         enableMultiMode: false,
         enableAlbum: true
       };
 
       const result = await scanBarcode.startScanForResult(context, options);
-      if (result && result.originalValue) {
-        this.importBuffer = result.originalValue;
-        this.lastError = '';
-        // 扫码成功后，直接静默触发解析与导入
-        await this.importResult();
-      }
+      await this.importScannedValue(result?.originalValue);
     } catch (error) {
-      const err = error as Record<string, Object>;
       console.error('Scan barcode failed or cancelled:', JSON.stringify(error));
-      // 20001 通常表示用户主动取消扫码面板
-      if (err.code !== 20001 && err.code !== '20001') {
-        this.lastError = '扫码失败: ' + (err.message || JSON.stringify(error));
+      if (!this.isUserCancelled(error)) {
+        this.lastError = this.f1('scanner.scanFailed', 'error', this.errorMessage(error));
       }
     }
+  }
+
+  private async selectPhotoQr(): Promise<void> {
+    try {
+      const photoSelectOptions = new picker.PhotoSelectOptions();
+      photoSelectOptions.MIMEType = picker.PhotoViewMIMETypes.IMAGE_TYPE;
+      photoSelectOptions.maxSelectNumber = 1;
+      const photoPicker = new picker.PhotoViewPicker();
+      const result = await photoPicker.select(photoSelectOptions);
+      if (!result || !result.photoUris || result.photoUris.length === 0) {
+        return;
+      }
+
+      const options: scanBarcode.ScanOptions = {
+        scanTypes: [scanCore.ScanType.QR_CODE],
+        enableMultiMode: false
+      };
+      const results = await detectBarcode.decode({ uri: result.photoUris[0] }, options);
+      await this.importScannedValue(this.firstScanValue(results), this.t('scanner.decodeFailed'));
+    } catch (error) {
+      console.error('Decode QR image failed or cancelled:', JSON.stringify(error));
+      if (!this.isUserCancelled(error)) {
+        this.lastError = this.f1('scanner.photoImportFailed', 'error', this.errorMessage(error));
+      }
+    }
+  }
+
+  private firstScanValue(results: Array<scanBarcode.ScanResult>): string {
+    for (let index = 0; index < results.length; index++) {
+      const value = results[index].originalValue;
+      if (value && value.trim().length > 0) {
+        return value;
+      }
+    }
+    return '';
+  }
+
+  private async importScannedValue(value: string | undefined, emptyMessage?: string): Promise<void> {
+    if (!value || value.trim().length === 0) {
+      if (emptyMessage && emptyMessage.length > 0) {
+        this.lastError = emptyMessage;
+      }
+      return;
+    }
+    this.importBuffer = value.trim();
+    this.lastError = '';
+    await this.importResult();
   }
 
   private async pasteFromClipboard(): Promise<void> {
@@ -347,7 +437,7 @@ struct ScannerPage {
       if (value.toLowerCase().startsWith('http://') || value.toLowerCase().startsWith('https://')) {
         const state = await SUBSCRIPTIONS_CONTROLLER.update(context, '', value, this.selectedNodeId, this.language, this.subscriptionProxyPort);
         SHARED_RUNTIME_CONTROLLER.appendLog(state.subscriptionMessage);
-        promptAction.showToast({ message: '订阅更新成功' });
+        promptAction.showToast({ message: this.t('scanner.subscriptionUpdated') });
         router.pushUrl({ url: AppRoute.SUBSCRIPTIONS });
         return;
       }
@@ -387,18 +477,19 @@ struct ScannerPage {
         }
 
         markRuntimeSettingsRestartNeeded();
-        const successMessage = importedCount === 1 ? '节点导入成功' : `已导入 ${importedCount} 个节点`;
+        const successMessage = importedCount === 1 ?
+          this.t('scanner.nodeImported') : this.f1('scanner.nodesImported', 'count', importedCount.toString());
         SHARED_RUNTIME_CONTROLLER.appendLog(successMessage);
         promptAction.showToast({ message: successMessage });
         router.back();
         return;
       }
 
-      const nodeName = resolveImportedNodeName(saved.profile.outboundJson, '扫码导入');
+      const nodeName = resolveImportedNodeName(saved.profile.outboundJson, this.t('scanner.defaultNodeName'));
       await SubscriptionStore.addManualNode(context, nodeName, saved.profile.outboundJson, saved.profile.configType);
       markRuntimeSettingsRestartNeeded();
       SHARED_RUNTIME_CONTROLLER.appendLog(this.t('log.profileSaved'));
-      promptAction.showToast({ message: '节点导入成功' });
+      promptAction.showToast({ message: this.t('scanner.nodeImported') });
       router.back();
     } catch (error) {
       this.lastError = this.f1('error.saveProfile', 'error', JSON.stringify(error));
@@ -414,5 +505,20 @@ struct ScannerPage {
 
   private f1(key: string, name: string, value: string): string {
     return formatOne(this.language, key, name, value);
+  }
+
+  private isUserCancelled(error: Object): boolean {
+    const record = error as Record<string, Object>;
+    const code = record['code'];
+    return code === 20001 || code === '20001' || code === 1000500002 || code === '1000500002';
+  }
+
+  private errorMessage(error: Object): string {
+    const record = error as Record<string, Object>;
+    const message = record['message'];
+    if (typeof message === 'string' && message.length > 0) {
+      return message;
+    }
+    return JSON.stringify(error);
   }
 }

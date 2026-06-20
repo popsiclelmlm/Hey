@@ -15,7 +15,7 @@
 
 自 2026-06-03 路线图以来已落地：
 
-- ✅ 相机扫码：`pages/Scanner.ets` 已接入 `@kit.ScanKit`（`scanBarcode.startScanForResult`）
+- ✅ 相机扫码与相册图片二维码导入：`pages/Scanner.ets` 已接入 `@kit.ScanKit`（`scanBarcode.startScanForResult` / `detectBarcode.decode`）
 - ✅ 分应用代理：`pages/PerApp.ets` 已用 `bundleManager` 枚举已安装应用，并补齐全选/清除/反选、自动选择代理应用、剪贴板导入/导出包名列表；自动选择会先拉取 v2rayNG `androidpackagenamelist` 远程清单，失败回退内置列表
 - ✅ Assets 页模块化、NodeEdit 组件化、8 协议手动配置与解析；内置 Geo 下载已包含 v2rayNG 强制更新的 `geoip-only-cn-private.dat`，下载源包含 v2rayNG 的 Loyalsoldier / Russia / Iran 三组规则源，资源下载已按 v2rayNG 优先经本地 HTTP 代理并直连兜底
 
@@ -270,6 +270,8 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
   `ohos.permission.READ_PASTEBOARD`，避免普通调试签名安装被 ACL 拦截；扫码页粘贴、JSON 导入、订阅粘贴、路由规则导入、分应用配置导入等读取入口保留读取失败提示
 - ✅ **扫码 native 分享兜底**：Scanner 在内置单节点解析失败后复用
   `CGoConvertShareLinksToXrayJson` 转换结果，支持 v2rayN 多行/base64 与 Clash.Meta YAML 文本/二维码批量保存为手动节点
+- ✅ **扫码相册图片导入**：对应 v2rayNG `ScannerActivity.select_photo`，
+  Scanner 通过 Harmony Photo Picker 选择图片，再用 ScanKit `detectBarcode.decode` 解码二维码，结果复用节点、订阅和 native 批量导入链路
 - 🟡 **桌面服务卡片 / 快捷方式**：一键启停、扫码（对应 QSTile/Widget/Shortcuts）；
   `EntryAbility` 通过 `ohos.ability.shortcuts` 挂载 `shortcuts_config`，声明开关/启动/停止/扫码
   四个系统快捷方式，快捷方式参数会被转换为现有控制深链；
@@ -536,6 +538,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-18 | M5 | ✅ 策略组订阅动态成员完成（创建策略组可启用动态成员、选择全部/指定订阅分组、输入节点名正则过滤，保存快照并在连接启动前按最新订阅重新展开） |
 | 2026-06-19 | M5 | ✅ 高级出站编辑回填完成（节点详情可重新打开手动代理链/策略组，预填成员顺序、策略与动态订阅过滤条件，保存时原位更新并在当前节点场景标记运行配置待重启；补编辑状态解析单测） |
 | 2026-06-20 | M5 | 🟡 备份能力暂缓（无云服务器）：暂停 WebDAV 与剪贴板备份功能；保留配置与资源功能的主链路 |
+| 2026-06-20 | M4 | ✅ 扫码相册图片导入完成（新增 v2rayNG `select_photo` 等价入口，选择图片后用 ScanKit `detectBarcode.decode` 解码并复用现有导入链路） |
 | 2026-06-18 | M4 | ✅ 控制深链入口完成（manifest 注册 `hey://control`/`start`/`stop`/`toggle`/`switch`/`scan`，Index 处理 start/stop/toggle/scan，补解析单测） |
 | 2026-06-20 | M4 | ✅ 声明式桌面快捷方式完成（`ohos.ability.shortcuts` + `shortcuts_config` 暴露开关/启动/停止/扫码四个入口，`EntryAbility` 解析快捷方式参数并复用控制深链，补参数解析单测）；待真机 launcher 展示/点击回归 |
 | 2026-06-20 | M4 | ✅ Tasker 指定节点控制完成（控制深链支持 `guid`/`nodeId`/`id` 目标节点，快捷方式参数可传 `hey.control.guid`/`hey.control.nodeId` 或 flat Tasker `tasker_extra_bundle_switch/guid`，start/toggle 会先选择目标节点再启动） |
