@@ -38,6 +38,7 @@ import { DEFAULT_WEBDAV_BACKUP_FILE_NAME, buildWebDavAuthorizationHeader, buildW
 import { CURRENT_APP_VERSION, buildUpdateCheckResult, compareVersions, normalizeVersionTag } from '../main/ets/core/UpdateChecker';
 import { V2RAYNG_BROWSER_DIALER_MODE_OPTIONS, V2RAYNG_CORE_LOG_LEVEL_OPTIONS, V2RAYNG_DEFAULT_BROWSER_DIALER_MODE, V2RAYNG_DEFAULT_CORE_LOG_LEVEL, V2RAYNG_DEFAULT_FRAGMENT_PACKETS, V2RAYNG_DEFAULT_HYSTERIA2_SECURITY, V2RAYNG_DEFAULT_MUX_XUDP_QUIC, V2RAYNG_DEFAULT_STREAM_ALPN, V2RAYNG_DEFAULT_VMESS_SECURITY, V2RAYNG_FLOW_OPTIONS, V2RAYNG_FRAGMENT_PACKET_OPTIONS, V2RAYNG_GRPC_MODE_OPTIONS, V2RAYNG_HYSTERIA2_SECURITY_OPTIONS, V2RAYNG_KCP_HEADER_TYPE_OPTIONS, V2RAYNG_MUX_XUDP_QUIC_OPTIONS, V2RAYNG_SS_SECURITY_OPTIONS, V2RAYNG_STREAM_ALPN_OPTIONS, V2RAYNG_SUPPORTED_TRANSPORT_OPTIONS, V2RAYNG_TCP_HEADER_TYPE_OPTIONS, V2RAYNG_UTLS_FINGERPRINT_OPTIONS, V2RAYNG_VMESS_SECURITY_OPTIONS, V2RAYNG_XHTTP_MODE_OPTIONS, normalizeV2rayNgBrowserDialerMode, normalizeV2rayNgCoreLogLevel, normalizeV2rayNgFragmentPackets, normalizeV2rayNgHysteria2Security, normalizeV2rayNgMuxXudpQuic, normalizeV2rayNgStreamAlpn, normalizeV2rayNgStreamAlpnWithFallback, normalizeV2rayNgXhttpMode } from '../main/ets/core/V2rayNgOptions';
 import { filterLogItems, formatLogcatText } from '../main/ets/features/logs/LogOperations';
+import { buildAssetDownloadProxyPorts } from '../main/ets/features/assets/AssetsController';
 import {
   applyDelayTestPostActionsToGroups,
   buildNodeExportModel,
@@ -1737,6 +1738,17 @@ export default function localUnitTest() {
         expect(formatGeoCountSummary('en', count)).assertEqual('2 categories / 345 rules');
       }
       expect(formatGeoCountUnavailable('en', 'CGoCountGeoData not exported')).assertContain('CGoCountGeoData not exported');
+    });
+
+    it('tries asset downloads through local HTTP proxy before direct fallback like v2rayNG', 0, () => {
+      const proxied = buildAssetDownloadProxyPorts(LOCAL_HTTP_PROXY_PORT);
+      expect(proxied.length).assertEqual(2);
+      expect(proxied[0]).assertEqual(LOCAL_HTTP_PROXY_PORT);
+      expect(proxied[1]).assertEqual(0);
+
+      expect(buildAssetDownloadProxyPorts(0).length).assertEqual(1);
+      expect(buildAssetDownloadProxyPorts(-1)[0]).assertEqual(0);
+      expect(buildAssetDownloadProxyPorts(70000)[0]).assertEqual(0);
     });
 
     it('normalizes scanned asset URL payloads for QR import', 0, () => {

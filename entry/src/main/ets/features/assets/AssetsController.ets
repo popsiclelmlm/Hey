@@ -3,14 +3,28 @@ import { promptAction } from '@kit.ArkUI';
 import { preferences } from '@kit.ArkData';
 import { http } from '@kit.NetworkKit';
 import fs from '@ohos.file.fs';
+import { shouldExposeLocalHttpProxy } from '../../core/LocalProxy';
 import { AppLanguage } from '../../core/Profile';
+import { LOCAL_HTTP_PROXY_HOST, LOCAL_HTTP_PROXY_PORT } from '../../core/XrayConfig';
 import { translate } from '../../core/I18n';
 import { BUILTIN_GEO_DATA_FILE_NAMES, GEO_FILE_SOURCES, GeoSource, buildBuiltinGeoAssetUrl, formatGeoCountSummary, formatGeoCountUnavailable, geoDataSpecForFile, parseGeoCountData } from '../../core/GeoAssets';
 import { countNativeGeoData } from '../../native/HeyNative';
-import { formatOne, formatTwo } from '../../utils/LocalizationPresenter';
+import { formatTwo } from '../../utils/LocalizationPresenter';
 import { AssetStore, CustomAssetUrl } from '../../storage/AssetStore';
+import { SettingsStore } from '../../storage/SettingsStore';
 
 export const GEO_SOURCES: Array<GeoSource> = GEO_FILE_SOURCES;
+
+export function buildAssetDownloadProxyPorts(proxyPort: number): Array<number> {
+  if (!isValidAssetDownloadProxyPort(proxyPort)) {
+    return [0];
+  }
+  return [Math.floor(proxyPort), 0];
+}
+
+function isValidAssetDownloadProxyPort(proxyPort: number): boolean {
+  return typeof proxyPort === 'number' && Math.floor(proxyPort) === proxyPort && proxyPort > 0 && proxyPort <= 65535;
+}
 
 export class AssetsController {
   
@@ -114,35 +128,13 @@ export class AssetsController {
 
     const tempPath = `${context.filesDir}/${fileName}.tmp`;
     const targetPath = `${context.filesDir}/${fileName.endsWith('.dat') ? fileName : fileName + '.dat'}`;
+    const proxyPort = await this.resolveDownloadProxyPort(context);
 
-    const request = http.createHttp();
     try {
       promptAction.showToast({ message: this.t(language, 'assets.downloading').replace('{title}', fileName) });
-      const response = await request.request(url, {
-        method: http.RequestMethod.GET,
-        expectDataType: http.HttpDataType.ARRAY_BUFFER,
-        readTimeout: 60000,
-        connectTimeout: 15000,
-        usingCache: false
-      });
-
-      if (response.responseCode === 200) {
-        const file = fs.openSync(tempPath, fs.OpenMode.CREATE | fs.OpenMode.READ_WRITE | fs.OpenMode.TRUNC);
-        fs.writeSync(file.fd, response.result as ArrayBuffer);
-        fs.closeSync(file);
-
-        try {
-          if (fs.accessSync(targetPath)) {
-            fs.unlinkSync(targetPath);
-          }
-        } catch (e) {}
-
-        fs.renameSync(tempPath, targetPath);
-        promptAction.showToast({ message: this.t(language, 'assets.downloadSuccess').replace('{title}', fileName) });
-        onSuccess();
-      } else {
-        throw new Error(`HTTP ${response.responseCode}`);
-      }
+      await this.downloadToFileWithFallback(url, tempPath, targetPath, proxyPort);
+      promptAction.showToast({ message: this.t(language, 'assets.downloadSuccess').replace('{title}', fileName) });
+      onSuccess();
     } catch (error) {
       try {
         if (fs.accessSync(tempPath)) {
@@ -158,7 +150,6 @@ export class AssetsController {
       });
       onError(errMsg);
     } finally {
-      request.destroy();
       onComplete();
     }
   }
@@ -173,12 +164,13 @@ export class AssetsController {
   ): Promise<void> {
     try {
       promptAction.showToast({ message: this.t(language, 'assets.updatingAll') });
+      const proxyPort = await this.resolveDownloadProxyPort(context);
 
       const results = new Array<boolean>();
       for (let index = 0; index < BUILTIN_GEO_DATA_FILE_NAMES.length; index++) {
         const fileName = BUILTIN_GEO_DATA_FILE_NAMES[index];
         onProgress(fileName);
-        results.push(await this.performDownload(context, fileName, buildBuiltinGeoAssetUrl(currentSourceUrl, fileName)));
+        results.push(await this.performDownload(context, fileName, buildBuiltinGeoAssetUrl(currentSourceUrl, fileName), proxyPort));
       }
 
       const successGeosite = results[0] === true;
@@ -199,40 +191,93 @@ export class AssetsController {
     }
   }
 
-  private async performDownload(context: common.Context, fileName: string, url: string): Promise<boolean> {
+  private async performDownload(context: common.Context, fileName: string, url: string, proxyPort: number): Promise<boolean> {
     const tempPath = `${context.filesDir}/${fileName}.tmp`;
     const targetPath = `${context.filesDir}/${fileName}`;
-    const request = http.createHttp();
     try {
-      const response = await request.request(url, {
-        method: http.RequestMethod.GET,
-        expectDataType: http.HttpDataType.ARRAY_BUFFER,
-        readTimeout: 60000,
-        connectTimeout: 15000,
-        usingCache: false
-      });
-      if (response.responseCode === 200) {
-        const file = fs.openSync(tempPath, fs.OpenMode.CREATE | fs.OpenMode.READ_WRITE | fs.OpenMode.TRUNC);
-        fs.writeSync(file.fd, response.result as ArrayBuffer);
-        fs.closeSync(file);
-        try {
-          if (fs.accessSync(targetPath)) {
-            fs.unlinkSync(targetPath);
-          }
-        } catch (e) {}
-        fs.renameSync(tempPath, targetPath);
-        return true;
-      }
+      await this.downloadToFileWithFallback(url, tempPath, targetPath, proxyPort);
+      return true;
     } catch (error) {
       try {
         if (fs.accessSync(tempPath)) {
           fs.unlinkSync(tempPath);
         }
       } catch (e) {}
+    }
+    return false;
+  }
+
+  private async resolveDownloadProxyPort(context: common.Context): Promise<number> {
+    try {
+      const settings = await SettingsStore.load(context);
+      return shouldExposeLocalHttpProxy(settings) ? LOCAL_HTTP_PROXY_PORT : 0;
+    } catch (error) {
+      return 0;
+    }
+  }
+
+  private async downloadToFileWithFallback(url: string, tempPath: string, targetPath: string, proxyPort: number): Promise<void> {
+    const ports = buildAssetDownloadProxyPorts(proxyPort);
+    let lastError = '';
+    for (let index = 0; index < ports.length; index++) {
+      try {
+        const data = await this.requestAssetData(url, ports[index]);
+        this.writeAssetData(tempPath, targetPath, data);
+        return;
+      } catch (error) {
+        lastError = error instanceof Error ? error.message : JSON.stringify(error);
+        this.removeTempFile(tempPath);
+      }
+    }
+    throw new Error(lastError.length > 0 ? lastError : 'download failed');
+  }
+
+  private async requestAssetData(url: string, proxyPort: number): Promise<ArrayBuffer> {
+    const request = http.createHttp();
+    try {
+      const options: http.HttpRequestOptions = {
+        method: http.RequestMethod.GET,
+        expectDataType: http.HttpDataType.ARRAY_BUFFER,
+        readTimeout: 60000,
+        connectTimeout: 15000,
+        usingCache: false
+      };
+      if (isValidAssetDownloadProxyPort(proxyPort)) {
+        options.usingProxy = {
+          host: LOCAL_HTTP_PROXY_HOST,
+          port: proxyPort,
+          exclusionList: []
+        };
+      }
+      const response = await request.request(url, options);
+      const responseCode = Number(response.responseCode);
+      if (responseCode < 200 || responseCode >= 300) {
+        throw new Error(`HTTP ${response.responseCode}`);
+      }
+      return response.result as ArrayBuffer;
     } finally {
       request.destroy();
     }
-    return false;
+  }
+
+  private writeAssetData(tempPath: string, targetPath: string, data: ArrayBuffer): void {
+    const file = fs.openSync(tempPath, fs.OpenMode.CREATE | fs.OpenMode.READ_WRITE | fs.OpenMode.TRUNC);
+    fs.writeSync(file.fd, data);
+    fs.closeSync(file);
+    try {
+      if (fs.accessSync(targetPath)) {
+        fs.unlinkSync(targetPath);
+      }
+    } catch (e) {}
+    fs.renameSync(tempPath, targetPath);
+  }
+
+  private removeTempFile(tempPath: string): void {
+    try {
+      if (fs.accessSync(tempPath)) {
+        fs.unlinkSync(tempPath);
+      }
+    } catch (e) {}
   }
 
   // 流式拷贝文件到沙箱
