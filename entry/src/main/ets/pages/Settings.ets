@@ -129,21 +129,21 @@ struct SettingsPage {
           Column() {
             this.LanguageToggle()
             this.RowDivider()
-            this.SettingOption(this.t('settings.uiModeNight'), this.uiModeNightLabel(), 'uiModeNight')
+            this.SettingOption('settings.uiModeNight', 'uiModeNight')
             this.RowDivider()
-            this.SettingToggle(this.t('settings.speedEnabled'), this.settingSpeedEnabled, 'speedEnabled')
+            this.SettingToggle('settings.speedEnabled', this.settingSpeedEnabled, 'speedEnabled')
             this.RowDivider()
-            this.SettingToggle(this.t('settings.confirmRemove'), this.settingConfirmRemove, 'confirmRemove')
+            this.SettingToggle('settings.confirmRemove', this.settingConfirmRemove, 'confirmRemove')
             this.RowDivider()
-            this.SettingToggle(this.t('settings.startScanImmediate'), this.settingStartScanImmediate, 'startScanImmediate')
+            this.SettingToggle('settings.startScanImmediate', this.settingStartScanImmediate, 'startScanImmediate')
             this.RowDivider()
-            this.SettingToggle(this.t('settings.startOnBoot'), this.settingStartOnBoot, 'startOnBoot')
+            this.SettingToggle('settings.startOnBoot', this.settingStartOnBoot, 'startOnBoot')
             this.RowDivider()
-            this.SettingToggle(this.t('settings.checkUpdatePreRelease'), this.settingCheckUpdatePreRelease, 'checkUpdatePreRelease')
+            this.SettingToggle('settings.checkUpdatePreRelease', this.settingCheckUpdatePreRelease, 'checkUpdatePreRelease')
             this.RowDivider()
-            this.SettingToggle(this.t('settings.groupAllDisplay'), this.settingGroupAllDisplay, 'groupAllDisplay')
+            this.SettingToggle('settings.groupAllDisplay', this.settingGroupAllDisplay, 'groupAllDisplay')
             this.RowDivider()
-            this.SettingToggle(this.t('settings.doubleColumnDisplay'), this.settingDoubleColumnDisplay, 'doubleColumnDisplay')
+            this.SettingToggle('settings.doubleColumnDisplay', this.settingDoubleColumnDisplay, 'doubleColumnDisplay')
           }
           .width('100%')
           .backgroundColor(AppColor.surface)
@@ -154,13 +154,13 @@ struct SettingsPage {
           // 核心
           SectionHeader({ title: this.t('settings.core'), detail: this.t('settings.core.detail') })
           Column() {
-            this.SettingOption(this.t('settings.mode'), this.modeLabel(), 'mode')
+            this.SettingOption('settings.mode', 'mode')
             this.RowDivider()
-            this.SettingToggle(this.t('settings.sniffing'), this.settingSniffing, 'sniffing')
+            this.SettingToggle('settings.sniffing', this.settingSniffing, 'sniffing')
             this.RowDivider()
-            this.SettingToggle(this.t('settings.routeOnly'), this.settingRouteOnly, 'routeOnly')
+            this.SettingToggle('settings.routeOnly', this.settingRouteOnly, 'routeOnly')
             this.RowDivider()
-            this.SettingToggle(this.t('settings.allowInsecure'), this.settingAllowInsecure, 'allowInsecure')
+            this.SettingToggle('settings.allowInsecure', this.settingAllowInsecure, 'allowInsecure')
           }
           .width('100%')
           .backgroundColor(AppColor.surface)
@@ -171,49 +171,49 @@ struct SettingsPage {
           // VPN
           SectionHeader({ title: this.t('settings.vpn'), detail: this.t('settings.vpn.detail') })
           Column() {
-            this.SettingToggle(this.t('settings.perAppProxy'), this.settingPerAppProxy, 'perApp')
+            this.SettingToggle('settings.perAppProxy', this.settingPerAppProxy, 'perApp')
             this.RowDivider()
-            this.SettingToggle(this.t('settings.localDns'), this.settingLocalDns, 'localDns')
+            this.SettingToggle('settings.localDns', this.settingLocalDns, 'localDns')
             this.RowDivider()
-            this.SettingToggle(this.t('settings.fakeDns'), this.settingFakeDns, 'fakeDns')
+            this.SettingToggle('settings.fakeDns', this.settingFakeDns, 'fakeDns')
             this.RowDivider()
-            this.SettingInput(this.t('settings.localDnsPort'), this.settingLocalDnsPort, 'localDnsPort')
+            this.SettingInput('settings.localDnsPort', this.settingLocalDnsPort, 'localDnsPort')
             this.RowDivider()
-            this.SettingToggle(this.t('settings.proxySharing'), this.settingProxySharing, 'proxySharing')
+            this.SettingToggle('settings.proxySharing', this.settingProxySharing, 'proxySharing')
             this.RowDivider()
-            this.SettingToggle(this.t('settings.appendHttpProxy'), this.settingAppendHttpProxy, 'appendHttpProxy')
+            this.SettingToggle('settings.appendHttpProxy', this.settingAppendHttpProxy, 'appendHttpProxy')
             this.RowDivider()
-            this.SettingToggle(this.t('settings.localSocks'), this.settingLocalSocks, 'localSocks')
+            this.SettingToggle('settings.localSocks', this.settingLocalSocks, 'localSocks')
             this.RowDivider()
-            this.SettingInput(this.t('settings.localSocksPort'), this.settingLocalSocksPort, 'localSocksPort')
+            this.SettingInput('settings.localSocksPort', this.settingLocalSocksPort, 'localSocksPort')
             this.RowDivider()
-            this.SettingToggle(this.t('settings.localSocksDynamicPort'), this.settingLocalSocksDynamicPort, 'localSocksDynamicPort')
+            this.SettingToggle('settings.localSocksDynamicPort', this.settingLocalSocksDynamicPort, 'localSocksDynamicPort')
             this.RowDivider()
-            this.SettingToggle(this.t('settings.localSocksUdp'), this.settingLocalSocksUdp, 'localSocksUdp')
+            this.SettingToggle('settings.localSocksUdp', this.settingLocalSocksUdp, 'localSocksUdp')
             this.RowDivider()
-            this.SettingInput(this.t('settings.localSocksUsername'), this.settingLocalSocksUsername, 'localSocksUsername')
+            this.SettingInput('settings.localSocksUsername', this.settingLocalSocksUsername, 'localSocksUsername')
             this.RowDivider()
-            this.SettingInput(this.t('settings.localSocksPassword'), this.settingLocalSocksPassword, 'localSocksPassword')
+            this.SettingInput('settings.localSocksPassword', this.settingLocalSocksPassword, 'localSocksPassword')
             this.RowDivider()
-            this.SettingToggle(this.t('settings.useHevTun'), this.settingUseHevTun, 'useHevTun')
+            this.SettingToggle('settings.useHevTun', this.settingUseHevTun, 'useHevTun')
             if (this.settingUseHevTun) {
               this.RowDivider()
-              this.SettingOption(this.t('settings.hevTunLogLevel'), this.hevTunLogLevelLabel(), 'hevTunLogLevel')
+              this.SettingOption('settings.hevTunLogLevel', 'hevTunLogLevel')
               this.RowDivider()
-              this.SettingInput(this.t('settings.hevTunRwTimeout'), this.settingHevTunRwTimeout, 'hevTunRwTimeout')
+              this.SettingInput('settings.hevTunRwTimeout', this.settingHevTunRwTimeout, 'hevTunRwTimeout')
             }
             this.RowDivider()
-            this.SettingToggle(this.t('settings.ipv6Enabled'), this.settingIpv6Enabled, 'ipv6Enabled')
+            this.SettingToggle('settings.ipv6Enabled', this.settingIpv6Enabled, 'ipv6Enabled')
             this.RowDivider()
-            this.SettingToggle(this.t('settings.preferIpv6'), this.settingPreferIpv6, 'preferIpv6')
+            this.SettingToggle('settings.preferIpv6', this.settingPreferIpv6, 'preferIpv6')
             this.RowDivider()
-            this.SettingOption(this.t('settings.vpnBypassLan'), this.vpnBypassLanLabel(), 'vpnBypassLan')
+            this.SettingOption('settings.vpnBypassLan', 'vpnBypassLan')
             this.RowDivider()
-            this.SettingOption(this.t('settings.vpnInterfaceAddress'), this.vpnInterfaceAddressLabel(), 'vpnInterfaceAddress')
+            this.SettingOption('settings.vpnInterfaceAddress', 'vpnInterfaceAddress')
             this.RowDivider()
-            this.SettingInput(this.t('settings.vpnDns'), this.settingVpnDns, 'vpnDns')
+            this.SettingInput('settings.vpnDns', this.settingVpnDns, 'vpnDns')
             this.RowDivider()
-            this.SettingInput(this.t('settings.vpnMtu'), this.settingVpnMtu, 'vpnMtu')
+            this.SettingInput('settings.vpnMtu', this.settingVpnMtu, 'vpnMtu')
           }
           .width('100%')
           .backgroundColor(AppColor.surface)
@@ -224,26 +224,26 @@ struct SettingsPage {
           // 传输
           SectionHeader({ title: this.t('settings.transport'), detail: this.t('settings.transport.detail') })
           Column() {
-            this.SettingToggle(this.t('settings.mux'), this.settingMux, 'mux')
+            this.SettingToggle('settings.mux', this.settingMux, 'mux')
             if (this.settingMux) {
               this.RowDivider()
-              this.SettingInput(this.t('settings.muxConcurrency'), this.settingMuxConcurrency, 'muxConcurrency')
+              this.SettingInput('settings.muxConcurrency', this.settingMuxConcurrency, 'muxConcurrency')
               this.RowDivider()
-              this.SettingInput(this.t('settings.muxXudpConcurrency'), this.settingMuxXudpConcurrency, 'muxXudpConcurrency')
+              this.SettingInput('settings.muxXudpConcurrency', this.settingMuxXudpConcurrency, 'muxXudpConcurrency')
               if (this.isMuxXudpQuicAvailable()) {
                 this.RowDivider()
-                this.SettingOption(this.t('settings.muxXudpQuic'), this.muxXudpQuicLabel(), 'muxXudpQuic')
+                this.SettingOption('settings.muxXudpQuic', 'muxXudpQuic')
               }
             }
             this.RowDivider()
-            this.SettingToggle(this.t('settings.fragment'), this.settingFragment, 'fragment')
+            this.SettingToggle('settings.fragment', this.settingFragment, 'fragment')
             if (this.settingFragment) {
               this.RowDivider()
-              this.SettingOption(this.t('settings.fragmentPackets'), this.fragmentPacketsLabel(), 'fragmentPackets')
+              this.SettingOption('settings.fragmentPackets', 'fragmentPackets')
               this.RowDivider()
-              this.SettingInput(this.t('settings.fragmentLength'), this.settingFragmentLength, 'fragmentLength')
+              this.SettingInput('settings.fragmentLength', this.settingFragmentLength, 'fragmentLength')
               this.RowDivider()
-              this.SettingInput(this.t('settings.fragmentInterval'), this.settingFragmentInterval, 'fragmentInterval')
+              this.SettingInput('settings.fragmentInterval', this.settingFragmentInterval, 'fragmentInterval')
             }
           }
           .width('100%')
@@ -255,19 +255,19 @@ struct SettingsPage {
           // 进阶
           SectionHeader({ title: this.t('settings.advanced'), detail: this.t('settings.advanced.detail') })
           Column() {
-            this.SettingInput(this.t('settings.remoteDns'), this.settingRemoteDns, 'remoteDns')
+            this.SettingInput('settings.remoteDns', this.settingRemoteDns, 'remoteDns')
             this.RowDivider()
-            this.SettingInput(this.t('settings.domesticDns'), this.settingDomesticDns, 'domesticDns')
+            this.SettingInput('settings.domesticDns', this.settingDomesticDns, 'domesticDns')
             this.RowDivider()
-            this.SettingInput(this.t('settings.dnsHosts'), this.settingDnsHosts, 'dnsHosts')
+            this.SettingInput('settings.dnsHosts', this.settingDnsHosts, 'dnsHosts')
             this.RowDivider()
-            this.SettingOption(this.t('settings.outboundDomainResolveMethod'), this.outboundDomainResolveMethodLabel(), 'outboundDomainResolveMethod')
+            this.SettingOption('settings.outboundDomainResolveMethod', 'outboundDomainResolveMethod')
             this.RowDivider()
-            this.SettingInput(this.t('settings.delayTestUrl'), this.settingDelayTestUrl, 'delayTestUrl')
+            this.SettingInput('settings.delayTestUrl', this.settingDelayTestUrl, 'delayTestUrl')
             this.RowDivider()
-            this.SettingInput(this.t('settings.ipApiUrl'), this.settingIpApiUrl, 'ipApiUrl')
+            this.SettingInput('settings.ipApiUrl', this.settingIpApiUrl, 'ipApiUrl')
             this.RowDivider()
-            this.SettingOption(this.t('settings.logLevel'), this.logLevelLabel(), 'logLevel')
+            this.SettingOption('settings.logLevel', 'logLevel')
           }
           .width('100%')
           .backgroundColor(AppColor.surface)
@@ -278,11 +278,11 @@ struct SettingsPage {
           // 节点测速
           SectionHeader({ title: this.t('settings.testing') })
           Column() {
-            this.SettingInput(this.t('settings.realPingConcurrency'), this.settingRealPingConcurrency, 'realPingConcurrency')
+            this.SettingInput('settings.realPingConcurrency', this.settingRealPingConcurrency, 'realPingConcurrency')
             this.RowDivider()
-            this.SettingToggle(this.t('settings.autoSortAfterTest'), this.settingAutoSortAfterTest, 'autoSortAfterTest')
+            this.SettingToggle('settings.autoSortAfterTest', this.settingAutoSortAfterTest, 'autoSortAfterTest')
             this.RowDivider()
-            this.SettingToggle(this.t('settings.autoRemoveAfterTest'), this.settingAutoRemoveAfterTest, 'autoRemoveAfterTest')
+            this.SettingToggle('settings.autoRemoveAfterTest', this.settingAutoRemoveAfterTest, 'autoRemoveAfterTest')
           }
           .width('100%')
           .backgroundColor(AppColor.surface)
@@ -334,13 +334,13 @@ struct SettingsPage {
 
   @Builder
   private LanguageToggle() {
-    this.SettingOption(this.t('settings.language.title'), this.languageLabel(this.language), 'language')
+    this.SettingOption('settings.language.title', 'language')
   }
 
   @Builder
-  private SettingToggle(title: string, enabled: boolean, action: string) {
+  private SettingToggle(titleKey: string, enabled: boolean, action: string) {
     SettingToggleRow({
-      title,
+      title: this.t(titleKey),
       settingKey: '',
       isEnabled: enabled,
       action,
@@ -353,9 +353,9 @@ struct SettingsPage {
   }
 
   @Builder
-  private SettingInput(title: string, value: string, action: string) {
+  private SettingInput(titleKey: string, value: string, action: string) {
     SettingInputRow({
-      title,
+      title: this.t(titleKey),
       settingKey: '',
       value,
       action,
@@ -366,16 +366,16 @@ struct SettingsPage {
   }
 
   @Builder
-  private SettingOption(title: string, value: string, action: string) {
+  private SettingOption(titleKey: string, action: string) {
     Row({ space: Space.md }) {
-      Text(title)
+      Text(this.t(titleKey))
         .fontSize(FontSz.callout)
         .fontColor(AppColor.textPrimary)
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
         .layoutWeight(1)
 
-      Text(value)
+      Text(this.settingOptionValue(action))
         .fontSize(FontSz.footnote)
         .fontColor(AppColor.textSecondary)
         .textAlign(TextAlign.End)
@@ -389,6 +389,33 @@ struct SettingsPage {
     .onClick(() => {
       this.showSettingOptionMenu(action);
     })
+  }
+
+  private settingOptionValue(action: string): string {
+    switch (action) {
+      case 'language':
+        return this.languageLabel(this.language);
+      case 'uiModeNight':
+        return this.uiModeNightLabel();
+      case 'mode':
+        return this.modeLabel();
+      case 'hevTunLogLevel':
+        return this.hevTunLogLevelLabel();
+      case 'vpnBypassLan':
+        return this.vpnBypassLanLabel();
+      case 'vpnInterfaceAddress':
+        return this.vpnInterfaceAddressLabel();
+      case 'muxXudpQuic':
+        return this.muxXudpQuicLabel();
+      case 'fragmentPackets':
+        return this.fragmentPacketsLabel();
+      case 'outboundDomainResolveMethod':
+        return this.outboundDomainResolveMethodLabel();
+      case 'logLevel':
+        return this.logLevelLabel();
+      default:
+        return '';
+    }
   }
 
   private async loadState(): Promise<void> {
