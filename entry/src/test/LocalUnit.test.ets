@@ -3663,7 +3663,7 @@ export default function localUnitTest() {
     });
 
     it('parses GitHub release update check results', 0, () => {
-      expect(CURRENT_APP_VERSION).assertEqual('1.1.0');
+      expect(CURRENT_APP_VERSION).assertEqual('1.2.0');
       expect(normalizeVersionTag('v1.2.3-beta.1')).assertEqual('1.2.3');
       expect(compareVersions('1.10.0', '1.2.9') > 0).assertTrue();
       expect(compareVersions('1.1', '1.1.0')).assertEqual(0);

@@ -1,4 +1,7 @@
-export const CURRENT_APP_VERSION: string = '1.1.0';
+// Build-time fallback only. The running app reads its real version via
+// bundleManager (see About.loadAppInfo); this default is used solely when a
+// caller omits the version. Keep it in sync with app.json5 versionName.
+export const CURRENT_APP_VERSION: string = '1.2.0';
 export const HEY_RELEASES_API_URL: string = 'https://api.github.com/repos/popsiclelmlm/Hey/releases';
 export const HEY_LATEST_RELEASE_API_URL: string = `${HEY_RELEASES_API_URL}/latest`;
 export const HEY_RELEASES_PAGE_URL: string = 'https://github.com/popsiclelmlm/Hey/releases';
