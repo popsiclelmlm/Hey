@@ -4,12 +4,12 @@ import { AppColor, FontSz, Radius } from '../theme/Theme';
 
 @Component
 export struct PageHeader {
-  title: string = '';
-  summary: string = '';
-  showBack: boolean = true;
-  statusLabel: string = '';
-  statusColor: ResourceColor = AppColor.textSecondary;
-  statusBackground: ResourceColor = AppColor.surfaceAlt;
+  @Prop title: string = '';
+  @Prop summary: string = '';
+  @Prop showBack: boolean = true;
+  @Prop statusLabel: string = '';
+  @Prop statusColor: ResourceColor = AppColor.textSecondary;
+  @Prop statusBackground: ResourceColor = AppColor.surfaceAlt;
   onBack: () => void = () => {
     router.back();
   };
