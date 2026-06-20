@@ -15,9 +15,9 @@
 
 自 2026-06-03 路线图以来已落地：
 
-- ✅ 相机扫码与相册图片二维码导入：`pages/Scanner.ets` 已接入 `@kit.ScanKit`（`scanBarcode.startScanForResult` / `detectBarcode.decode`），共享页头会随异步语言状态刷新，深链进入扫码页时标题与内容语言一致；首页统计标签、无订阅引导空态、节点页当前分组空态、添加节点页主入口、JSON 导入页、路由设置页与 Assets 页可见说明也会随当前语言刷新，避免英文界面残留中文文案
+- ✅ 相机扫码与相册图片二维码导入：`pages/Scanner.ets` 已接入 `@kit.ScanKit`（`scanBarcode.startScanForResult` / `detectBarcode.decode`），共享页头会随异步语言状态刷新，深链进入扫码页时标题与内容语言一致；首页统计标签、无订阅引导空态、节点页当前分组空态、添加节点页主入口、JSON 导入页、手动节点编辑页、路由设置页与 Assets 页可见说明也会随当前语言刷新，避免英文界面残留中文文案
 - ✅ 分应用代理：`pages/PerApp.ets` 已用 `bundleManager` 枚举已安装应用，并补齐全选/清除/反选、自动选择代理应用、剪贴板导入/导出包名列表；自动选择会先拉取 v2rayNG `androidpackagenamelist` 远程清单，失败回退内置列表；过滤策略、应用列表、搜索/手动添加、关闭态和预置应用标签已跟随当前语言
-- ✅ Assets 页模块化、NodeEdit 组件化、8 协议手动配置与解析；内置 Geo 下载已包含 v2rayNG 强制更新的 `geoip-only-cn-private.dat`，下载源包含 v2rayNG 的 Loyalsoldier / Russia / Iran 三组规则源，资源下载已按 v2rayNG 优先经本地 HTTP 代理并直连兜底；Assets 页主视图、用户资源列表和相关 toast 已跟随当前语言
+- ✅ Assets 页模块化、NodeEdit 组件化、8 协议手动配置与解析；内置 Geo 下载已包含 v2rayNG 强制更新的 `geoip-only-cn-private.dat`，下载源包含 v2rayNG 的 Loyalsoldier / Russia / Iran 三组规则源，资源下载已按 v2rayNG 优先经本地 HTTP 代理并直连兜底；Assets 页主视图、用户资源列表和相关 toast 已跟随当前语言，NodeEdit 标题、分区、字段、保存按钮和校验提示已跟随当前语言
 
 仍是关键缺口：
 
@@ -567,6 +567,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-20 | M4 | ✅ Assets 页本地化补齐（快捷操作、内置 Geo 资源、自定义资源入口/列表、下载/导入/删除/保存 toast 均走 i18n；加载门禁修复异步语言混合，模拟器英文主屏/下半屏/用户资源列表验证无旧中文残留） |
 | 2026-06-20 | M4 | ✅ Export 页本地化补齐（导出页加载门禁、复制/文件/分享按钮、复制失败提示、Nodes 批量导出剪贴板日志与切换节点重连日志均走 i18n；模拟器英文 Export 页和 Nodes 批量导出验证无旧中文导出提示残留） |
 | 2026-06-20 | M4 | ✅ 首页/节点空态本地化补齐（无订阅引导、当前分组无节点标题/说明/更新按钮均走 i18n；模拟器英文空分组布局验证 `No nodes in this group`、`Update subscription` 且无旧中文空态残留） |
+| 2026-06-20 | M4 | ✅ 手动节点编辑页本地化补齐（NodeEdit 标题、分区、基础/认证/传输/TLS/Reality/WG/HY2 字段、保存按钮和校验/保存提示均走 i18n；字段行改为 key 内部翻译以修复异步语言加载后不刷新；模拟器英文 VLESS 页验证 `Node name`、`Save node config` 且无旧中文字段残留） |
 | 2026-06-18 | M4 | 🟡 常驻速度通知代码完成（`SpeedNotificationManager` 接 Harmony NotificationKit，运行中且 speedEnabled 开启时每 3 秒刷新速率/累计流量，停止或关闭设置时取消，补速率/节流文案单测）；待真机通知权限与通知中心展示回归 |
 | 2026-06-18 | M4 | 🟡 桌面服务卡片基础入口完成（`ControlCardAbility` + `form_config` + 2×2 ArkTS 卡片，提供 toggle/start/stop/scan 四个 `FormLink` 控制深链，补卡片 URI 单测）；待真机添加卡片、点击调起与运行态动态刷新回归 |
 | 2026-06-18 | M4 | 🟡 桌面服务卡片动态状态刷新代码完成（保存卡片 formId 与最近运行态，首页运行态变化同步状态文案、详情、主按钮动作并按 3 秒节流通过 `formProvider.updateForm` 刷新）；待真机添加卡片、点击调起与系统刷新回归 |

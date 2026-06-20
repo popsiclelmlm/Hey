@@ -1,6 +1,6 @@
 import { common } from '@kit.AbilityKit';
 import { router, promptAction } from '@kit.ArkUI';
-import { DEFAULT_LANGUAGE, translate } from '../core/I18n';
+import { DEFAULT_LANGUAGE, formatTranslation, translate } from '../core/I18n';
 import { buildV2rayNgH2HttpSettings } from '../core/H2Transport';
 import { buildKcpFinalMask } from '../core/KcpTransport';
 import { isManualEditProtocol, ManualOutboundEditState, normalizeManualEditProtocol, parseManualOutboundEditState } from '../core/ManualOutboundEditState';
@@ -448,7 +448,7 @@ struct NodeEditPage {
   build() {
     Column() {
       PageHeader({
-        title: `配置 ${this.protocol.toUpperCase()} 节点`,
+        title: this.tf('nodeEdit.titleWithProtocol', ['protocol'], [this.protocol.toUpperCase()]),
         showBack: true
       })
 
@@ -456,15 +456,15 @@ struct NodeEditPage {
         Scroll() {
           Column({ space: Space.lg }) {
             // Card 1：基础配置信息
-            SectionHeader({ title: '基础配置信息' })
+            SectionHeader({ title: this.t('nodeEdit.section.basic') })
             Column({ space: Space.md }) {
-              this.EditorRow('节点名称', this.nodeName, '例如：香港 01 节点', (value: string) => {
+              this.EditorRow('nodeEdit.nodeName', this.nodeName, 'nodeEdit.nodeName.placeholder', (value: string) => {
                 this.nodeName = value;
               })
-              this.EditorRow(this.protocol === 'wireguard' ? '端点地址 (Endpoint Host)' : '服务器地址', this.serverHost, 'IP 地址或域名', (value: string) => {
+              this.EditorRow(this.protocol === 'wireguard' ? 'nodeEdit.endpointHost' : 'nodeEdit.serverHost', this.serverHost, 'nodeEdit.host.placeholder', (value: string) => {
                 this.serverHost = value;
               })
-              this.EditorRow(this.protocol === 'wireguard' ? '端点端口 (Endpoint Port)' : '端口', this.serverPort, '端口（1-65535）', (value: string) => {
+              this.EditorRow(this.protocol === 'wireguard' ? 'nodeEdit.endpointPort' : 'nodeEdit.serverPort', this.serverPort, 'nodeEdit.port.placeholder', (value: string) => {
                 this.serverPort = value;
               })
             }
@@ -475,71 +475,71 @@ struct NodeEditPage {
             .margin({ left: Space.lg, right: Space.lg })
 
             // Card 2：认证与加密参数
-            SectionHeader({ title: '认证与加密设置' })
+            SectionHeader({ title: this.t('nodeEdit.section.auth') })
             Column({ space: Space.md }) {
 
               // VLESS 与 VMess UUID
               if (this.protocol === 'vless' || this.protocol === 'vmess') {
-                this.EditorRow('用户 ID (UUID)', this.userIdOrPassword, '36 位 UUID 认证凭证', (value: string) => {
+                this.EditorRow('nodeEdit.uuid', this.userIdOrPassword, 'nodeEdit.uuid.placeholder', (value: string) => {
                   this.userIdOrPassword = value;
                 })
               }
               // Trojan 连接密码
               else if (this.protocol === 'trojan') {
-                this.EditorRow('连接密码', this.userIdOrPassword, 'Trojan 认证密码', (value: string) => {
+                this.EditorRow('nodeEdit.trojanPassword', this.userIdOrPassword, 'nodeEdit.trojanPassword.placeholder', (value: string) => {
                   this.userIdOrPassword = value;
                 })
               }
               // Shadowsocks 密码
               else if (this.protocol === 'ss') {
-                this.EditorRow('加密密码', this.userIdOrPassword, 'Shadowsocks 加密密码', (value: string) => {
+                this.EditorRow('nodeEdit.ssPassword', this.userIdOrPassword, 'nodeEdit.ssPassword.placeholder', (value: string) => {
                   this.userIdOrPassword = value;
                 })
               }
               // Hysteria2 密码
               else if (this.protocol === 'hysteria2') {
-                this.EditorRow('认证密码', this.userIdOrPassword, 'Hysteria2 认证密码', (value: string) => {
+                this.EditorRow('nodeEdit.hy2Password', this.userIdOrPassword, 'nodeEdit.hy2Password.placeholder', (value: string) => {
                   this.userIdOrPassword = value;
                 })
               }
               // WireGuard 本地私钥
               else if (this.protocol === 'wireguard') {
-                this.EditorRow('本地私钥 (Secret Key)', this.userIdOrPassword, 'WireGuard 客户端私钥', (value: string) => {
+                this.EditorRow('nodeEdit.wgSecretKey', this.userIdOrPassword, 'nodeEdit.wgSecretKey.placeholder', (value: string) => {
                   this.userIdOrPassword = value;
                 })
               }
               // Socks 与 HTTP 的用户名和密码
               else if (this.protocol === 'socks' || this.protocol === 'http') {
-                this.EditorRow('用户名 (可选)', this.proxyUser, '代理用户名', (value: string) => {
+                this.EditorRow('nodeEdit.proxyUser', this.proxyUser, 'nodeEdit.proxyUser.placeholder', (value: string) => {
                   this.proxyUser = value;
                 })
-                this.EditorRow('密码 (可选)', this.proxyPass, '代理密码', (value: string) => {
+                this.EditorRow('nodeEdit.proxyPass', this.proxyPass, 'nodeEdit.proxyPass.placeholder', (value: string) => {
                   this.proxyPass = value;
                 })
               }
 
               // 特有加密与流控选项
               if (this.protocol === 'vless') {
-                this.EditorRow('加密算法 (encryption)', this.securityOrMethod, 'none', (value: string) => {
+                this.EditorRow('nodeEdit.encryption', this.securityOrMethod, 'none', (value: string) => {
                   this.securityOrMethod = value;
                 })
                 PickerRow({
-                  label: '流控协议 (flow)',
+                  label: this.t('nodeEdit.flow'),
                   options: V2RAYNG_FLOW_OPTIONS,
                   selectedValue: $vlessFlow
                 })
               } else if (this.protocol === 'vmess') {
                 PickerRow({
-                  label: '安全策略 (security)',
+                  label: this.t('nodeEdit.vmessSecurity'),
                   options: V2RAYNG_VMESS_SECURITY_OPTIONS,
                   selectedValue: $securityOrMethod
                 })
-                this.EditorRow('额外 ID (alterId)', this.vmessAlterId, '一般设为 0', (value: string) => {
+                this.EditorRow('nodeEdit.alterId', this.vmessAlterId, 'nodeEdit.alterId.placeholder', (value: string) => {
                   this.vmessAlterId = value;
                 })
               } else if (this.protocol === 'ss') {
                 PickerRow({
-                  label: '加密算法 (method)',
+                  label: this.t('nodeEdit.method'),
                   options: V2RAYNG_SS_SECURITY_OPTIONS,
                   selectedValue: $securityOrMethod
                 })
@@ -553,21 +553,21 @@ struct NodeEditPage {
 
             // Card 3：WireGuard 专有配置
             if (this.protocol === 'wireguard') {
-              SectionHeader({ title: 'WireGuard 参数设置' })
+              SectionHeader({ title: this.t('nodeEdit.section.wireguard') })
               Column({ space: Space.md }) {
-                this.EditorRow('对端公钥 (Peer Public Key)', this.wgPublicKey, '节点公钥', (value: string) => {
+                this.EditorRow('nodeEdit.wgPublicKey', this.wgPublicKey, 'nodeEdit.wgPublicKey.placeholder', (value: string) => {
                   this.wgPublicKey = value;
                 })
-                this.EditorRow('预共享密钥 (Pre-shared Key - 可选)', this.wgPreSharedKey, 'Pre-shared Key', (value: string) => {
+                this.EditorRow('nodeEdit.wgPreSharedKey', this.wgPreSharedKey, 'Pre-shared Key', (value: string) => {
                   this.wgPreSharedKey = value;
                 })
-                this.EditorRow('本地 IP 地址 (Local Address)', this.wgLocalAddress, '例如 172.16.0.2/32', (value: string) => {
+                this.EditorRow('nodeEdit.wgLocalAddress', this.wgLocalAddress, 'nodeEdit.wgLocalAddress.placeholder', (value: string) => {
                   this.wgLocalAddress = value;
                 })
-                this.EditorRow('保留字节 (Reserved - 可选)', this.wgReserved, '格式如 0,0,0', (value: string) => {
+                this.EditorRow('nodeEdit.wgReserved', this.wgReserved, 'nodeEdit.wgReserved.placeholder', (value: string) => {
                   this.wgReserved = value;
                 })
-                this.EditorRow('最大传输单元 (MTU)', this.wgMtu, '默认 1420', (value: string) => {
+                this.EditorRow('nodeEdit.wgMtu', this.wgMtu, 'nodeEdit.default1420', (value: string) => {
                   this.wgMtu = value;
                 })
               }
@@ -580,40 +580,40 @@ struct NodeEditPage {
 
             // Card 4：Hysteria2 专有配置
             if (this.protocol === 'hysteria2') {
-              SectionHeader({ title: 'Hysteria 2 混淆与流控' })
+              SectionHeader({ title: this.t('nodeEdit.section.hysteria2') })
               Column({ space: Space.md }) {
-                this.EditorRow('混淆密码 (Obfs Password - 可选)', this.hy2ObfsPassword, 'Hysteria 2 混淆密码', (value: string) => {
+                this.EditorRow('nodeEdit.hy2ObfsPassword', this.hy2ObfsPassword, 'nodeEdit.hy2ObfsPassword.placeholder', (value: string) => {
                   this.hy2ObfsPassword = value;
                 })
-                this.EditorRow('端口跳跃 (Port Hopping - 可选)', this.hy2PortHopping, '例如 20000-50000', (value: string) => {
+                this.EditorRow('nodeEdit.hy2PortHopping', this.hy2PortHopping, 'nodeEdit.hy2PortHopping.placeholder', (value: string) => {
                   this.hy2PortHopping = value;
                 })
-                this.EditorRow('端口跳跃间隔 (mportHopInt - 可选)', this.hy2PortHoppingInterval, '秒，例如 30 或 10-60', (value: string) => {
+                this.EditorRow('nodeEdit.hy2PortHoppingInterval', this.hy2PortHoppingInterval, 'nodeEdit.hy2PortHoppingInterval.placeholder', (value: string) => {
                   this.hy2PortHoppingInterval = value;
                 })
-                this.EditorRow('下载带宽 (Bandwidth Down - 可选)', this.hy2BandwidthDown, '例如 100 mbps', (value: string) => {
+                this.EditorRow('nodeEdit.hy2BandwidthDown', this.hy2BandwidthDown, 'nodeEdit.hy2BandwidthDown.placeholder', (value: string) => {
                   this.hy2BandwidthDown = value;
                 })
-                this.EditorRow('上传带宽 (Bandwidth Up - 可选)', this.hy2BandwidthUp, '例如 20 mbps', (value: string) => {
+                this.EditorRow('nodeEdit.hy2BandwidthUp', this.hy2BandwidthUp, 'nodeEdit.hy2BandwidthUp.placeholder', (value: string) => {
                   this.hy2BandwidthUp = value;
                 })
 
                 PickerRow({
-                  label: '安全传输层 (security)',
+                  label: this.t('nodeEdit.hy2Security'),
                   options: V2RAYNG_HYSTERIA2_SECURITY_OPTIONS,
                   selectedValue: $tlsSecurity
                 })
 
                 // Hysteria 2 的 TLS 配置
                 if (this.tlsSecurity === 'tls') {
-                  this.EditorRow('SNI (Server Name Indication)', this.tlsSni, 'TLS 握手域名', (value: string) => {
+                  this.EditorRow('nodeEdit.sni', this.tlsSni, 'nodeEdit.sni.placeholder', (value: string) => {
                     this.tlsSni = value;
                   })
-                  this.EditorRow('证书钉住 SHA256 (pinSHA256 - 可选)', this.hy2PinSha256, 'Hysteria2 pinSHA256', (value: string) => {
+                  this.EditorRow('nodeEdit.hy2PinSha256', this.hy2PinSha256, 'nodeEdit.hy2PinSha256.placeholder', (value: string) => {
                     this.hy2PinSha256 = value;
                   })
                   ToggleRow({
-                    label: '允许不安全证书 (Allow Insecure)',
+                    label: this.t('nodeEdit.allowInsecure'),
                     isOn: $tlsAllowInsecure
                   })
                 }
@@ -627,133 +627,133 @@ struct NodeEditPage {
 
             // Card 5：流媒体与传输混淆设置 (适用于 VLESS, VMess, Trojan, SS)
             if (this.protocol === 'vless' || this.protocol === 'vmess' || this.protocol === 'trojan' || this.protocol === 'ss') {
-              SectionHeader({ title: '传输与伪装设置' })
+              SectionHeader({ title: this.t('nodeEdit.section.transport') })
               Column({ space: Space.md }) {
                 PickerRow({
-                  label: '传输协议 (network)',
+                  label: this.t('nodeEdit.transportNetwork'),
                   options: V2RAYNG_SUPPORTED_TRANSPORT_OPTIONS,
                   selectedValue: $transportType
                 })
                 if (this.transportType === 'tcp') {
                   PickerRow({
-                    label: 'TCP 伪装类型 (headerType)',
+                    label: this.t('nodeEdit.tcpHeaderType'),
                     options: V2RAYNG_TCP_HEADER_TYPE_OPTIONS,
                     selectedValue: $transportTcpHeaderType
                   })
                 }
                 if (this.transportType === 'kcp') {
                   PickerRow({
-                    label: 'KCP 伪装类型 (headerType)',
+                    label: this.t('nodeEdit.kcpHeaderType'),
                     options: V2RAYNG_KCP_HEADER_TYPE_OPTIONS,
                     selectedValue: $transportKcpHeaderType
                   })
-                  this.EditorRow('KCP DNS Host (host - 可选)', this.transportHost, '仅 dns header 需要填写', (value: string) => {
+                  this.EditorRow('nodeEdit.kcpDnsHost', this.transportHost, 'nodeEdit.kcpDnsHost.placeholder', (value: string) => {
                     this.transportHost = value;
                   })
-                  this.EditorRow('KCP Seed (seed - 可选)', this.transportPath, '留空使用 mkcp-original', (value: string) => {
+                  this.EditorRow('nodeEdit.kcpSeed', this.transportPath, 'nodeEdit.kcpSeed.placeholder', (value: string) => {
                     this.transportPath = value;
                   })
-                  this.EditorRow('KCP MTU (mtu - 可选)', this.transportKcpMtu, '默认 1350', (value: string) => {
+                  this.EditorRow('nodeEdit.kcpMtu', this.transportKcpMtu, 'nodeEdit.default1350', (value: string) => {
                     this.transportKcpMtu = value;
                   })
-                  this.EditorRow('KCP TTI (tti - 可选)', this.transportKcpTti, '默认 50', (value: string) => {
+                  this.EditorRow('nodeEdit.kcpTti', this.transportKcpTti, 'nodeEdit.default50', (value: string) => {
                     this.transportKcpTti = value;
                   })
                 } else {
-                  this.EditorRow('伪装域名 (Host)', this.transportHost, 'Host 字段或权威域名', (value: string) => {
+                  this.EditorRow('nodeEdit.transportHost', this.transportHost, 'nodeEdit.transportHost.placeholder', (value: string) => {
                     this.transportHost = value;
                   })
-                  this.EditorRow('伪装路径 (Path / ServiceName)', this.transportPath, '请求路径或 gRPC 服务名', (value: string) => {
+                  this.EditorRow('nodeEdit.transportPath', this.transportPath, 'nodeEdit.transportPath.placeholder', (value: string) => {
                     this.transportPath = value;
                   })
                 }
                 if (this.transportType === 'grpc') {
                   PickerRow({
-                    label: 'gRPC 模式 (mode)',
+                    label: this.t('nodeEdit.grpcMode'),
                     options: V2RAYNG_GRPC_MODE_OPTIONS,
                     selectedValue: $transportGrpcMode
                   })
                 }
                 if (this.transportType === 'xhttp') {
                   PickerRow({
-                    label: 'XHTTP 模式 (mode)',
+                    label: this.t('nodeEdit.xhttpMode'),
                     options: V2RAYNG_XHTTP_MODE_OPTIONS,
                     selectedValue: $transportXhttpMode
                   })
-                  this.EditorRow('XHTTP Extra JSON (可选)', this.transportXhttpExtra, '{ "headers": {} }', (value: string) => {
+                  this.EditorRow('nodeEdit.xhttpExtra', this.transportXhttpExtra, '{ "headers": {} }', (value: string) => {
                     this.transportXhttpExtra = value;
                   })
                 }
                 if (this.transportType === 'ws' || this.transportType === 'xhttp') {
                   PickerRow({
-                    label: 'Browser Dialer',
+                    label: this.t('nodeEdit.browserDialer'),
                     options: V2RAYNG_BROWSER_DIALER_MODE_OPTIONS,
                     selectedValue: $browserDialerMode
                   })
                 }
-                this.EditorRow('FinalMask JSON (fm - 可选)', this.transportFinalMask, '{ "tcp": [], "udp": [] }', (value: string) => {
+                this.EditorRow('nodeEdit.finalMask', this.transportFinalMask, '{ "tcp": [], "udp": [] }', (value: string) => {
                   this.transportFinalMask = value;
                 })
 
                 // 排除 Shadowsocks（xray 协议规范中 Shadowsocks 通常不配置外层 TLS/Reality）
                 if (this.protocol !== 'ss') {
                   SegmentedControl({
-                    label: '安全传输层 (security)',
+                    label: this.t('nodeEdit.security'),
                     options: this.protocol === 'trojan' ? ['tls', 'reality'] : ['none', 'tls', 'reality'],
                     selected: $tlsSecurity
                   })
 
                   // TLS 展开项
                   if (this.tlsSecurity === 'tls') {
-                    this.EditorRow('SNI (Server Name Indication)', this.tlsSni, 'TLS 握手域名', (value: string) => {
+                    this.EditorRow('nodeEdit.sni', this.tlsSni, 'nodeEdit.sni.placeholder', (value: string) => {
                       this.tlsSni = value;
                     })
                     PickerRow({
-                      label: 'ALPN',
+                      label: this.t('nodeEdit.alpn'),
                       options: V2RAYNG_STREAM_ALPN_OPTIONS,
                       selectedValue: $tlsAlpn
                     })
-                    this.EditorRow('ECH 配置 (ech)', this.tlsEchConfigList, 'ECH config list', (value: string) => {
+                    this.EditorRow('nodeEdit.ech', this.tlsEchConfigList, 'nodeEdit.ech.placeholder', (value: string) => {
                       this.tlsEchConfigList = value;
                     })
-                    this.EditorRow('证书钉住 SHA256 (pcs)', this.tlsPinnedPeerCertSha256, 'Pinned peer certificate SHA256', (value: string) => {
+                    this.EditorRow('nodeEdit.pinnedSha256', this.tlsPinnedPeerCertSha256, 'nodeEdit.pinnedSha256.placeholder', (value: string) => {
                       this.tlsPinnedPeerCertSha256 = value;
                     })
                     ToggleRow({
-                      label: '允许不安全证书',
+                      label: this.t('nodeEdit.allowInsecure'),
                       isOn: $tlsAllowInsecure
                     })
                     PickerRow({
-                      label: '客户端指纹 (fingerprint)',
+                      label: this.t('nodeEdit.fingerprint'),
                       options: V2RAYNG_UTLS_FINGERPRINT_OPTIONS,
                       selectedValue: $tlsFingerprint
                     })
                   }
                   // Reality 展开项
                   else if (this.tlsSecurity === 'reality') {
-                    this.EditorRow('Reality SNI', this.tlsSni, 'Reality 目标目标服务器域名', (value: string) => {
+                    this.EditorRow('nodeEdit.realitySni', this.tlsSni, 'nodeEdit.realitySni.placeholder', (value: string) => {
                       this.tlsSni = value;
                     })
-                    this.EditorRow('ECH 配置 (ech)', this.tlsEchConfigList, 'ECH config list', (value: string) => {
+                    this.EditorRow('nodeEdit.ech', this.tlsEchConfigList, 'nodeEdit.ech.placeholder', (value: string) => {
                       this.tlsEchConfigList = value;
                     })
-                    this.EditorRow('证书钉住 SHA256 (pcs)', this.tlsPinnedPeerCertSha256, 'Pinned peer certificate SHA256', (value: string) => {
+                    this.EditorRow('nodeEdit.pinnedSha256', this.tlsPinnedPeerCertSha256, 'nodeEdit.pinnedSha256.placeholder', (value: string) => {
                       this.tlsPinnedPeerCertSha256 = value;
                     })
-                    this.EditorRow('Reality 公钥 (pbk)', this.realityPublicKey, 'Reality 密钥对的 PublicKey', (value: string) => {
+                    this.EditorRow('nodeEdit.realityPublicKey', this.realityPublicKey, 'nodeEdit.realityPublicKey.placeholder', (value: string) => {
                       this.realityPublicKey = value;
                     })
-                    this.EditorRow('Reality 短 ID (sid)', this.realityShortId, 'Reality 短十六进制字符串', (value: string) => {
+                    this.EditorRow('nodeEdit.realityShortId', this.realityShortId, 'nodeEdit.realityShortId.placeholder', (value: string) => {
                       this.realityShortId = value;
                     })
-                    this.EditorRow('Reality Path (spx)', this.realitySpiderX, 'Reality SpiderX 路径', (value: string) => {
+                    this.EditorRow('nodeEdit.realityPath', this.realitySpiderX, 'nodeEdit.realityPath.placeholder', (value: string) => {
                       this.realitySpiderX = value;
                     })
-                    this.EditorRow('Mldsa65Verify (pqv - 可选)', this.realityMldsa65Verify, 'ML-DSA-65 验签公钥', (value: string) => {
+                    this.EditorRow('nodeEdit.mldsa65Verify', this.realityMldsa65Verify, 'nodeEdit.mldsa65Verify.placeholder', (value: string) => {
                       this.realityMldsa65Verify = value;
                     })
                     PickerRow({
-                      label: '客户端指纹 (fingerprint)',
+                      label: this.t('nodeEdit.fingerprint'),
                       options: V2RAYNG_UTLS_FINGERPRINT_OPTIONS,
                       selectedValue: $tlsFingerprint
                     })
@@ -796,7 +796,7 @@ struct NodeEditPage {
                   .color(AppColor.onBrand)
                   .margin({ right: Space.sm })
               }
-              Text(this.editNodeId.length > 0 ? '更新节点配置' : '保存节点配置')
+              Text(this.editNodeId.length > 0 ? this.t('nodeEdit.updateButton') : this.t('nodeEdit.saveButton'))
                 .fontSize(FontSz.headline)
                 .fontWeight(FontWeight.Medium)
                 .fontColor(this.isSaveEnabled() ? AppColor.onBrand : AppColor.textTertiary)
@@ -826,11 +826,11 @@ struct NodeEditPage {
   @Builder
   private EditorRow(label: string, value: string, placeholder: string, onChange: (value: string) => void) {
     Column({ space: Space.sm }) {
-      Text(label)
+      Text(this.resolveEditorText(label))
         .fontSize(FontSz.footnote)
         .fontColor(AppColor.textSecondary)
         .width('100%')
-      TextInput({ text: value, placeholder: placeholder })
+      TextInput({ text: value, placeholder: this.resolveEditorText(placeholder) })
         .height(44)
         .fontSize(FontSz.body)
         .fontColor(AppColor.textPrimary)
@@ -843,6 +843,10 @@ struct NodeEditPage {
         })
     }
     .width('100%')
+  }
+
+  private resolveEditorText(value: string): string {
+    return value.startsWith('nodeEdit.') ? this.t(value) : value;
   }
 
   private isSaveEnabled(): boolean {
@@ -883,7 +887,7 @@ struct NodeEditPage {
     const host = this.serverHost.trim();
     const port = Number(this.serverPort.trim());
     if (host.length === 0 || Number.isNaN(port) || port < 1 || port > 65535) {
-      this.lastError = '请填写有效的服务器和端口。';
+      this.lastError = this.t('nodeEdit.invalidServerPort');
       return;
     }
 
@@ -1081,12 +1085,12 @@ struct NodeEditPage {
           const kcpSettings: FormKcpSettings = {};
           const mtu = this.optionalPositiveInteger(this.transportKcpMtu);
           if (mtu < 0) {
-            this.lastError = 'KCP MTU 必须是正整数。';
+            this.lastError = this.t('nodeEdit.kcpMtuPositive');
             return;
           }
           const tti = this.optionalPositiveInteger(this.transportKcpTti);
           if (tti < 0) {
-            this.lastError = 'KCP TTI 必须是正整数。';
+            this.lastError = this.t('nodeEdit.kcpTtiPositive');
             return;
           }
           if (mtu > 0) {
@@ -1142,12 +1146,12 @@ struct NodeEditPage {
             try {
               const extra = JSON.parse(xhttpExtraText) as Object;
               if (extra === null || typeof extra !== 'object') {
-                this.lastError = 'XHTTP Extra JSON 必须是对象或数组。';
+                this.lastError = this.t('nodeEdit.xhttpExtraObject');
                 return;
               }
               xhttpSettings.extra = extra;
             } catch (error) {
-              this.lastError = 'XHTTP Extra JSON 解析失败：' + JSON.stringify(error);
+              this.lastError = this.tf('nodeEdit.xhttpExtraParseFailed', ['error'], [JSON.stringify(error)]);
               return;
             }
           }
@@ -1159,12 +1163,12 @@ struct NodeEditPage {
           try {
             const finalMask = JSON.parse(finalMaskText) as Object;
             if (finalMask === null || typeof finalMask !== 'object') {
-              this.lastError = 'FinalMask JSON 必须是对象或数组。';
+              this.lastError = this.t('nodeEdit.finalMaskObject');
               return;
             }
             streamSettings.finalmask = finalMask;
           } catch (error) {
-            this.lastError = 'FinalMask JSON 解析失败：' + JSON.stringify(error);
+            this.lastError = this.tf('nodeEdit.finalMaskParseFailed', ['error'], [JSON.stringify(error)]);
             return;
           }
         }
@@ -1197,7 +1201,7 @@ struct NodeEditPage {
         if (updated.selected || this.editNodeId === this.selectedNodeId) {
           markRuntimeSettingsRestartNeeded();
         }
-        promptAction.showToast({ message: '节点更新成功' });
+        promptAction.showToast({ message: this.t('nodeEdit.updated') });
       } else {
         const saved = await NODES_CONTROLLER.saveProfile(context, validation.normalizedJson, this.language, validation.configType);
         if (saved.profile === null) {
@@ -1207,11 +1211,11 @@ struct NodeEditPage {
 
         await SubscriptionStore.addManualNode(context, this.nodeName, validation.normalizedJson, validation.configType);
         markRuntimeSettingsRestartNeeded();
-        promptAction.showToast({ message: '节点保存成功' });
+        promptAction.showToast({ message: this.t('nodeEdit.saved') });
       }
       router.back();
     } catch (error) {
-      this.lastError = '保存失败：' + JSON.stringify(error);
+      this.lastError = this.tf('nodeEdit.saveFailed', ['error'], [JSON.stringify(error)]);
     } finally {
       this.isBusy = false;
     }
@@ -1344,5 +1348,13 @@ struct NodeEditPage {
     this.hy2PinSha256 = state.hy2PinSha256;
     this.hy2BandwidthDown = state.hy2BandwidthDown;
     this.hy2BandwidthUp = state.hy2BandwidthUp;
+  }
+
+  private t(key: string): string {
+    return translate(this.language, key);
+  }
+
+  private tf(key: string, names: Array<string>, values: Array<string>): string {
+    return formatTranslation(this.language, key, names, values);
   }
 }
