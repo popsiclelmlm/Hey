@@ -3040,6 +3040,18 @@ export default function localUnitTest() {
       expect(isLoopbackOrPrivateHttpUrl('http://8.8.8.8/sub')).assertFalse();
     });
 
+    it('normalizes hysteria2 mportHopInt on export like v2rayNG Hysteria2Fmt', 0, () => {
+      const base = '{"protocol":"hysteria2","tag":"proxy","settings":{"servers":[{"address":"hy.example.com","port":443,"password":"secret","security":"tls","portHopping":"20000-50000","portHoppingInterval":"INTERVAL"}]}}';
+      // Range midpoint: (max(5,10) + max(10,60)) / 2 = 35
+      expect(formatOutboundJsonToShareLink(base.replace('INTERVAL', '10-60'), 'hy')).assertContain('mportHopInt=35');
+      // Range clamped to >=5: (max(5,1) + max(5,3)) / 2 = 5
+      expect(formatOutboundJsonToShareLink(base.replace('INTERVAL', '1-3'), 'hy')).assertContain('mportHopInt=5');
+      // Single value >=5 preserved
+      expect(formatOutboundJsonToShareLink(base.replace('INTERVAL', '30'), 'hy')).assertContain('mportHopInt=30');
+      // Single value <5 dropped
+      expect(formatOutboundJsonToShareLink(base.replace('INTERVAL', '3'), 'hy').indexOf('mportHopInt')).assertEqual(-1);
+    });
+
     it('defaults unnamed url-style share links to v2rayNG none remarks', 0, () => {
       const unnamedVlessLink = 'vless://00000000-0000-0000-0000-000000000000@example.com:443?encryption=none&type=tcp';
       const unnamedVless = parseShareLinkToOutboundJson(unnamedVlessLink);
