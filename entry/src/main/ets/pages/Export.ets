@@ -22,92 +22,111 @@ struct ExportPage {
   @State private exportTitle: string = '';
   @State private exportContent: string = '';
   @State private exportCount: number = 0;
+  @State private isStateLoaded: boolean = false;
 
   aboutToAppear(): void {
     this.loadState();
   }
 
   build() {
-    Column() {
-      PageHeader({
-        title: this.t('export.title'),
-        summary: this.f1('export.summary', 'count', this.exportCount.toString()),
-        showBack: true
-      })
-      Scroll() {
-        Column({ space: Space.lg }) {
-          SectionHeader({ title: this.exportTitle })
-          Column() {
-            TextArea({
-              placeholder: this.t('export.empty'),
-              text: this.exportContent
-            })
-              .height(420)
-              .width('100%')
-              .fontSize(FontSz.footnote)
-              .fontColor(AppColor.textPrimary)
-              .fontFamily('monospace')
-              .backgroundColor(Color.Transparent)
-              .borderRadius(0)
-              .padding(Space.lg)
-              .onChange((value: string) => {
-                this.exportContent = value;
-              })
-          }
-          .width('100%')
-          .backgroundColor(AppColor.surface)
-          .borderRadius(Radius.lg)
-          .clip(true)
-          .margin({ left: Space.lg, right: Space.lg })
-
-          Text(this.t('export.copyHint'))
-            .fontSize(FontSz.footnote)
-            .fontColor(AppColor.textTertiary)
-            .width('100%')
-            .padding({ left: Space.lg + Space.xs, right: Space.lg + Space.xs })
-
-          Row({ space: Space.md }) {
-            Button(this.t('export.copyAction'))
-              .height(44)
-              .layoutWeight(1)
-              .enabled(this.hasExportContent())
-              .backgroundColor(this.hasExportContent() ? AppColor.surfaceAlt : AppColor.border)
-              .fontColor(this.hasExportContent() ? AppColor.textPrimary : AppColor.textTertiary)
-              .borderRadius(Radius.pill)
-              .onClick(() => {
-                this.copyExportContent();
-              })
-
-            Button(this.t('export.fileAction'))
-              .height(44)
-              .layoutWeight(1)
-              .enabled(this.hasExportContent())
-              .backgroundColor(this.hasExportContent() ? AppColor.surfaceAlt : AppColor.border)
-              .fontColor(this.hasExportContent() ? AppColor.textPrimary : AppColor.textTertiary)
-              .borderRadius(Radius.pill)
-              .onClick(() => {
-                this.saveExportFile();
-              })
-
-            Button(this.t('action.share'))
-              .height(44)
-              .layoutWeight(1)
-              .enabled(this.hasExportContent())
-              .backgroundColor(this.hasExportContent() ? AppColor.brand : AppColor.border)
-              .fontColor(this.hasExportContent() ? AppColor.onBrand : AppColor.textTertiary)
-              .borderRadius(Radius.pill)
-              .onClick(() => {
-                this.shareExportContent();
-              })
-          }
-          .width('100%')
-          .margin({ left: Space.lg, right: Space.lg })
+    Stack() {
+      if (!this.isStateLoaded) {
+        Column() {
+          LoadingProgress()
+            .width(32)
+            .height(32)
+            .color(AppColor.brand)
         }
         .width('100%')
-        .padding({ top: Space.sm, bottom: Space.xxl })
+        .height('100%')
+        .justifyContent(FlexAlign.Center)
+        .alignItems(HorizontalAlign.Center)
+        .backgroundColor(AppColor.bg)
+      } else {
+        Column() {
+          PageHeader({
+            title: this.t('export.title'),
+            summary: this.f1('export.summary', 'count', this.exportCount.toString()),
+            showBack: true
+          })
+          Scroll() {
+            Column({ space: Space.lg }) {
+              SectionHeader({ title: this.exportTitle })
+              Column() {
+                TextArea({
+                  placeholder: this.t('export.empty'),
+                  text: this.exportContent
+                })
+                  .height(420)
+                  .width('100%')
+                  .fontSize(FontSz.footnote)
+                  .fontColor(AppColor.textPrimary)
+                  .fontFamily('monospace')
+                  .backgroundColor(Color.Transparent)
+                  .borderRadius(0)
+                  .padding(Space.lg)
+                  .onChange((value: string) => {
+                    this.exportContent = value;
+                  })
+              }
+              .width('100%')
+              .backgroundColor(AppColor.surface)
+              .borderRadius(Radius.lg)
+              .clip(true)
+              .margin({ left: Space.lg, right: Space.lg })
+
+              Text(this.t('export.copyHint'))
+                .fontSize(FontSz.footnote)
+                .fontColor(AppColor.textTertiary)
+                .width('100%')
+                .padding({ left: Space.lg + Space.xs, right: Space.lg + Space.xs })
+
+              Row({ space: Space.md }) {
+                Button(this.t('export.copyAction'))
+                  .height(44)
+                  .layoutWeight(1)
+                  .enabled(this.hasExportContent())
+                  .backgroundColor(this.hasExportContent() ? AppColor.surfaceAlt : AppColor.border)
+                  .fontColor(this.hasExportContent() ? AppColor.textPrimary : AppColor.textTertiary)
+                  .borderRadius(Radius.pill)
+                  .onClick(() => {
+                    this.copyExportContent();
+                  })
+
+                Button(this.t('export.fileAction'))
+                  .height(44)
+                  .layoutWeight(1)
+                  .enabled(this.hasExportContent())
+                  .backgroundColor(this.hasExportContent() ? AppColor.surfaceAlt : AppColor.border)
+                  .fontColor(this.hasExportContent() ? AppColor.textPrimary : AppColor.textTertiary)
+                  .borderRadius(Radius.pill)
+                  .onClick(() => {
+                    this.saveExportFile();
+                  })
+
+                Button(this.t('action.share'))
+                  .height(44)
+                  .layoutWeight(1)
+                  .enabled(this.hasExportContent())
+                  .backgroundColor(this.hasExportContent() ? AppColor.brand : AppColor.border)
+                  .fontColor(this.hasExportContent() ? AppColor.onBrand : AppColor.textTertiary)
+                  .borderRadius(Radius.pill)
+                  .onClick(() => {
+                    this.shareExportContent();
+                  })
+              }
+              .width('100%')
+              .margin({ left: Space.lg, right: Space.lg })
+            }
+            .width('100%')
+            .padding({ top: Space.sm, bottom: Space.xxl })
+          }
+          .layoutWeight(1)
+          .width('100%')
+        }
+        .height('100%')
+        .width('100%')
       }
-      .layoutWeight(1)
-      .width('100%')
     }
     .height('100%')
     .width('100%')
@@ -115,6 +134,7 @@ struct ExportPage {
   }
 
   private async loadState(): Promise<void> {
+    this.isStateLoaded = false;
     const context = getContext(this) as common.Context;
     this.language = (await SETTINGS_CONTROLLER.load(context)).language;
     this.nodes = (await NODES_CONTROLLER.load(context, this.language)).nodes;
@@ -123,6 +143,7 @@ struct ExportPage {
     this.exportContent = model.content;
     this.exportCount = model.count;
     SHARED_RUNTIME_CONTROLLER.appendLog(this.f1('log.exportPrepared', 'count', this.exportCount.toString()));
+    this.isStateLoaded = true;
   }
 
   private hasExportContent(): boolean {
@@ -140,9 +161,9 @@ struct ExportPage {
       const systemPasteboard = pasteboard.getSystemPasteboard();
       systemPasteboard.setDataSync(pasteData);
       promptAction.showToast({ message: this.t('prompt.copiedToClipboard') });
-      SHARED_RUNTIME_CONTROLLER.appendLog(this.f1('log.exportPrepared', 'count', this.exportCount.toString()));
+      SHARED_RUNTIME_CONTROLLER.appendLog(this.f1('log.exportCopied', 'count', this.exportCount.toString()));
     } catch (error) {
-      promptAction.showToast({ message: '导出剪贴板失败：' + JSON.stringify(error) });
+      promptAction.showToast({ message: this.f1('export.copyFailed', 'error', JSON.stringify(error)) });
     }
   }
 

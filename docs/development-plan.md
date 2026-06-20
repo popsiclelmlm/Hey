@@ -565,6 +565,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-20 | M4 | ✅ About 页本地化补齐（资源更新、技术规格、社区开发者分区标题和打开链接失败提示均走 i18n；模拟器英文布局验证分区/条目同语种、无旧中文残留，且进入 About 不再触发 `CGoXrayVersion` native crash） |
 | 2026-06-20 | M4 | ✅ 路由设置页本地化补齐（流量模式说明、routeOnly、域名策略、预置规则集和预设详情弹窗均走 i18n；模拟器英文规则模式和预置区域布局验证无旧中文残留） |
 | 2026-06-20 | M4 | ✅ Assets 页本地化补齐（快捷操作、内置 Geo 资源、自定义资源入口/列表、下载/导入/删除/保存 toast 均走 i18n；加载门禁修复异步语言混合，模拟器英文主屏/下半屏/用户资源列表验证无旧中文残留） |
+| 2026-06-20 | M4 | ✅ Export 页本地化补齐（导出页加载门禁、复制/文件/分享按钮、复制失败提示、Nodes 批量导出剪贴板日志与切换节点重连日志均走 i18n；模拟器英文 Export 页和 Nodes 批量导出验证无旧中文导出提示残留） |
 | 2026-06-18 | M4 | 🟡 常驻速度通知代码完成（`SpeedNotificationManager` 接 Harmony NotificationKit，运行中且 speedEnabled 开启时每 3 秒刷新速率/累计流量，停止或关闭设置时取消，补速率/节流文案单测）；待真机通知权限与通知中心展示回归 |
 | 2026-06-18 | M4 | 🟡 桌面服务卡片基础入口完成（`ControlCardAbility` + `form_config` + 2×2 ArkTS 卡片，提供 toggle/start/stop/scan 四个 `FormLink` 控制深链，补卡片 URI 单测）；待真机添加卡片、点击调起与运行态动态刷新回归 |
 | 2026-06-18 | M4 | 🟡 桌面服务卡片动态状态刷新代码完成（保存卡片 formId 与最近运行态，首页运行态变化同步状态文案、详情、主按钮动作并按 3 秒节流通过 `formProvider.updateForm` 刷新）；待真机添加卡片、点击调起与系统刷新回归 |
@@ -577,7 +578,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-20 | M3 | ✅ 分应用代理页本地化补齐（过滤策略、应用列表摘要、搜索/手动添加、关闭态、预置应用标签和相关日志均走 i18n；模拟器英文布局验证关闭态/列表态/手动添加区无旧中文残留） |
 | 2026-06-19 | M3 | ✅ 分应用自动列表来源对齐 v2rayNG（自动选择先拉取 `2dust/androidpackagenamelist` 远程 `proxy.txt`，直连失败可经本地 HTTP 代理重试，失败/空内容回退内置列表；补 URL 与回退 helper 单测；顺手修正 About 页 v2rayNG source 链接） |
 | 2026-06-19 | M4 | ✅ 订阅链接二维码/分享完成（订阅详情页生成订阅 URL QR，支持复制与系统分享；订阅分组左滑分享走 Harmony `sendData`，失败回退剪贴板；补分享 Want 单测） |
-| 2026-06-19 | M4 | ✅ 批量导出非自定义配置完成（Export/Nodes 批量导出按 v2rayNG `shareNonCustomConfigsToClipboard` 语义跳过 full custom、proxy-chain、policy-group 与无效 JSON，只统计实际导出的可分享普通节点；补导出模型单测） |
+| 2026-06-19 | M4 | ✅ 批量导出非自定义配置完成（Export/Nodes 批量导出按 v2rayNG `shareNonCustomConfigsToClipboard` 语义跳过 full custom、proxy-chain、policy-group 与无效 JSON，只统计实际导出的可分享普通节点；2026-06-20 补齐导出页和批量剪贴板结果 i18n；补导出模型单测） |
 | 2026-06-19 | M4 | ✅ 单节点完整配置复制完成（节点详情新增“复制完整配置”，按 v2rayNG `shareFullContent2Clipboard` 语义生成普通/full custom/proxy-chain/policy-group 的完整运行 Xray config 后写入剪贴板；动态策略组会按最新订阅成员展开；补 full config 生成单测） |
 | 2026-06-19 | M4 | ✅ Logcat 操作对齐完成（Logs 页支持 v2rayNG Logcat 的搜索过滤、复制全部、分享全部、单条日志复制与清空；分享走 Harmony `sendData` 并保留剪贴板回退；补日志过滤/格式化单测） |
 | 2026-06-19 | M3 | ✅ All 分组批处理对齐完成（Nodes 页单节点删除、删除全部、去重、删除无效配置按 v2rayNG 当前可见范围跨订阅分组执行；“删除无效配置”改为删除测速失败节点；测速后自动排序/删除失败节点按订阅分组保存；补 All 分组批处理纯函数单测） |

@@ -495,7 +495,7 @@ struct Index {
     } catch (error) {
       // ignore and fall back
     }
-    return '链接导入';
+    return this.t('import.linkNodeName');
   }
 
   build() {
@@ -1386,7 +1386,7 @@ struct Index {
       SHARED_RUNTIME_CONTROLLER.appendLog(message);
 
       if (shouldSwitchConnection && state.lastError.length === 0) {
-        SHARED_RUNTIME_CONTROLLER.appendLog('检测到服务运行中，准备切换节点并重新连接...');
+        SHARED_RUNTIME_CONTROLLER.appendLog(this.t('log.switchNodeReconnect'));
         const stopped = await this.stopConnectionInternal();
         if (stopped) {
           await this.startConnectionInternal();
@@ -1922,7 +1922,7 @@ struct Index {
     this.connectionOperationRunning = true;
     try {
       if (this.isRunning()) {
-        SHARED_RUNTIME_CONTROLLER.appendLog('正在重启服务...');
+        SHARED_RUNTIME_CONTROLLER.appendLog(this.t('log.restartingService'));
         const stopped = await this.stopConnectionInternal();
         if (stopped) {
           await this.startConnectionInternal();
@@ -1947,10 +1947,11 @@ struct Index {
       const systemPasteboard = pasteboard.getSystemPasteboard();
       await systemPasteboard.setData(pasteData);
       promptAction.showToast({ message: this.t('prompt.copiedToClipboard') });
-      SHARED_RUNTIME_CONTROLLER.appendLog(`已成功导出 ${targets.length} 个节点至剪贴板。`);
+      SHARED_RUNTIME_CONTROLLER.appendLog(this.f1('log.exportCopied', 'count', targets.length.toString()));
     } catch (error) {
-      promptAction.showToast({ message: '导出剪贴板失败：' + JSON.stringify(error) });
-      SHARED_RUNTIME_CONTROLLER.appendLog('导出剪贴板失败：' + JSON.stringify(error));
+      const message = this.f1('export.copyFailed', 'error', JSON.stringify(error));
+      promptAction.showToast({ message: message });
+      SHARED_RUNTIME_CONTROLLER.appendLog(message);
     }
   }
 
