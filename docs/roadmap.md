@@ -219,6 +219,7 @@
 | 2026-06-20 | 阶段 4 | ✅ 手动/高级节点编辑错误本地化补齐；`ManualOutboundEditState`/`AdvancedOutboundBuilder` 的不支持协议、缺少 settings、节点配置解析失败、高级节点配置解析失败四类错误经 `localizeCoreMessage` 走 i18n，NodeEdit/AdvancedOutbound 展示侧统一本地化，补解析失败与映射单测，模拟器英文 VLESS 手动编辑页验证字段全英、无旧中文残留 |
 | 2026-06-20 | 阶段 4 | ✅ 设置页实时语言切换刷新补齐；修复 ArkUI 私有 `@Builder` 值传递冻结导致的语言切换不刷新，Settings hub 菜单与通用偏好页改为传 key 内部 `this.t()` 翻译、`SettingOption` 动态取值经 `settingOptionValue(action)` 解析，模拟器实时中↔英切换验证 hub 菜单与偏好页标题/取值即时刷新、无需冷启动、无旧语言残留 |
 | 2026-06-20 | 自查 | ✅ Shadowsocks 解析 v2rayNG 对照测试补齐；按 v2rayNG `ShadowsocksFmtTest` 逐条核对 `ShareLinkParser`（SIP002 明文 userinfo、chacha20 方法、空 host/负端口拒绝、空备注回退 none、IPv6 导出方括号），新增 6 组对照断言并确认 `isV2rayNgPureIpAddress` 与 v2rayNG `isPureIpAddress` 同构、无功能差异 |
+| 2026-06-20 | 阶段 3 | ✅ 回环/内网 HTTP 订阅链接放行对齐 v2rayNG；新增 `core/PrivateNetwork.ets` 复刻 `Utils.isIpInCidr` 与 `PRIVATE_IP_LIST`，`validateSubscriptionUrl` 按 `isValidSubUrl` 对回环/内网 IP 明文 HTTP 订阅免开关放行、公网明文 HTTP 仍拦截，补 UtilsTest 对照与 URL 单测 |
 | 2026-06-18 | 阶段 5 | 🟡 常驻速度通知代码完成；运行中且速度显示开启时通过 NotificationKit 发布 ongoing 通知，按 3 秒节流刷新上传/下载速率和累计流量，停止或关闭设置时取消，待真机回归 |
 | 2026-06-18 | 阶段 5 | 🟡 桌面服务卡片基础入口完成；注册 `ControlCardAbility` 与 `form_config`，2×2 ArkTS 卡片用 FormLink 调起 toggle/start/stop/scan 控制深链，待真机添加卡片、点击调起和动态状态刷新回归 |
 | 2026-06-18 | 阶段 5 | 🟡 桌面服务卡片动态状态刷新代码完成；保存卡片 formId 与最近运行态，首页运行态变化同步状态文案、详情、主按钮动作并按 3 秒节流通过 `formProvider.updateForm` 刷新，待真机添加卡片、点击调起和系统刷新回归 |
