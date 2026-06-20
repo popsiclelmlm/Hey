@@ -190,7 +190,7 @@ struct Index {
           SHARED_RUNTIME_CONTROLLER.appendLog(this.lastError);
           return;
         }
-        const added = await SUBSCRIPTIONS_CONTROLLER.addGroup(context, name, intent.payload, '', '', false, this.language);
+        const added = await SUBSCRIPTIONS_CONTROLLER.addGroup(context, name, intent.payload, '', '', '', '', false, this.language);
         const state = await SUBSCRIPTIONS_CONTROLLER.update(context, added.selectedGroupId, intent.payload, '', this.language);
         this.applySubscriptionsState(state);
         this.applyNodesState(await NODES_CONTROLLER.load(context, this.language));
@@ -269,7 +269,7 @@ struct Index {
     }
 
     const name = subscriptionNameFromDeepLink(url);
-    const added = await SUBSCRIPTIONS_CONTROLLER.addGroup(context, name, url, '', '', false, this.language);
+    const added = await SUBSCRIPTIONS_CONTROLLER.addGroup(context, name, url, '', '', '', '', false, this.language);
     const state = await SUBSCRIPTIONS_CONTROLLER.update(context, added.selectedGroupId, url, this.selectedNodeId, this.language, this.subscriptionProxyPort());
     this.applySubscriptionsState(state);
     SHARED_RUNTIME_CONTROLLER.appendLog(this.f1('log.deepLinkSub', 'name', name));

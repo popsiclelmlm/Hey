@@ -26,7 +26,7 @@
 | 真机 VPN 闭环 | ✅ **已真机验证通过（2026-06-15）**：`TUN fd → CGoSetTunFd → Xray native TUN → 出站` 端到端可上网 | 阻塞项解除，主线推进至 M1 |
 | Native 桥接 | M1 已接通当前打包库导出的 12 个 CGo 符号（含 `CGoQueryStats`/`CGoTestXray`/`CGoXrayVersion`/`CGoReadGeoFiles`/`CGoCountGeoData`/`CGoGetFreePorts`/`CGoConvertShareLinksToXrayJson`/`CGOConvertXrayJsonToShareLinks`），且预构建 `libxray.so` 已重建并验证导出符号 | **待真机复测**流量、预检、版本、Geo 计数、动态端口与 native 分享转换；上游旧入口 `CGoRunXray` 不作为 Hey 运行目标 |
 | 路由规则 | ✅ 广告拦截、自定义规则、预设规则集导入/导出均已写入 `routing.rules`，规则集可按 v2rayNG 从剪贴板或二维码 JSON 导入并保留 locked 规则，`routeOnly` 会控制 sniffing routeOnly；process 规则输出按 v2rayNG `canUseProcessRouting` 受 `routeOnly` 与 Hev TUN 共同约束，并在可用时将包名解析为 Harmony app UID；生成 Xray routing 时会按 v2rayNG 将 `geoip:cn/private` 改写为 `geoip-only-cn-private.dat` ext 引用 | 仍待真机验证规则实效；高级出站目标（策略组/负载均衡）归入 M5 |
-| 订阅 | 多分组 + 手动/批量更新 + 前台到期刷新 + 本地 HTTP 代理经由更新 + v2rayNG 风格每订阅独立 WorkScheduler 后台调度；订阅请求保留自定义 User-Agent，按 v2rayNG 支持 URL 内嵌 `user:pass@host` Basic Auth，并会将非 ASCII host 转 punycode 后请求；本地 SOCKS 入口按 v2rayNG 默认开启，可供代理经由能力使用 | 待真机触发回归后台唤醒路径 |
+| 订阅 | 多分组 + 手动/批量更新 + 前台到期刷新 + 本地 HTTP 代理经由更新 + v2rayNG 风格每订阅独立 WorkScheduler 后台调度；订阅编辑页保存/回填 v2rayNG `prevProfile`/`nextProfile` 备注字段；订阅请求保留自定义 User-Agent，按 v2rayNG 支持 URL 内嵌 `user:pass@host` Basic Auth，并会将非 ASCII host 转 punycode 后请求；本地 SOCKS 入口按 v2rayNG 默认开启，可供代理经由能力使用 | 待真机触发回归后台唤醒路径 |
 | 分享导出 | 文本/文件导出 + 节点二维码 + 订阅链接二维码 + 系统分享面板；批量导出已按 v2rayNG `shareNonCustomConfigsToClipboard` 只输出可分享普通节点并跳过自定义/高级/无效配置；节点详情可按 v2rayNG `shareFullContent2Clipboard` 复制完整运行配置；URL-style 普通 TCP 节点导出会按 v2rayNG 写出 `security/type/headerType` 默认 query，并按 `FmtBase.toUri` 将 IDN server/endpoint host 转 punycode；剪贴板导入路径不声明受限 Harmony `READ_PASTEBOARD`，读取失败由各入口现有提示处理；运行中导入/扫码/新增/选择当前节点后会标记待重启，返回首页自动应用新配置 | 仍待真机回归不同分享目标兼容性 |
 | 速度通知 | 🟡 常驻通知代码完成；连接运行且速度显示开启时每 3 秒刷新上传/下载速率与累计流量，停止或关闭设置时取消 | 待真机通知权限弹窗、通知中心展示与后台留存回归 |
 | 深链导入 | ✅ Harmony Want / `hey://install-sub` / `hey://install-config` 已接入 EntryAbility 与首页解析；外部应用 `sendData/text/plain` 分享文本会复用订阅、单节点与 native 批量兜底导入路径 | 仍待真机回归外部应用触发路径 |
@@ -176,6 +176,11 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 - 同步：订阅增删改、启停、批量/到期更新以及首页启动/回前台都会刷新 WorkScheduler 注册
 - 测试：新增调度计划纯函数单测覆盖无任务、每订阅任务、稳定 workId、独立 interval、最小 15 分钟归一化与 next-delay 计算
 
+**进展（2026-06-20 续）**：订阅前/后置 Profile 备注字段已落地：
+- 模型：`SubscriptionGroup.prevProfile` / `nextProfile` 持久化并兼容旧存储默认空字符串
+- UI：订阅编辑页新增与 v2rayNG `SubEditActivity` 同名字段，编辑已有分组时回填
+- 测试：新增复制/批量节点操作单测，确保分组排序和可见节点批处理不会丢失字段
+
 **进展（2026-06-18 续，2026-06-20 补模式边界）**：运行中经由本地 HTTP 代理更新订阅已落地：
 - Xray：VPN 模式下设置开启时生成 `http-in` 本地 HTTP inbound（`127.0.0.1:10809`），并将该 inbound 显式路由到 `proxy`；Proxy-only 模式按 v2rayNG 仅保留本地 SOCKS 入口，不暴露追加 HTTP 代理
 - 共享：开启「允许来自局域网的连接」时，`http-in.listen` 改为 `0.0.0.0:10809`；SOCKS 默认端口保留 v2rayNG 的 `10808`，HTTP inbound 作为 Harmony 兼容近似实现单独避让一个端口；内部订阅更新仍走 loopback
@@ -192,7 +197,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 - **订阅自动更新**：WorkScheduler 后台任务代码已接入并按 v2rayNG 升级为每订阅独立任务；下一步真机验证应用不打开时的周期唤醒与网络拉取
 - **正则过滤** `filter`：按节点名筛选导入（2026-06-15 已完成）
 - **节点列表搜索**：按 v2rayNG `MainViewModel.updateCache` 语义支持正则优先、非法正则回退字面量匹配（2026-06-20 已完成）
-- **自定义 User-Agent** 与订阅级 `allowInsecureUrl` 已完成
+- **自定义 User-Agent**、订阅级 `allowInsecureUrl`、`prevProfile`/`nextProfile` 备注字段已完成
 - **订阅分组重排**：上移/下移并持久化顺序（2026-06-18 已完成）
 - **批量更新全部**：订阅页顶部刷新按钮更新全部启用订阅分组（已完成）
 - **代理经由更新**：运行中时通过本地 HTTP 端口拉取订阅（2026-06-18 已完成）
@@ -449,6 +454,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-20 | M3 | ✅ 订阅 URL 内嵌 Basic Auth 对齐 v2rayNG（抓取请求从 `user:pass@host` 解码 userInfo 并写入 `Authorization` 头；补请求头构建单测） |
 | 2026-06-20 | M3 | ✅ 订阅 IDN URL 对齐 v2rayNG（新增 `toIdnUrl`/punycode helper，抓取前仅转换 host，保留 Basic Auth 与路径；补 v2rayNG `HttpUtilTest` 等价单测） |
 | 2026-06-20 | M3 | ✅ 订阅刷新选中节点保留完成（新增订阅节点身份匹配 helper，更新/更新全部按 v2rayNG 备注/server/port/password 多级匹配旧选中节点，匹配失败回退首个新节点；补纯函数单测） |
+| 2026-06-20 | M3 | ✅ 订阅前/后置 Profile 字段完成（`prevProfile`/`nextProfile` 持久化 + 订阅编辑页输入/回填 + 复制和批量节点操作保留字段单测） |
 | 2026-06-18 | M3 | ✅ 本地 HTTP 代理共享开关生效（`proxySharingEnabled` 开启时 `http-in.listen=0.0.0.0`，默认仍为 `127.0.0.1`，补配置生成单测） |
 | 2026-06-20 | M4 | ✅ Proxy sharing 启动警告对齐完成（成功启动且允许来自局域网连接时，按 v2rayNG 追加可信网络提醒并弹出 toast；补纯函数单测） |
 | 2026-06-18 | M0 补点 | ✅ VPN 接口 DNS 不再写死，`settings.vpnDns` 会规范化后写入 Harmony `VpnConfig.dnsAddresses` |

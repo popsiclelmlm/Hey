@@ -65,6 +65,8 @@ function copySubscriptionGroup(group: SubscriptionGroup): SubscriptionGroup {
     updatedAt: group.updatedAt,
     userAgent: group.userAgent,
     filter: group.filter,
+    prevProfile: group.prevProfile,
+    nextProfile: group.nextProfile,
     allowInsecureUrl: group.allowInsecureUrl,
     autoUpdate: group.autoUpdate,
     updateIntervalMinutes: group.updateIntervalMinutes

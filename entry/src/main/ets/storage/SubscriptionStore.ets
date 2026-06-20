@@ -258,12 +258,14 @@ export class SubscriptionStore {
     url: string,
     userAgent: string = '',
     filter: string = '',
+    prevProfile: string = '',
+    nextProfile: string = '',
     allowInsecureUrl: boolean = false,
     autoUpdate: boolean = false,
     updateIntervalMinutes: number = DEFAULT_SUBSCRIPTION_UPDATE_INTERVAL_MINUTES
   ): Promise<SubscriptionProfile> {
     const profile = await SubscriptionStore.load(context);
-    const group = SubscriptionStore.createGroup(url, name, userAgent, filter, allowInsecureUrl, autoUpdate, updateIntervalMinutes);
+    const group = SubscriptionStore.createGroup(url, name, userAgent, filter, prevProfile, nextProfile, allowInsecureUrl, autoUpdate, updateIntervalMinutes);
     profile.groups.push(group);
     profile.selectedGroupId = group.id;
     await SubscriptionStore.save(context, SubscriptionStore.normalize(profile));
@@ -277,6 +279,8 @@ export class SubscriptionStore {
     url: string,
     userAgent: string = '',
     filter: string = '',
+    prevProfile: string = '',
+    nextProfile: string = '',
     allowInsecureUrl: boolean = false,
     autoUpdate: boolean = false,
     updateIntervalMinutes: number = DEFAULT_SUBSCRIPTION_UPDATE_INTERVAL_MINUTES
@@ -288,6 +292,8 @@ export class SubscriptionStore {
       group.url = url;
       group.userAgent = userAgent;
       group.filter = filter;
+      group.prevProfile = prevProfile;
+      group.nextProfile = nextProfile;
       group.allowInsecureUrl = allowInsecureUrl;
       group.autoUpdate = autoUpdate;
       group.updateIntervalMinutes = normalizeSubscriptionUpdateInterval(updateIntervalMinutes);
@@ -311,6 +317,8 @@ export class SubscriptionStore {
         updatedAt: Date.now(),
         userAgent: '',
         filter: '',
+        prevProfile: '',
+        nextProfile: '',
         allowInsecureUrl: false,
         autoUpdate: false,
         updateIntervalMinutes: DEFAULT_SUBSCRIPTION_UPDATE_INTERVAL_MINUTES
@@ -440,6 +448,9 @@ export class SubscriptionStore {
         nodes: SubscriptionStore.normalizeNodes(profile.nodes),
         updatedAt: profile.updatedAt,
         userAgent: '',
+        filter: '',
+        prevProfile: '',
+        nextProfile: '',
         allowInsecureUrl: false,
         autoUpdate: false,
         updateIntervalMinutes: DEFAULT_SUBSCRIPTION_UPDATE_INTERVAL_MINUTES
@@ -479,6 +490,8 @@ export class SubscriptionStore {
       updatedAt: group.updatedAt ?? 0,
       userAgent: group.userAgent ?? '',
       filter: group.filter ?? '',
+      prevProfile: group.prevProfile ?? '',
+      nextProfile: group.nextProfile ?? '',
       allowInsecureUrl: group.allowInsecureUrl ?? false,
       autoUpdate: group.autoUpdate ?? false,
       updateIntervalMinutes: normalizeSubscriptionUpdateInterval(group.updateIntervalMinutes)
@@ -582,6 +595,8 @@ export class SubscriptionStore {
     name: string,
     userAgent: string = '',
     filter: string = '',
+    prevProfile: string = '',
+    nextProfile: string = '',
     allowInsecureUrl: boolean = false,
     autoUpdate: boolean = false,
     updateIntervalMinutes: number = DEFAULT_SUBSCRIPTION_UPDATE_INTERVAL_MINUTES
@@ -597,6 +612,8 @@ export class SubscriptionStore {
       updatedAt: 0,
       userAgent,
       filter,
+      prevProfile,
+      nextProfile,
       allowInsecureUrl,
       autoUpdate,
       updateIntervalMinutes: normalizeSubscriptionUpdateInterval(updateIntervalMinutes)

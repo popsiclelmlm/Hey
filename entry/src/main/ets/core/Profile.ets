@@ -38,6 +38,8 @@ export interface SubscriptionGroup {
   updatedAt: number;
   userAgent?: string;
   filter?: string;
+  prevProfile?: string;
+  nextProfile?: string;
   allowInsecureUrl?: boolean;
   autoUpdate?: boolean;
   updateIntervalMinutes?: number;

@@ -3218,6 +3218,23 @@ export default function localUnitTest() {
       expect(outOfRange[0] === groups[0]).assertFalse();
     });
 
+    it('preserves subscription pre and next profile remarks while copying groups', 0, () => {
+      const first = buildSubscriptionGroupFixture('sub-a', 'A');
+      first.prevProfile = 'Manual Before';
+      first.nextProfile = 'Manual After';
+      const second = buildSubscriptionGroupFixture('sub-b', 'B');
+
+      const moved = moveSubscriptionGroup([first, second], 'sub-a', 1);
+      expect(moved[1].prevProfile ?? '').assertEqual('Manual Before');
+      expect(moved[1].nextProfile ?? '').assertEqual('Manual After');
+
+      const nodes = buildNodeFixture();
+      first.nodes = [nodes[0], nodes[1]];
+      const cleared = removeVisibleNodesFromGroups([first], [nodes[0]], 123);
+      expect(cleared.groups[0].prevProfile ?? '').assertEqual('Manual Before');
+      expect(cleared.groups[0].nextProfile ?? '').assertEqual('Manual After');
+    });
+
     it('calculates subscription auto update due windows', 0, () => {
       expect(normalizeSubscriptionUpdateInterval(undefined)).assertEqual(DEFAULT_SUBSCRIPTION_UPDATE_INTERVAL_MINUTES);
       expect(normalizeSubscriptionUpdateInterval(0)).assertEqual(DEFAULT_SUBSCRIPTION_UPDATE_INTERVAL_MINUTES);
@@ -3660,6 +3677,8 @@ function buildSubscriptionGroupFixture(id: string, name: string): SubscriptionGr
     updatedAt: 0,
     userAgent: '',
     filter: '',
+    prevProfile: '',
+    nextProfile: '',
     allowInsecureUrl: false,
     autoUpdate: false,
     updateIntervalMinutes: DEFAULT_SUBSCRIPTION_UPDATE_INTERVAL_MINUTES
@@ -3717,6 +3736,8 @@ function buildGroupFixture(id: string, name: string, nodes: Array<ProxyNode>, se
     updatedAt: 1,
     userAgent: '',
     filter: '',
+    prevProfile: '',
+    nextProfile: '',
     allowInsecureUrl: false,
     autoUpdate: false,
     updateIntervalMinutes: DEFAULT_SUBSCRIPTION_UPDATE_INTERVAL_MINUTES

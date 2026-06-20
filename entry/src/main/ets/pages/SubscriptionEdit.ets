@@ -26,6 +26,8 @@ struct SubscriptionEditPage {
   @State private subscriptionUrl: string = '';
   @State private userAgent: string = '';
   @State private filter: string = '';
+  @State private prevProfile: string = '';
+  @State private nextProfile: string = '';
   @State private allowInsecureUrl: boolean = false;
   @State private autoUpdate: boolean = false;
   @State private updateInterval: string = DEFAULT_SUBSCRIPTION_UPDATE_INTERVAL_MINUTES.toString();
@@ -322,6 +324,47 @@ struct SubscriptionEditPage {
               .lineHeight(16)
               .padding({ left: Space.lg + Space.xs, right: Space.lg + Space.xs })
 
+            SectionHeader({ title: '前/后置 Profile' })
+            Column() {
+              TextInput({ text: this.prevProfile, placeholder: '更新前引用的节点备注' })
+                .height(48)
+                .width('100%')
+                .fontSize(FontSz.body)
+                .fontColor(AppColor.textPrimary)
+                .placeholderColor(AppColor.textTertiary)
+                .backgroundColor(Color.Transparent)
+                .borderRadius(0)
+                .padding({ left: Space.lg, right: Space.lg })
+                .onChange((val) => {
+                  this.prevProfile = val;
+                })
+              this.RowDivider()
+              TextInput({ text: this.nextProfile, placeholder: '更新后引用的节点备注' })
+                .height(48)
+                .width('100%')
+                .fontSize(FontSz.body)
+                .fontColor(AppColor.textPrimary)
+                .placeholderColor(AppColor.textTertiary)
+                .backgroundColor(Color.Transparent)
+                .borderRadius(0)
+                .padding({ left: Space.lg, right: Space.lg })
+                .onChange((val) => {
+                  this.nextProfile = val;
+                })
+            }
+            .width('100%')
+            .backgroundColor(AppColor.surface)
+            .borderRadius(Radius.lg)
+            .clip(true)
+            .margin({ left: Space.lg, right: Space.lg })
+
+            Text('保存 v2rayNG SubEditActivity 同名字段；填写已有普通节点备注。')
+              .fontSize(FontSz.footnote)
+              .fontColor(AppColor.textTertiary)
+              .width('100%')
+              .lineHeight(16)
+              .padding({ left: Space.lg + Space.xs, right: Space.lg + Space.xs })
+
           }
           .width('100%')
           // 底部 padding 为 100 避开底置悬浮大按钮
@@ -369,6 +412,14 @@ struct SubscriptionEditPage {
     .backgroundColor(AppColor.bg)
   }
 
+  @Builder
+  private RowDivider() {
+    Divider()
+      .strokeWidth(0.5)
+      .color(AppColor.divider)
+      .margin({ left: Space.lg })
+  }
+
   private isSaveEnabled(): boolean {
     return this.groupName.trim().length > 0 && !this.isBusy;
   }
@@ -387,6 +438,8 @@ struct SubscriptionEditPage {
           this.subscriptionUrl = group.url;
           this.userAgent = group.userAgent ?? '';
           this.filter = group.filter ?? '';
+          this.prevProfile = group.prevProfile ?? '';
+          this.nextProfile = group.nextProfile ?? '';
           this.allowInsecureUrl = group.allowInsecureUrl ?? false;
           this.autoUpdate = group.autoUpdate ?? false;
           this.originalUpdateIntervalMinutes = group.updateIntervalMinutes ?? DEFAULT_SUBSCRIPTION_UPDATE_INTERVAL_MINUTES;
@@ -411,6 +464,8 @@ struct SubscriptionEditPage {
 
     const userAgent = this.userAgent.trim();
     const filter = this.filter.trim();
+    const prevProfile = this.prevProfile.trim();
+    const nextProfile = this.nextProfile.trim();
     const updateIntervalMinutes = this.resolveUpdateIntervalForSave();
     if (updateIntervalMinutes < 0) {
       return;
@@ -420,9 +475,9 @@ struct SubscriptionEditPage {
       const context = getContext(this) as common.Context;
       let state: SubscriptionsControllerState;
       if (this.groupId.length === 0) {
-        state = await SUBSCRIPTIONS_CONTROLLER.addGroup(context, name, url, userAgent, filter, this.allowInsecureUrl, this.language, this.autoUpdate, updateIntervalMinutes);
+        state = await SUBSCRIPTIONS_CONTROLLER.addGroup(context, name, url, userAgent, filter, prevProfile, nextProfile, this.allowInsecureUrl, this.language, this.autoUpdate, updateIntervalMinutes);
       } else {
-        state = await SUBSCRIPTIONS_CONTROLLER.updateGroup(context, this.groupId, name, url, userAgent, filter, this.allowInsecureUrl, this.language, this.autoUpdate, updateIntervalMinutes);
+        state = await SUBSCRIPTIONS_CONTROLLER.updateGroup(context, this.groupId, name, url, userAgent, filter, prevProfile, nextProfile, this.allowInsecureUrl, this.language, this.autoUpdate, updateIntervalMinutes);
       }
       promptAction.showToast({ message: state.subscriptionMessage });
       router.back();

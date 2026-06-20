@@ -117,6 +117,8 @@ export class SubscriptionsController {
     url: string,
     userAgent: string,
     filter: string,
+    prevProfile: string,
+    nextProfile: string,
     allowInsecureUrl: boolean,
     language: AppLanguage,
     autoUpdate: boolean = false,
@@ -133,7 +135,7 @@ export class SubscriptionsController {
     }
     try {
       const normalizedInterval = normalizeSubscriptionUpdateInterval(updateIntervalMinutes);
-      const subscription = await SubscriptionStore.addGroup(context, trimmedName, trimmedUrl, userAgent.trim(), filter.trim(), allowInsecureUrl, autoUpdate, normalizedInterval);
+      const subscription = await SubscriptionStore.addGroup(context, trimmedName, trimmedUrl, userAgent.trim(), filter.trim(), prevProfile.trim(), nextProfile.trim(), allowInsecureUrl, autoUpdate, normalizedInterval);
       await this.syncBackgroundSchedule(context);
       return this.buildState(subscription, language, translate(language, 'log.subscriptionGroupSaved'));
     } catch (error) {
@@ -148,6 +150,8 @@ export class SubscriptionsController {
     url: string,
     userAgent: string,
     filter: string,
+    prevProfile: string,
+    nextProfile: string,
     allowInsecureUrl: boolean,
     language: AppLanguage,
     autoUpdate: boolean = false,
@@ -164,7 +168,7 @@ export class SubscriptionsController {
     }
     try {
       const normalizedInterval = normalizeSubscriptionUpdateInterval(updateIntervalMinutes);
-      const subscription = await SubscriptionStore.updateGroup(context, groupId, trimmedName, trimmedUrl, userAgent.trim(), filter.trim(), allowInsecureUrl, autoUpdate, normalizedInterval);
+      const subscription = await SubscriptionStore.updateGroup(context, groupId, trimmedName, trimmedUrl, userAgent.trim(), filter.trim(), prevProfile.trim(), nextProfile.trim(), allowInsecureUrl, autoUpdate, normalizedInterval);
       await this.syncBackgroundSchedule(context);
       return this.buildState(subscription, language, translate(language, 'log.subscriptionGroupSaved'));
     } catch (error) {
