@@ -1,6 +1,6 @@
 # v2rayNG 配置管理 / 订阅 / 路由 / 设置
 
-> 领域三：MMKV 存储模型、订阅自动更新、路由规则集与负载均衡、设置项全表、WebDAV、geo 资产。
+> 领域三：MMKV 存储模型、订阅自动更新、路由规则集与负载均衡、设置项全表、WebDAV（仅上游分析；Hey 当前不做备份）、geo 资产。
 > 代码位置基于 v2rayNG 源码（`app/src/main/java/com/v2ray/ang`）。
 
 ## 1. 服务器配置存储（MMKV）
@@ -9,7 +9,7 @@
 
 | MMKV ID | 用途 | 内容 |
 |---------|------|------|
-| MAIN | 主存储 | 选中服务器 GUID、订阅 ID 列表、WebDAV 配置 |
+| MAIN | 主存储 | 选中服务器 GUID、订阅 ID 列表、WebDAV 配置（上游） |
 | PROFILE_FULL_CONFIG | 完整配置 | ProfileItem JSON（按 GUID） |
 | SERVER_RAW | 原始配置 | 自定义配置原始 JSON |
 | SERVER_AFF | 关联信息 | 测速延迟 testDelayMillis |
@@ -115,7 +115,9 @@ ProfileItem 中 `policyGroupType` + `policyGroupSubscriptionId` + `policyGroupFi
 
 `ensureDefaultSettings()`（`:515-536`）启动时保证默认值。
 
-## 5. WebDAV 云备份（`handler/WebDavManager.kt`）
+## 5. WebDAV 云备份（上游参考，Hey 暂不实现）
+
+> 产品决策（2026-06-20）：Hey 当前没有稳定云服务器/云端目标，备份能力不进入现阶段复刻验收；以下仅记录 v2rayNG 上游实现，避免后续误判为当前必做项。
 
 `WebDavConfig(baseUrl, username, password, remoteBasePath="/", timeoutSeconds=30)`，存于 MMKV MAIN。
 - `init()`（`:27-35`）：OkHttpClient + 超时 + 认证
