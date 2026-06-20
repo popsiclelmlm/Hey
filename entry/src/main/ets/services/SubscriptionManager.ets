@@ -1,5 +1,6 @@
 import { util } from '@kit.ArkTS';
 import { http } from '@kit.NetworkKit';
+import { toIdnUrl } from '../core/IdnUrl';
 import { ProxyNode } from '../core/Profile';
 import { decodeBase64ToUtf8, encodeUtf8ToBase64 } from '../core/Encoding';
 import {
@@ -213,7 +214,8 @@ interface ClashHysteria2Settings {
 export class SubscriptionManager {
   static async fetchAndParse(url: string, userAgent: string = '', allowInsecureUrl: boolean = false, proxyPort: number = 0): Promise<SubscriptionUpdateResult> {
     const trimmedUrl = url.trim();
-    const validationMessage = SubscriptionManager.validateSubscriptionUrl(trimmedUrl, allowInsecureUrl);
+    const requestUrl = SubscriptionManager.toSubscriptionRequestUrl(trimmedUrl);
+    const validationMessage = SubscriptionManager.validateSubscriptionUrl(requestUrl, allowInsecureUrl);
     if (validationMessage.length > 0) {
       const result: SubscriptionUpdateResult = {
         ok: false,
@@ -224,7 +226,7 @@ export class SubscriptionManager {
       return result;
     }
 
-    const content = await SubscriptionManager.fetchTextWithFallback(trimmedUrl, userAgent, allowInsecureUrl, proxyPort);
+    const content = await SubscriptionManager.fetchTextWithFallback(requestUrl, userAgent, allowInsecureUrl, proxyPort);
     const nodes = SubscriptionManager.parseSubscriptionContent(content, trimmedUrl);
     const result: SubscriptionUpdateResult = {
       ok: nodes.length > 0,
@@ -248,6 +250,10 @@ export class SubscriptionManager {
       return 'HTTP 订阅链接不安全，请开启允许不安全订阅链接后重试。';
     }
     return '';
+  }
+
+  static toSubscriptionRequestUrl(url: string): string {
+    return toIdnUrl(url.trim());
   }
 
   static buildSubscriptionRequestHeader(url: string, userAgent: string): SubscriptionRequestHeader {
@@ -296,9 +302,10 @@ export class SubscriptionManager {
       throw new Error('HTTP redirect limit reached');
     }
 
+    const requestUrl = SubscriptionManager.toSubscriptionRequestUrl(url);
     const request = http.createHttp();
     try {
-      const header = SubscriptionManager.buildSubscriptionRequestHeader(url, userAgent);
+      const header = SubscriptionManager.buildSubscriptionRequestHeader(requestUrl, userAgent);
       const options: http.HttpRequestOptions = {
         method: http.RequestMethod.GET,
         expectDataType: http.HttpDataType.STRING,
@@ -315,16 +322,17 @@ export class SubscriptionManager {
         };
         options.usingProxy = proxy;
       }
-      const response = await request.request(url, options);
+      const response = await request.request(requestUrl, options);
       const responseCode = Number(response.responseCode);
       if (SubscriptionManager.isRedirectCode(responseCode)) {
-        const redirectUrl = SubscriptionManager.redirectUrl(url, JSON.stringify(response.header));
+        const redirectUrl = SubscriptionManager.redirectUrl(requestUrl, JSON.stringify(response.header));
         if (redirectUrl.length > 0) {
-          const validationMessage = SubscriptionManager.validateSubscriptionUrl(redirectUrl, allowInsecureUrl);
+          const redirectRequestUrl = SubscriptionManager.toSubscriptionRequestUrl(redirectUrl);
+          const validationMessage = SubscriptionManager.validateSubscriptionUrl(redirectRequestUrl, allowInsecureUrl);
           if (validationMessage.length > 0) {
             throw new Error(validationMessage);
           }
-          return SubscriptionManager.fetchText(redirectUrl, redirectCount + 1, userAgent, allowInsecureUrl, proxyPort);
+          return SubscriptionManager.fetchText(redirectRequestUrl, redirectCount + 1, userAgent, allowInsecureUrl, proxyPort);
         }
       }
       if (responseCode < 200 || responseCode >= 300) {

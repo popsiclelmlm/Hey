@@ -6,6 +6,7 @@ import { V2RAYNG_DNS_DIRECT, V2RAYNG_DNS_PROXY, isV2rayNgCoreDnsAddress, isV2ray
 import { AssetNameEntry, hasDuplicateAssetName, isEditableCustomAssetUrl, normalizeScannedAssetUrl } from '../main/ets/core/AssetUrls';
 import { decodeBase64ToUtf8 } from '../main/ets/core/Encoding';
 import { buildV2rayNgH2HttpSettings, splitV2rayNgH2Hosts } from '../main/ets/core/H2Transport';
+import { toIdnDomain, toIdnUrl } from '../main/ets/core/IdnUrl';
 import { formatTranslation, missingTranslationKeys, normalizeLanguage, resolveLanguage, resolveSystemLanguage, translate } from '../main/ets/core/I18n';
 import { resolveImportedNodeName } from '../main/ets/core/ImportedNodeNames';
 import { defaultJsonConfigNodeName, resolveJsonConfigNodeName } from '../main/ets/core/JsonConfigNames';
@@ -3027,6 +3028,17 @@ export default function localUnitTest() {
       expect(SubscriptionManager.validateSubscriptionUrl('http://sub.example/list', true)).assertEqual('');
       expect(SubscriptionManager.validateSubscriptionUrl('http://sub.example/list', false)).assertContain('不安全');
       expect(SubscriptionManager.validateSubscriptionUrl('ftp://sub.example/list', true)).assertContain('http:// 或 https://');
+    });
+
+    it('converts IDN subscription hosts to punycode like v2rayNG HttpUtil', 0, () => {
+      expect(toIdnUrl('https://example.com/path')).assertEqual('https://example.com/path');
+      expect(toIdnUrl('https://例子.测试/path')).assertEqual('https://xn--fsqu00a.xn--0zwm56d/path');
+      expect(toIdnUrl('https://例子.com/测试')).assertEqual('https://xn--fsqu00a.com/测试');
+      expect(toIdnUrl('https://user:password@example.com/path')).assertEqual('https://user:password@example.com/path');
+      expect(toIdnUrl('https://user:password@例子.测试/path')).assertEqual('https://user:password@xn--fsqu00a.xn--0zwm56d/path');
+      expect(toIdnUrl('https://用户:密码@example.com/path')).assertEqual('https://用户:密码@example.com/path');
+      expect(toIdnDomain('例子.测试')).assertEqual('xn--fsqu00a.xn--0zwm56d');
+      expect(SubscriptionManager.toSubscriptionRequestUrl('  https://user:pass@例子.测试/list  ')).assertEqual('https://user:pass@xn--fsqu00a.xn--0zwm56d/list');
     });
 
     it('adds embedded subscription basic auth like v2rayNG', 0, () => {
