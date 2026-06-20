@@ -15,7 +15,7 @@
 
 自 2026-06-03 路线图以来已落地：
 
-- ✅ 相机扫码与相册图片二维码导入：`pages/Scanner.ets` 已接入 `@kit.ScanKit`（`scanBarcode.startScanForResult` / `detectBarcode.decode`），共享页头会随异步语言状态刷新，深链进入扫码页时标题与内容语言一致；首页统计标签与添加节点页主入口也会随当前语言刷新，避免英文界面残留中文文案
+- ✅ 相机扫码与相册图片二维码导入：`pages/Scanner.ets` 已接入 `@kit.ScanKit`（`scanBarcode.startScanForResult` / `detectBarcode.decode`），共享页头会随异步语言状态刷新，深链进入扫码页时标题与内容语言一致；首页统计标签、添加节点页主入口与 JSON 导入页也会随当前语言刷新，避免英文界面残留中文文案
 - ✅ 分应用代理：`pages/PerApp.ets` 已用 `bundleManager` 枚举已安装应用，并补齐全选/清除/反选、自动选择代理应用、剪贴板导入/导出包名列表；自动选择会先拉取 v2rayNG `androidpackagenamelist` 远程清单，失败回退内置列表
 - ✅ Assets 页模块化、NodeEdit 组件化、8 协议手动配置与解析；内置 Geo 下载已包含 v2rayNG 强制更新的 `geoip-only-cn-private.dat`，下载源包含 v2rayNG 的 Loyalsoldier / Russia / Iran 三组规则源，资源下载已按 v2rayNG 优先经本地 HTTP 代理并直连兜底
 
@@ -557,6 +557,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-20 | M4 | ✅ 共享页头响应式刷新完成（`PageHeader` 标题/摘要/状态改为响应式属性，二级页异步加载语言/状态后页头同步更新；扫码页 `hey://scan` 冷启动布局验证为 `Scanner` 且无旧中文标题残留） |
 | 2026-06-20 | M4 | ✅ 首页统计标签响应式刷新完成（`Duration/Upload/Download` 在统计单元内按当前语言翻译；模拟器英文首页布局验证 `Duration`，无旧 `时长` 残留） |
 | 2026-06-20 | M4 | ✅ 添加节点页主入口本地化完成（链接/扫码导入、手动协议列表、高级配置、JSON 配置入口和导入结果 toast 均走 i18n；模拟器英文布局验证 `Scan & link import`、`Create proxy chain` 且无旧中文入口残留） |
+| 2026-06-20 | M4 | ✅ JSON 导入页本地化完成（粘贴/选择文件/清除、占位符、说明、校验状态、文件读取和导入/保存错误均走 i18n；模拟器英文布局验证 `Choose file`、`Note: you can import` 且无旧中文按钮/说明残留） |
 | 2026-06-20 | M4 | ✅ 订阅列表页本地化完成（订阅分组页摘要/空态/本地节点数量/未更新状态与批量/自动更新结果 toast 均走 i18n；模拟器英文布局验证 `1 subscription group` 且无旧中文摘要残留） |
 | 2026-06-18 | M4 | 🟡 常驻速度通知代码完成（`SpeedNotificationManager` 接 Harmony NotificationKit，运行中且 speedEnabled 开启时每 3 秒刷新速率/累计流量，停止或关闭设置时取消，补速率/节流文案单测）；待真机通知权限与通知中心展示回归 |
 | 2026-06-18 | M4 | 🟡 桌面服务卡片基础入口完成（`ControlCardAbility` + `form_config` + 2×2 ArkTS 卡片，提供 toggle/start/stop/scan 四个 `FormLink` 控制深链，补卡片 URI 单测）；待真机添加卡片、点击调起与运行态动态刷新回归 |

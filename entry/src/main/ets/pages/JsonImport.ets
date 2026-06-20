@@ -14,6 +14,7 @@ import { SubscriptionStore } from '../storage/SubscriptionStore';
 import { SectionHeader } from '../components/SectionHeader';
 import { PageHeader } from '../shell/PageHeader';
 import { ensureReadPasteboardPermission } from '../utils/ClipboardPermission';
+import { formatOne } from '../utils/LocalizationPresenter';
 import { AppColor, FontSz, Radius, Space } from '../theme/Theme';
 
 const MAX_IMPORT_FILE_BYTES: number = 2 * 1024 * 1024;
@@ -44,7 +45,7 @@ struct JsonImportPage {
   build() {
     Column() {
       PageHeader({
-        title: this.editMode ? this.t('jsonImport.editTitle') : translate(this.language, 'screen.jsonImport.title'),
+        title: this.editMode ? this.t('jsonImport.editTitle') : this.t('screen.jsonImport.title'),
         showBack: true
       })
 
@@ -79,7 +80,7 @@ struct JsonImportPage {
               // 粘贴 / 清空 操作行
               Row({ space: Space.sm }) {
                 Blank()
-                Button('粘贴')
+                Button(this.t('action.paste'))
                   .fontSize(FontSz.footnote)
                   .fontColor(AppColor.brand)
                   .backgroundColor(AppColor.brandTint)
@@ -90,7 +91,7 @@ struct JsonImportPage {
                     this.pasteFromClipboard();
                   })
 
-                Button('选择文件')
+                Button(this.t('jsonImport.chooseFile'))
                   .fontSize(FontSz.footnote)
                   .fontColor(AppColor.brand)
                   .backgroundColor(AppColor.brandTint)
@@ -103,7 +104,7 @@ struct JsonImportPage {
                   })
 
                 if (this.outboundJson.length > 0) {
-                  Button('清空')
+                  Button(this.t('action.clear'))
                     .fontSize(FontSz.footnote)
                     .fontColor(AppColor.danger)
                     .backgroundColor(AppColor.dangerTint)
@@ -120,7 +121,7 @@ struct JsonImportPage {
               .padding({ left: Space.lg, right: Space.lg, top: Space.md })
 
               TextArea({
-                placeholder: '请粘贴 Xray outbound JSON 或完整 Xray config，例如：\n{\n  "inbounds": [ ... ],\n  "outbounds": [ ... ]\n}',
+                placeholder: this.t('jsonImport.placeholder'),
                 text: this.outboundJson
               })
                 .height(260)
@@ -142,7 +143,7 @@ struct JsonImportPage {
             .clip(true)
             .margin({ left: Space.lg, right: Space.lg })
 
-            Text('注意：可导入单个 outbound（包含 protocol/settings），也可导入完整配置（包含 inbounds/outbounds）。')
+            Text(this.t('jsonImport.note'))
               .fontSize(FontSz.footnote)
               .fontColor(AppColor.textTertiary)
               .width('100%')
@@ -159,7 +160,7 @@ struct JsonImportPage {
                     .borderRadius(3)
                     .backgroundColor(this.validationOk ? AppColor.success : AppColor.danger)
 
-                  Text(this.validationOk ? '配置格式有效' : '配置格式无效')
+                  Text(this.validationOk ? this.t('jsonImport.valid') : this.t('jsonImport.invalid'))
                     .fontSize(FontSz.body)
                     .fontWeight(FontWeight.Medium)
                     .fontColor(this.validationOk ? AppColor.success : AppColor.danger)
@@ -315,11 +316,11 @@ struct JsonImportPage {
 
       await SubscriptionStore.addManualNode(context, nodeName, normalizedJson, validation.configType);
       markRuntimeSettingsRestartNeeded();
-      SHARED_RUNTIME_CONTROLLER.appendLog('自定义 JSON 节点导入成功');
+      SHARED_RUNTIME_CONTROLLER.appendLog(this.t('jsonImport.imported'));
       promptAction.showToast({ message: this.t('jsonImport.imported') });
       router.back();
     } catch (error) {
-      this.lastError = '导入失败：' + JSON.stringify(error);
+      this.lastError = this.f1('jsonImport.importFailed', 'error', this.stringifyError(error));
     } finally {
       this.isBusy = false;
     }
@@ -354,11 +355,11 @@ struct JsonImportPage {
       if (result.selected) {
         markRuntimeSettingsRestartNeeded();
       }
-      SHARED_RUNTIME_CONTROLLER.appendLog('自定义 JSON 节点已更新');
+      SHARED_RUNTIME_CONTROLLER.appendLog(this.t('jsonImport.updated'));
       promptAction.showToast({ message: this.t('jsonImport.updated') });
       router.back();
     } catch (error) {
-      this.lastError = '保存失败：' + JSON.stringify(error);
+      this.lastError = this.f1('jsonImport.saveFailed', 'error', this.stringifyError(error));
     } finally {
       this.isBusy = false;
     }
@@ -403,15 +404,15 @@ struct JsonImportPage {
 
       const content = this.readTextFromUri(uris[0]);
       if (content.trim().length === 0) {
-        this.lastError = '配置文件为空。';
+        this.lastError = this.t('jsonImport.fileEmpty');
         return;
       }
       this.outboundJson = content.trim();
       this.lastError = '';
       this.validateConfig();
-      promptAction.showToast({ message: '已读取配置文件' });
+      promptAction.showToast({ message: this.t('jsonImport.fileLoaded') });
     } catch (error) {
-      this.lastError = '读取配置文件失败：' + JSON.stringify(error);
+      this.lastError = this.f1('jsonImport.fileReadFailed', 'error', this.stringifyError(error));
     }
   }
 
@@ -429,7 +430,7 @@ struct JsonImportPage {
         if (readLength > 0) {
           totalBytes += readLength;
           if (totalBytes > MAX_IMPORT_FILE_BYTES) {
-            throw new Error('配置文件超过 2 MB，请拆分后重试。');
+            throw new Error(this.t('jsonImport.fileTooLarge'));
           }
           chunks.push(decoder.decode(new Uint8Array(buffer, 0, readLength)));
         }
@@ -454,5 +455,17 @@ struct JsonImportPage {
 
   private t(key: string): string {
     return translate(this.language, key);
+  }
+
+  private f1(key: string, name: string, value: string): string {
+    return formatOne(this.language, key, name, value);
+  }
+
+  private stringifyError(error: Object): string {
+    const text = `${error}`;
+    if (text.length > 0 && text !== '[object Object]') {
+      return text;
+    }
+    return JSON.stringify(error);
   }
 }
