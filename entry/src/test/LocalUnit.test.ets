@@ -1671,6 +1671,13 @@ export default function localUnitTest() {
       expect(formatOne('zh-rCN', 'subscription.updateComplete', 'count', '3')).assertContain('3');
       expect(localizedProfileSavedText('en', 0)).assertEqual('Not saved');
       expect(localizeCoreMessage('en', '请先粘贴 Xray outbound JSON。')).assertEqual('Paste Xray outbound JSON first.');
+      expect(localizeCoreMessage('zh-rCN', 'Xray is running in proxy-only mode.')).assertEqual('Xray 正在仅代理模式下运行。');
+      expect(localizeCoreMessage('en', '启动 VPN 未确认完成：VPN 扩展没有回写启动完成状态。')).assertEqual('VPN start was not confirmed: the VPN extension did not report startup completion.');
+      expect(localizeCoreMessage('en', '停止 VPN 超时：VPN 扩展没有响应停止命令。')).assertEqual('VPN stop timed out: the VPN extension did not respond to the stop command.');
+      expect(localizeCoreMessage('en', '停止 VPN 未确认完成：VPN 扩展尚未回写清理完成状态。')).assertEqual('VPN stop was not confirmed: the VPN extension has not reported cleanup completion.');
+      expect(localizeCoreMessage('en', '启动仅代理模式失败：仅代理模式缺少运行配置。')).assertEqual('Failed to start proxy-only mode: Proxy-only mode is missing the runtime config.');
+      expect(localizeCoreMessage('en', '停止仅代理模式失败：native stop failed')).assertEqual('Failed to stop proxy-only mode: native stop failed');
+      expect(localizeCoreMessage('en', '启动 VPN 失败：启动 VPN 超时：系统 VPN 授权服务没有响应。若 hilog 中出现 com.huawei.hmos.vpndialog bundle not exist，说明当前系统镜像缺少 VPN 授权组件，请改用真机测试。')).assertEqual('Failed to start VPN: VPN start timed out: the system VPN authorization service did not respond. If hilog shows com.huawei.hmos.vpndialog bundle not exist, this system image is missing the VPN authorization component; test on a real device.');
       const unsupportedShare = parseShareLinkToOutboundJson('ftp://example.com/node');
       expect(unsupportedShare.success).assertFalse();
       expect(unsupportedShare.message).assertEqual(buildUnsupportedShareLinkMessage());

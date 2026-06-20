@@ -568,6 +568,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-20 | M4 | ✅ Export 页本地化补齐（导出页加载门禁、复制/文件/分享按钮、复制失败提示、Nodes 批量导出剪贴板日志与切换节点重连日志均走 i18n；模拟器英文 Export 页和 Nodes 批量导出验证无旧中文导出提示残留） |
 | 2026-06-20 | M4 | ✅ 首页/节点空态本地化补齐（无订阅引导、当前分组无节点标题/说明/更新按钮均走 i18n；模拟器英文空分组布局验证 `No nodes in this group`、`Update subscription` 且无旧中文空态残留） |
 | 2026-06-20 | M4 | ✅ 手动节点编辑页本地化补齐（NodeEdit 标题、分区、基础/认证/传输/TLS/Reality/WG/HY2 字段、保存按钮和校验/保存提示均走 i18n；字段行改为 key 内部翻译以修复异步语言加载后不刷新；模拟器英文 VLESS 页验证 `Node name`、`Save node config` 且无旧中文字段残留） |
+| 2026-06-20 | M4 | ✅ 运行时错误提示本地化补齐（VPN 启停超时/未确认、Proxy-only 启停失败与缺运行配置、状态卡片 Proxy-only 运行消息均走统一本地化；模拟器英文启动失败布局验证 `Failed to start VPN: VPN start timed out...` 且无旧中文错误残留） |
 | 2026-06-18 | M4 | 🟡 常驻速度通知代码完成（`SpeedNotificationManager` 接 Harmony NotificationKit，运行中且 speedEnabled 开启时每 3 秒刷新速率/累计流量，停止或关闭设置时取消，补速率/节流文案单测）；待真机通知权限与通知中心展示回归 |
 | 2026-06-18 | M4 | 🟡 桌面服务卡片基础入口完成（`ControlCardAbility` + `form_config` + 2×2 ArkTS 卡片，提供 toggle/start/stop/scan 四个 `FormLink` 控制深链，补卡片 URI 单测）；待真机添加卡片、点击调起与运行态动态刷新回归 |
 | 2026-06-18 | M4 | 🟡 桌面服务卡片动态状态刷新代码完成（保存卡片 formId 与最近运行态，首页运行态变化同步状态文案、详情、主按钮动作并按 3 秒节流通过 `formProvider.updateForm` 刷新）；待真机添加卡片、点击调起与系统刷新回归 |

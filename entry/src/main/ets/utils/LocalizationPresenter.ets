@@ -64,6 +64,11 @@ export function localizeCoreMessage(language: AppLanguage, message: string): str
     message === translate('en', 'runtime.vpnOwnsBridge')) {
     return translate(language, 'runtime.vpnOwnsBridge');
   }
+  if (message === 'Xray is running in proxy-only mode.' ||
+    message === translate('zh-rCN', 'runtime.proxyOnlyRunning') ||
+    message === translate('en', 'runtime.proxyOnlyRunning')) {
+    return translate(language, 'runtime.proxyOnlyRunning');
+  }
   if (message === '请先粘贴 Xray outbound JSON。') {
     return translate(language, 'core.emptyOutbound');
   }
@@ -163,6 +168,18 @@ export function localizeCoreMessage(language: AppLanguage, message: string): str
   if (message === '启动 VPN 超时：系统 VPN 授权服务没有响应。若 hilog 中出现 com.huawei.hmos.vpndialog bundle not exist，说明当前系统镜像缺少 VPN 授权组件，请改用真机测试。') {
     return translate(language, 'vpn.startTimeout');
   }
+  if (message === '启动 VPN 未确认完成：VPN 扩展没有回写启动完成状态。') {
+    return translate(language, 'vpn.startNotConfirmed');
+  }
+  if (message === '停止 VPN 超时：VPN 扩展没有响应停止命令。') {
+    return translate(language, 'vpn.stopCommandTimeout');
+  }
+  if (message === '停止 VPN 未确认完成：VPN 扩展尚未回写清理完成状态。') {
+    return translate(language, 'vpn.stopNotConfirmed');
+  }
+  if (message === '仅代理模式缺少运行配置。') {
+    return translate(language, 'proxy.missingRuntimeConfig');
+  }
 
   const unsupportedPrefix = '暂不支持 ';
   const unsupportedEnd = '，当前支持 VLESS、VMess、Trojan、Shadowsocks、SOCKS、HTTP、WireGuard 和 Hysteria2。';
@@ -217,8 +234,10 @@ export function localizeCoreMessage(language: AppLanguage, message: string): str
 
   return localizePrefixMessage(language, message, 'JSON 解析失败：', 'core.jsonParseFailed') ??
     localizePrefixMessage(language, message, '分享链接解析失败：', 'core.shareParseFailed') ??
-    localizePrefixMessage(language, message, '启动 VPN 失败：', 'vpn.startFailed') ??
-    localizePrefixMessage(language, message, '停止 VPN 失败：', 'vpn.stopFailed') ??
+    localizeCoreErrorPrefixMessage(language, message, '启动 VPN 失败：', 'vpn.startFailed') ??
+    localizeCoreErrorPrefixMessage(language, message, '停止 VPN 失败：', 'vpn.stopFailed') ??
+    localizeCoreErrorPrefixMessage(language, message, '启动仅代理模式失败：', 'proxy.startFailed') ??
+    localizeCoreErrorPrefixMessage(language, message, '停止仅代理模式失败：', 'proxy.stopFailed') ??
     message;
 }
 
@@ -227,4 +246,12 @@ function localizePrefixMessage(language: AppLanguage, message: string, prefix: s
     return null;
   }
   return formatOne(language, key, 'error', message.substring(prefix.length));
+}
+
+function localizeCoreErrorPrefixMessage(language: AppLanguage, message: string, prefix: string, key: string): string | null {
+  if (!message.startsWith(prefix)) {
+    return null;
+  }
+  const error = message.substring(prefix.length);
+  return formatOne(language, key, 'error', localizeCoreMessage(language, error));
 }

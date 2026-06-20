@@ -72,6 +72,7 @@ export class RuntimeController {
   async refresh(context: common.Context, language: AppLanguage): Promise<RuntimeViewState> {
     this.stats = this.controller.getStats();
     await this.refreshDiagnostics(context, language);
+    this.stats = this.localizeStats(this.stats, language);
     if (this.startedAt <= 0 || this.status !== ConnectionStatus.RUNNING) {
       this.elapsedText = '00:00';
       return this.snapshot();
@@ -131,6 +132,16 @@ export class RuntimeController {
 
   private allLogs(): Array<string> {
     return this.diagnosticLogs.concat(this.logs).slice(0, 120);
+  }
+
+  private localizeStats(stats: RuntimeStats, language: AppLanguage): RuntimeStats {
+    return {
+      uploadBytes: stats.uploadBytes,
+      downloadBytes: stats.downloadBytes,
+      xrayRunning: stats.xrayRunning,
+      tunRunning: stats.tunRunning,
+      lastMessage: localizeCoreMessage(language, stats.lastMessage)
+    };
   }
 
   private applySnapshot(snapshot: ConnectionSnapshot, language: AppLanguage): void {
