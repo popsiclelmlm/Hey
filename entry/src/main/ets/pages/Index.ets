@@ -25,6 +25,7 @@ import {
   exportNodesText,
   extractNodeEndpoint,
   filterNodes,
+  findSelectedNodeLocation,
   moveNodeWithinGroup,
   removeVisibleNodesFromGroups,
   removeVisibleTestFailedNodesFromGroups,
@@ -69,6 +70,7 @@ struct Index {
   private timerId: number = -1;
   private currentSettings: AppSettings = DEFAULT_APP_SETTINGS;
   private tabsController: TabsController = new TabsController();
+  private nodeListScroller: Scroller = new Scroller();
   private lastAutoSubscriptionCheckAt: number = 0;
 
   @State private currentTab: number = 0;
@@ -877,7 +879,7 @@ struct Index {
 
   @Builder
   private NodeList() {
-    List() {
+    List({ scroller: this.nodeListScroller }) {
       ForEach(this.visibleNodes(), (node: ProxyNode) => {
         ListItem() {
           ServerNodeCard({
@@ -1917,18 +1919,34 @@ struct Index {
     }
   }
 
-  private locateSelectedConfig(): void {
+  private async locateSelectedConfig(): Promise<void> {
     if (this.selectedNodeId.length === 0) {
-      promptAction.showToast({ message: '当前未选中任何配置' });
+      promptAction.showToast({ message: this.t('prompt.noNodeToLocate') });
       return;
     }
-    let foundNode: ProxyNode | null = null;
-    foundNode = this.findDisplayedNode(this.selectedNodeId);
-    if (foundNode !== null) {
-      const msg = this.f1('prompt.locatedNode', 'name', foundNode.name);
-      promptAction.showToast({ message: msg });
-      SHARED_RUNTIME_CONTROLLER.appendLog(msg);
+    const location = findSelectedNodeLocation(this.subscriptionGroups, this.selectedNodeId, this.searchQuery);
+    if (!location.found || location.node === null) {
+      promptAction.showToast({ message: this.t('prompt.noNodeToLocate') });
+      return;
     }
+    const targetGroup = this.findSubscriptionGroup(location.groupId);
+    if (targetGroup === null) {
+      promptAction.showToast({ message: this.t('prompt.noNodeToLocate') });
+      return;
+    }
+    if (this.allGroupsSelected || this.selectedGroupId !== location.groupId) {
+      await this.selectSubscriptionGroup(targetGroup);
+    }
+    if (location.visibleIndex < 0) {
+      promptAction.showToast({ message: this.t('prompt.selectedNodeNotVisible') });
+      return;
+    }
+    setTimeout(() => {
+      this.nodeListScroller.scrollToIndex(location.visibleIndex, true, ScrollAlign.CENTER);
+    }, 200);
+    const msg = this.f1('prompt.locatedNode', 'name', location.node.name);
+    promptAction.showToast({ message: msg });
+    SHARED_RUNTIME_CONTROLLER.appendLog(msg);
   }
 
   private findSelectedNodeName(): string {
@@ -1944,6 +1962,15 @@ struct Index {
     for (let i = 0; i < nodes.length; i++) {
       if (nodes[i].id === nodeId) {
         return nodes[i];
+      }
+    }
+    return null;
+  }
+
+  private findSubscriptionGroup(groupId: string): SubscriptionGroup | null {
+    for (let index = 0; index < this.subscriptionGroups.length; index++) {
+      if (this.subscriptionGroups[index].id === groupId) {
+        return this.subscriptionGroups[index];
       }
     }
     return null;

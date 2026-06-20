@@ -37,6 +37,15 @@ export interface NodeMoveResult {
   groupId: string;
 }
 
+export interface SelectedNodeLocation {
+  found: boolean;
+  groupId: string;
+  groupName: string;
+  nodeIndex: number;
+  visibleIndex: number;
+  node: ProxyNode | null;
+}
+
 export interface NodeEndpoint {
   address: string;
   port: string;
@@ -81,6 +90,33 @@ export function sortNodes(nodes: Array<ProxyNode>, sortKey: NodeSortKey): Array<
 
 export function filterAndSortNodes(nodes: Array<ProxyNode>, query: string, sortKey: NodeSortKey): Array<ProxyNode> {
   return sortNodes(filterNodes(nodes, query), sortKey);
+}
+
+export function findSelectedNodeLocation(
+  groups: Array<SubscriptionGroup>,
+  selectedNodeId: string,
+  query: string = ''
+): SelectedNodeLocation {
+  const empty = emptySelectedNodeLocation();
+  if (selectedNodeId.length === 0) {
+    return empty;
+  }
+  for (let groupIndex = 0; groupIndex < groups.length; groupIndex++) {
+    const group = groups[groupIndex];
+    const nodeIndex = findNodeIndex(group.nodes, selectedNodeId);
+    if (nodeIndex < 0) {
+      continue;
+    }
+    return {
+      found: true,
+      groupId: group.id,
+      groupName: group.name,
+      nodeIndex,
+      visibleIndex: findNodeIndex(filterNodes(group.nodes, query), selectedNodeId),
+      node: group.nodes[nodeIndex]
+    };
+  }
+  return empty;
 }
 
 function buildNodeSearchRegex(keyword: string): RegExp | null {
@@ -633,6 +669,17 @@ function findNodeIndex(nodes: Array<ProxyNode>, nodeId: string): number {
     }
   }
   return -1;
+}
+
+function emptySelectedNodeLocation(): SelectedNodeLocation {
+  return {
+    found: false,
+    groupId: '',
+    groupName: '',
+    nodeIndex: -1,
+    visibleIndex: -1,
+    node: null
+  };
 }
 
 function copySubscriptionGroups(groups: Array<SubscriptionGroup>): Array<SubscriptionGroup> {

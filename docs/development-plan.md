@@ -199,6 +199,11 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 - 边界：All 聚合分组不写入跨分组顺序；搜索过滤状态下隐藏重排入口，避免把局部视图误当完整顺序保存
 - 测试：新增纯函数单测覆盖上移、下移、首项越界、All 分组 no-op、选中节点保持和源分组不被原地修改
 
+**进展（2026-06-20 续）**：定位所选配置已对齐 v2rayNG：
+- 行为：Nodes 菜单的“定位所选配置”会先查找当前选中节点所在订阅分组，必要时切换分组，再用列表 `Scroller` 滚动到过滤后的节点位置
+- 边界：未选中、节点不存在或当前搜索条件隐藏选中节点时给出本地化提示，不再只记录 toast
+- 测试：新增纯函数单测覆盖跨分组定位、搜索后可见索引、搜索隐藏和缺失节点
+
 **任务**
 - **订阅自动更新**：WorkScheduler 后台任务代码已接入并按 v2rayNG 升级为每订阅独立任务；下一步真机验证应用不打开时的周期唤醒与网络拉取
 - **正则过滤** `filter`：按节点名筛选导入（2026-06-15 已完成）
@@ -429,6 +434,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-19 | M3 | ✅ 手动按测试结果排序菜单完成；对齐 v2rayNG `sort_by_test_results`，按当前订阅分组或 All 虚拟分组分别排序并持久化 |
 | 2026-06-20 | M3 | ✅ 节点列表搜索与地址描述完成；对齐 v2rayNG 正则优先、非法正则退回字面量匹配，并在列表/详情/搜索中使用 `generateDescription` 同款 `addrPart : port` 脱敏端点 |
 | 2026-06-20 | M3 | ✅ 节点顺序重排完成；普通订阅分组节点滑动上移/下移会持久化当前分组顺序，All 聚合分组保持只读排序语义；补纯函数单测 |
+| 2026-06-20 | M3 | ✅ 定位所选配置完成；Nodes 菜单按 v2rayNG 查找选中节点所在订阅分组、切换分组并滚动到过滤后位置；补定位纯函数单测 |
 | 2026-06-15 | M4 | ✅ 二维码生成（节点详情页 `generateBarcode.createBarcode` 渲染分享链接 QR + 复制链接） |
 | 2026-06-15 | M4 | ✅ URL Scheme / Want 深链导入（`hey://install-sub`/`install-config` scheme + EntryAbility 暂存 + Index 解析导入订阅/节点） |
 | 2026-06-19 | M4 | ✅ 深链 fragment 名称兜底对齐 v2rayNG（`install-sub`/`install-config` 的外层 URI fragment 仅在内层 URL 缺少 fragment 时补入；补解析单测） |

@@ -49,6 +49,7 @@ import {
   exportNodesText,
   extractNodeEndpoint,
   filterNodes,
+  findSelectedNodeLocation,
   findInvalidNodes,
   formatV2rayNgEndpointDescription,
   moveNodeWithinGroup,
@@ -2384,6 +2385,34 @@ export default function localUnitTest() {
       expect(buildV2rayNgNodeDescription(wireGuardNode)).assertEqual('2001:db8:*** : 51820');
     });
 
+    it('locates the selected node group and visible index like v2rayNG locate action', 0, () => {
+      const nodes = buildNodeFixture();
+      const groups: Array<SubscriptionGroup> = [
+        buildSubscriptionGroupFixture('group-a', 'Group A', [nodes[0]]),
+        buildSubscriptionGroupFixture('group-b', 'Group B', [nodes[1], nodes[2]])
+      ];
+
+      const beta = findSelectedNodeLocation(groups, nodes[1].id);
+      expect(beta.found).assertTrue();
+      expect(beta.groupId).assertEqual('group-b');
+      expect(beta.nodeIndex).assertEqual(0);
+      expect(beta.visibleIndex).assertEqual(0);
+      expect(beta.node?.name).assertEqual('Beta');
+
+      const alpha = findSelectedNodeLocation(groups, nodes[2].id, 'Alpha');
+      expect(alpha.found).assertTrue();
+      expect(alpha.groupId).assertEqual('group-b');
+      expect(alpha.nodeIndex).assertEqual(1);
+      expect(alpha.visibleIndex).assertEqual(0);
+
+      const hidden = findSelectedNodeLocation(groups, nodes[2].id, 'Beta');
+      expect(hidden.found).assertTrue();
+      expect(hidden.nodeIndex).assertEqual(1);
+      expect(hidden.visibleIndex).assertEqual(-1);
+
+      expect(findSelectedNodeLocation(groups, 'missing-node').found).assertFalse();
+    });
+
     it('sorts nodes by delay name and protocol', 0, () => {
       const nodes = buildNodeFixture();
       expect(sortNodes(nodes, 'delay')[0].name).assertEqual('Alpha');
@@ -3876,6 +3905,18 @@ function buildAdvancedNodeFixture(): Array<ProxyNode> {
     delayStatus: ''
   };
   return [vless, trojan];
+}
+
+function buildSubscriptionGroupFixture(id: string, name: string, nodes: Array<ProxyNode>): SubscriptionGroup {
+  return {
+    id,
+    name,
+    url: '',
+    enabled: true,
+    selectedNodeId: nodes.length > 0 ? nodes[0].id : '',
+    nodes,
+    updatedAt: 1
+  };
 }
 
 function copyNode(node: ProxyNode, id: string): ProxyNode {
