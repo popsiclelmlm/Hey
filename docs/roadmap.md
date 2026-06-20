@@ -20,7 +20,7 @@
 | 设置页 | 🟡 96% | 核心项持久化并生效，`pref_mode` 已支持 VPN / Proxy only，本地 SOCKS 代理按 v2rayNG 默认开启，静态/动态端口、UDP、认证已写入运行配置；VPN DNS 空/未设置时按 v2rayNG `AppConfig.DNS_VPN` 只回退 `1.1.1.1`；Hev TUN 三项偏好（启用、日志级别、读写超时）按 v2rayNG 默认值保存，并在开启时保持本地 SOCKS 开启，Harmony 运行时仍使用 Xray TUN；设置保存与旧数据读取会按 v2rayNG 依赖门禁清理无效 FakeDNS、追加 HTTP 代理与 LAN 共享代理状态；IPv6 启用与 IPv6 优先已按 v2rayNG 拆分；允许 LAN 连接会切换本地代理监听并在启动成功后按 v2rayNG 给出可信网络警告；mux/XUDP/fragment 高级参数、fake DNS、DNS hosts、出站域名预解析方式（含启动前 live DNS 预解析）、速度显示、常驻速度通知、当前连接信息测试网址、语言跟随系统、UI 模式、pre-release 更新检查、显示所有分组、双列显示、删除配置确认、立即启动扫码与日志级别选择器已接线；运行中保存设置/路由/分应用或切换当前节点后会按 v2rayNG `SettingsChangeManager` 语义返回首页自动重启服务 |
 | 扫码导入 | ✅ 84% | 粘贴导入和 ScanKit 相机扫码已接线，剪贴板读取不再声明受限 Harmony `READ_PASTEBOARD` 权限，普通调试签名安装不被 ACL 拦截，粘贴成功/失败/空内容提示已跟随当前语言；扫码页在单链接解析失败后会复用 native 转换兜底，可导入 v2rayN 多行/base64 与 Clash.Meta YAML 文本/二维码；`startScanImmediate` 开启时进入扫码页自动拉起相机，待真机相机权限/机型回归 |
 | 导出 / 分享 | ✅ 86% | 文本/文件导出、节点二维码、订阅链接二维码与系统分享面板已完成；批量导出已按 v2rayNG `shareNonCustomConfigsToClipboard` 只输出可分享普通节点并跳过自定义/高级/无效配置；节点详情已支持 v2rayNG `shareFullContent2Clipboard` 等价的完整运行配置复制；后续主要是真机分享目标兼容回归 |
-| 平台集成 | 🟡 54% | Want / URL Scheme 深链导入已完成，并按 v2rayNG 处理 `install-sub`/`install-config` 外层 fragment 名称兜底；外部应用 `sendData/text/plain` 分享配置导入已接线，复用订阅、单节点与 native 批量兜底导入路径；控制深链支持 start/stop/toggle/scan，可作为 Tasker/快捷方式入口；Logcat 页已支持搜索、复制全部、分享全部、单条复制与清空；常驻速度通知已接 Harmony NotificationKit；2×2 桌面服务卡片基础入口已接 FormExtensionAbility/FormLink，并已通过保存 formId + updateForm 同步运行态，待真机通知权限、卡片添加/点击与系统刷新回归 |
+| 平台集成 | 🟡 56% | Want / URL Scheme 深链导入已完成，并按 v2rayNG 处理 `install-sub`/`install-config` 外层 fragment 名称兜底；外部应用 `sendData/text/plain` 分享配置导入已接线，复用订阅、单节点与 native 批量兜底导入路径；控制深链支持 start/stop/toggle/scan，可作为 Tasker/自动化入口；声明式桌面快捷方式已通过 `shortcuts_config` 暴露开关、启动、停止和扫码四个入口；Logcat 页已支持搜索、复制全部、分享全部、单条复制与清空；常驻速度通知已接 Harmony NotificationKit；2×2 桌面服务卡片基础入口已接 FormExtensionAbility/FormLink，并已通过保存 formId + updateForm 同步运行态，待真机通知权限、快捷方式/卡片添加点击与系统刷新回归 |
 
 ### Native 桥接现状
 
@@ -90,7 +90,7 @@
 - ✅ 控制深链入口：`hey://control?action=start|stop|toggle|scan` 与短 URI `hey://start`/`stop`/`toggle`/`scan`
 - ✅ 开机自动连接设置：持久化 `pref_is_booted` 等价设置，并在 Harmony `AUTO_STARTUP` 启动原因下自动启动当前节点（受系统自启动权限/开关限制，待真机重启回归）
 - 🟡 常驻速度通知：运行中且速度显示开启时发布 ongoing 通知，每 3 秒刷新上传/下载速率与累计流量（待真机通知权限/展示回归）
-- 🟡 桌面快捷方式、服务卡片（widget）：2×2 服务卡片提供 toggle/start/stop/scan 四个控制入口，已接入运行态动态刷新（状态文案、详情与主按钮动作，按 3 秒节流），待真机添加、点击调起与系统刷新回归
+- 🟡 桌面快捷方式、服务卡片（widget）：`shortcuts_config` 声明开关/启动/停止/扫码四个系统快捷方式，2×2 服务卡片提供 toggle/start/stop/scan 四个控制入口并接入运行态动态刷新（状态文案、详情与主按钮动作，按 3 秒节流），待真机添加、点击调起与系统刷新回归
 
 ## 三、依赖关系
 
@@ -188,6 +188,7 @@
 | 2026-06-18 | 阶段 5 | ✅ WebDAV ZIP 备份格式完成；默认 `backups/backup_ng.zip`，ZIP 内含 `hey_backup.json`，上传/下载走二进制并兼容旧 JSON 恢复 |
 | 2026-06-18 | 阶段 5 | ✅ 控制深链入口完成；注册 `hey://control?action=start|stop|toggle|scan` 与短 URI，首页可通过外部 Want 启停/切换连接或打开扫码页，对齐 v2rayNG Tasker/shortcuts/QS tile 的基础控制能力 |
 | 2026-06-19 | 阶段 5 | ✅ 深链 fragment 名称兜底完成；`install-sub`/`install-config` 解析时外层 URI fragment 会在内层 URL 无 fragment 时作为名称补入，内层名称优先保留 |
+| 2026-06-20 | 阶段 5 | ✅ 声明式桌面快捷方式完成；`EntryAbility` 通过 `ohos.ability.shortcuts` 绑定 `shortcuts_config`，开关/启动/停止/扫码四个快捷方式复用现有控制深链参数解析 |
 | 2026-06-18 | 阶段 5 | 🟡 常驻速度通知代码完成；运行中且速度显示开启时通过 NotificationKit 发布 ongoing 通知，按 3 秒节流刷新上传/下载速率和累计流量，停止或关闭设置时取消，待真机回归 |
 | 2026-06-18 | 阶段 5 | 🟡 桌面服务卡片基础入口完成；注册 `ControlCardAbility` 与 `form_config`，2×2 ArkTS 卡片用 FormLink 调起 toggle/start/stop/scan 控制深链，待真机添加卡片、点击调起和动态状态刷新回归 |
 | 2026-06-18 | 阶段 5 | 🟡 桌面服务卡片动态状态刷新代码完成；保存卡片 formId 与最近运行态，首页运行态变化同步状态文案、详情、主按钮动作并按 3 秒节流通过 `formProvider.updateForm` 刷新，待真机添加卡片、点击调起和系统刷新回归 |

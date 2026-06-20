@@ -55,6 +55,22 @@
     {
       "name": "control_card_scan",
       "value": "Scan"
+    },
+    {
+      "name": "shortcut_toggle_label",
+      "value": "Switch"
+    },
+    {
+      "name": "shortcut_start_label",
+      "value": "Start"
+    },
+    {
+      "name": "shortcut_stop_label",
+      "value": "Stop"
+    },
+    {
+      "name": "shortcut_scan_label",
+      "value": "Scan"
     }
   ]
 }

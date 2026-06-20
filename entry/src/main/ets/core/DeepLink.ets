@@ -4,10 +4,19 @@
 //   hey://install-config?url=<encoded share link>
 //   hey://control?action=start|stop|toggle|scan
 //   hey://start | hey://stop | hey://toggle | hey://scan
-// EntryAbility stashes the raw Want uri; the Index page parses and handles it.
+// EntryAbility stashes the raw Want uri or shortcut parameters; the Index page
+// parses and handles it.
 
 export type DeepLinkKind = 'sub' | 'config' | 'control' | 'none';
 export type DeepLinkControlAction = 'start' | 'stop' | 'toggle' | 'scan' | '';
+
+export const CONTROL_SHORTCUT_ACTION_PARAM: string = 'hey.control.action';
+export const CONTROL_SHORTCUT_URI_PARAM: string = 'hey.control.uri';
+
+export interface DeepLinkWantLike {
+  uri?: string;
+  parameters?: Record<string, Object>;
+}
 
 export interface DeepLinkIntent {
   kind: DeepLinkKind;
@@ -39,6 +48,29 @@ export function parseDeepLink(uri: string): DeepLinkIntent {
     return { kind: 'control', payload: action, action };
   }
   return { kind: 'none', payload: '' };
+}
+
+export function deepLinkUriFromWant(want: DeepLinkWantLike): string {
+  const uri = (want.uri ?? '').trim();
+  if (uri.length > 0) {
+    return uri;
+  }
+  return controlUriFromShortcutParameters(want.parameters);
+}
+
+export function controlUriFromShortcutParameters(parameters: Record<string, Object> | undefined): string {
+  if (parameters === undefined) {
+    return '';
+  }
+  const directUri = parameterText(parameters[CONTROL_SHORTCUT_URI_PARAM]);
+  if (directUri.length > 0 && parseDeepLink(directUri).kind !== 'none') {
+    return directUri;
+  }
+  const action = normalizeControlAction(parameterText(parameters[CONTROL_SHORTCUT_ACTION_PARAM]));
+  if (action.length > 0) {
+    return `hey://control?action=${action}`;
+  }
+  return '';
 }
 
 function buildIntent(kind: DeepLinkKind, uri: string): DeepLinkIntent {
@@ -161,6 +193,19 @@ function normalizeControlAction(value: string): DeepLinkControlAction {
   }
   if (normalized === 'toggle' || normalized === 'switch') {
     return 'toggle';
+  }
+  return '';
+}
+
+function parameterText(value: Object | undefined): string {
+  if (value === undefined || value === null) {
+    return '';
+  }
+  if (typeof value === 'string') {
+    return value.trim();
+  }
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return value.toString().trim();
   }
   return '';
 }

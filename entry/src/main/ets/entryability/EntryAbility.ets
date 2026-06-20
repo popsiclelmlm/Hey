@@ -2,6 +2,7 @@ import { AbilityConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
 import { applyColorMode } from '../core/ColorMode';
+import { deepLinkUriFromWant } from '../core/DeepLink';
 import { UI_MODE_NIGHT_SYSTEM } from '../core/Profile';
 import { extractSharedTextFromWant } from '../core/SharedTextImport';
 import { SettingsStore } from '../storage/SettingsStore';
@@ -23,12 +24,16 @@ export default class EntryAbility extends UIAbility {
     this.stashSharedTextImport(want);
   }
 
-  // Stash a deep-link Want uri (hey://install-sub|install-config?url=...) for the
-  // Index page to pick up on show. Set before the window stage loads on cold
-  // start, and on every onNewWant for warm starts.
+  // Stash a deep-link Want uri (hey://install-sub|install-config?url=...) or
+  // declared shortcut parameters for the Index page to pick up on show. Set
+  // before the window stage loads on cold start, and on every onNewWant for
+  // warm starts.
   private stashDeepLink(want: Want): void {
-    const uri = want.uri;
-    if (uri !== undefined && uri.length > 0) {
+    const uri = deepLinkUriFromWant({
+      uri: want.uri,
+      parameters: want.parameters
+    });
+    if (uri.length > 0) {
       AppStorage.setOrCreate('pendingDeepLink', uri);
     }
   }

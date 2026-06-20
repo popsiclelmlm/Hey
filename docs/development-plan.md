@@ -30,7 +30,7 @@
 | 分享导出 | 文本/文件导出 + 节点二维码 + 订阅链接二维码 + 系统分享面板；批量导出已按 v2rayNG `shareNonCustomConfigsToClipboard` 只输出可分享普通节点并跳过自定义/高级/无效配置；节点详情可按 v2rayNG `shareFullContent2Clipboard` 复制完整运行配置；URL-style 普通 TCP 节点导出会按 v2rayNG 写出 `security/type/headerType` 默认 query；剪贴板导入路径不声明受限 Harmony `READ_PASTEBOARD`，读取失败由各入口现有提示处理；运行中导入/扫码/新增/选择当前节点后会标记待重启，返回首页自动应用新配置 | 仍待真机回归不同分享目标兼容性 |
 | 速度通知 | 🟡 常驻通知代码完成；连接运行且速度显示开启时每 3 秒刷新上传/下载速率与累计流量，停止或关闭设置时取消 | 待真机通知权限弹窗、通知中心展示与后台留存回归 |
 | 深链导入 | ✅ Harmony Want / `hey://install-sub` / `hey://install-config` 已接入 EntryAbility 与首页解析；外部应用 `sendData/text/plain` 分享文本会复用订阅、单节点与 native 批量兜底导入路径 | 仍待真机回归外部应用触发路径 |
-| 桌面入口 | 🟡 Harmony 服务卡片基础入口完成；2×2 卡片提供 toggle/start/stop/scan 四个控制深链入口，并通过保存 formId + updateForm 同步运行态 | 待真机添加卡片、点击调起和系统刷新回归 |
+| 桌面入口 | 🟡 Harmony 声明式快捷方式与服务卡片代码完成；系统快捷方式和 2×2 卡片均提供 toggle/start/stop/scan 控制入口，卡片通过保存 formId + updateForm 同步运行态 | 待真机添加快捷方式/卡片、点击调起和系统刷新回归 |
 | 高级路由 | 代理链、策略组/负载均衡运行核心已可通过 JSON 导入生成；添加节点页已可从已有普通节点创建代理链/策略组并保存为手动节点；手动高级节点可从节点详情重新打开、预填成员/策略/动态订阅条件并原位保存；策略组可按订阅分组与节点名正则动态展开成员，过滤匹配按 v2rayNG 搜索体验大小写不敏感；路由规则可选择当前高级出站目标 | 真机组合场景回归待补 |
 | 云备份 | 剪贴板 JSON 备份 + WebDAV ZIP 云备份/还原已落地，默认 `backups/backup_ng.zip`，恢复兼容旧 JSON 包 | 真 WebDAV 服务兼容回归待补 |
 
@@ -251,10 +251,12 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 - ✅ **扫码 native 分享兜底**：Scanner 在内置单节点解析失败后复用
   `CGoConvertShareLinksToXrayJson` 转换结果，支持 v2rayN 多行/base64 与 Clash.Meta YAML 文本/二维码批量保存为手动节点
 - 🟡 **桌面服务卡片 / 快捷方式**：一键启停、扫码（对应 QSTile/Widget/Shortcuts）；
+  `EntryAbility` 通过 `ohos.ability.shortcuts` 挂载 `shortcuts_config`，声明开关/启动/停止/扫码
+  四个系统快捷方式，快捷方式参数会被转换为现有控制深链；
   Harmony `ControlCardAbility` 已注册 2×2 ArkTS 服务卡片，卡片通过 `FormLink`
   跳转 `hey://toggle` / `hey://start` / `hey://stop` / `hey://scan`
   复用现有控制深链；卡片 formId 与最近运行态已持久化，首页运行态刷新会同步
-  `statusLabel`/`statusDetail`/主按钮动作并按 3 秒节流调用 `updateForm` 更新桌面卡片；待真机添加卡片、点击调起与系统刷新回归
+  `statusLabel`/`statusDetail`/主按钮动作并按 3 秒节流调用 `updateForm` 更新桌面卡片；待真机添加快捷方式/卡片、点击调起与系统刷新回归
 - 🟡 **常驻速度通知**：上下行实时显示；运行中且“启用速度显示”开启时发布 Harmony ongoing 通知，
   每 3 秒按 `CGoQueryStats` 累计值差分刷新上传/下载速率，停止或关闭设置时取消
   （2026-06-18 代码完成，待真机通知权限与展示回归）
@@ -504,7 +506,8 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-19 | M5 | ✅ 高级出站编辑回填完成（节点详情可重新打开手动代理链/策略组，预填成员顺序、策略与动态订阅过滤条件，保存时原位更新并在当前节点场景标记运行配置待重启；补编辑状态解析单测） |
 | 2026-06-18 | M5 | ✅ WebDAV 云备份/还原基础完成（Assets 页保存 WebDAV 配置，JSON 备份包上传/下载，Basic Auth + best-effort MKCOL + 单测） |
 | 2026-06-18 | M5 | ✅ WebDAV ZIP 备份格式完成（默认 `backups/backup_ng.zip`，ZIP stored 条目内含 `hey_backup.json`，上传/下载走二进制，恢复兼容旧 JSON 备份 + 单测） |
-| 2026-06-18 | M4 | ✅ 控制深链入口完成（manifest 注册 `hey://control`/`start`/`stop`/`toggle`/`switch`/`scan`，Index 处理 start/stop/toggle/scan，补解析单测）；桌面卡片/快捷方式 UI 仍待补 |
+| 2026-06-18 | M4 | ✅ 控制深链入口完成（manifest 注册 `hey://control`/`start`/`stop`/`toggle`/`switch`/`scan`，Index 处理 start/stop/toggle/scan，补解析单测） |
+| 2026-06-20 | M4 | ✅ 声明式桌面快捷方式完成（`ohos.ability.shortcuts` + `shortcuts_config` 暴露开关/启动/停止/扫码四个入口，`EntryAbility` 解析快捷方式参数并复用控制深链，补参数解析单测）；待真机 launcher 展示/点击回归 |
 | 2026-06-18 | M4 | 🟡 常驻速度通知代码完成（`SpeedNotificationManager` 接 Harmony NotificationKit，运行中且 speedEnabled 开启时每 3 秒刷新速率/累计流量，停止或关闭设置时取消，补速率/节流文案单测）；待真机通知权限与通知中心展示回归 |
 | 2026-06-18 | M4 | 🟡 桌面服务卡片基础入口完成（`ControlCardAbility` + `form_config` + 2×2 ArkTS 卡片，提供 toggle/start/stop/scan 四个 `FormLink` 控制深链，补卡片 URI 单测）；待真机添加卡片、点击调起与运行态动态刷新回归 |
 | 2026-06-18 | M4 | 🟡 桌面服务卡片动态状态刷新代码完成（保存卡片 formId 与最近运行态，首页运行态变化同步状态文案、详情、主按钮动作并按 3 秒节流通过 `formProvider.updateForm` 刷新）；待真机添加卡片、点击调起与系统刷新回归 |

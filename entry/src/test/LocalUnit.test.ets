@@ -17,7 +17,7 @@ import { shouldShowProxySharingStartWarning } from '../main/ets/core/ProxySharin
 import { APP_MODE_PROXY_ONLY, APP_MODE_VPN, AppSettings, ConnectionStatus, DEFAULT_DELAY_TEST_URL, DEFAULT_HEV_TUN_LOG_LEVEL, DEFAULT_HEV_TUN_RW_TIMEOUT, DEFAULT_IP_API_URL, DEFAULT_VPN_MTU, OUTBOUND_DOMAIN_RESOLVE_DNS_HOSTS, OUTBOUND_DOMAIN_RESOLVE_NONE, OUTBOUND_DOMAIN_RESOLVE_REPLACE, OutboundDomainResolveMethod, normalizeAppRuntimeMode, normalizeHevTunLogLevel, normalizeHevTunRwTimeout, normalizeRealPingConcurrency, normalizeRoutingDomainStrategy, normalizeUiModeNight, ProxyNode, resolveDelayTestUrl, RoutingRule, RuntimeStats, SubscriptionGroup } from '../main/ets/core/Profile';
 import { BUILTIN_GEO_DATA_FILE_NAMES, GEOIP_ONLY_CN_PRIVATE_FILE_NAME, GEOIP_ONLY_CN_PRIVATE_URL, GEO_FILE_SOURCES, V2RAYNG_GEO_FILE_SOURCE_REPOS, buildBuiltinGeoAssetUrl, formatGeoCountSummary, formatGeoCountUnavailable, geoDataSpecForFile, parseGeoCountData } from '../main/ets/core/GeoAssets';
 import { DELAY_TEST_SOCKS_PORT, LOCAL_HTTP_PROXY_LAN_HOST, LOCAL_HTTP_PROXY_PORT, LOCAL_SOCKS_PROXY_PORT, UNIDENTIFIED_PROCESS_PACKAGE, buildDelayTestConfig, buildRuntimeXrayConfig, buildXrayConfig, buildXrayConfigWithSettings, canUseProcessRouting, collectOutboundDomainPreResolveHosts, normalizeFullConfigRoutingProcesses, normalizeOutboundInput, normalizeRoutingRuleProcesses, validateFullConfigJson, validateOutboundJson, validatePolicyGroupConfigJson, validateProxyChainConfigJson, withOutboundDomainResolvedHosts } from '../main/ets/core/XrayConfig';
-import { parseDeepLink } from '../main/ets/core/DeepLink';
+import { CONTROL_SHORTCUT_ACTION_PARAM, CONTROL_SHORTCUT_URI_PARAM, controlUriFromShortcutParameters, deepLinkUriFromWant, parseDeepLink } from '../main/ets/core/DeepLink';
 import { HARMONY_SEND_DATA_ACTION, HARMONY_SHARE_ABSTRACT_KEY, HARMONY_SHARE_URL_KEY, HARMONY_TEXT_MIME_TYPE, SharedTextWantLike, extractSharedTextFromWant, isSharedTextWant } from '../main/ets/core/SharedTextImport';
 import { extractOutboundsFromXrayConfig } from '../main/ets/core/XrayOutbounds';
 import { SUPPORTED_SHARE_LINK_SCHEMES, buildUnsupportedShareLinkMessage, formatOutboundJsonToShareLink, isSupportedShareLink, parseShareLinkToOutboundJson } from '../main/ets/core/ShareLinkParser';
@@ -3175,6 +3175,26 @@ export default function localUnitTest() {
       expect(invalid.kind).assertEqual('none');
       const wrongHost = parseDeepLink('hey://controlx?action=start');
       expect(wrongHost.kind).assertEqual('none');
+    });
+
+    it('builds control deep links from declared shortcut parameters', 0, () => {
+      const actionParameters: Record<string, Object> = {};
+      actionParameters[CONTROL_SHORTCUT_ACTION_PARAM] = 'switch';
+      const actionUri = controlUriFromShortcutParameters(actionParameters);
+      expect(actionUri).assertEqual('hey://control?action=toggle');
+      expect(parseDeepLink(actionUri).action).assertEqual('toggle');
+      expect(deepLinkUriFromWant({ parameters: actionParameters })).assertEqual(actionUri);
+
+      const uriParameters: Record<string, Object> = {};
+      uriParameters[CONTROL_SHORTCUT_URI_PARAM] = 'hey://stop';
+      uriParameters[CONTROL_SHORTCUT_ACTION_PARAM] = 'start';
+      expect(controlUriFromShortcutParameters(uriParameters)).assertEqual('hey://stop');
+      expect(deepLinkUriFromWant({ uri: 'hey://scan', parameters: actionParameters })).assertEqual('hey://scan');
+
+      const invalidParameters: Record<string, Object> = {};
+      invalidParameters[CONTROL_SHORTCUT_ACTION_PARAM] = 'restart';
+      invalidParameters[CONTROL_SHORTCUT_URI_PARAM] = 'https://example.com';
+      expect(controlUriFromShortcutParameters(invalidParameters)).assertEqual('');
     });
 
     it('builds desktop control card data from supported deep links', 0, () => {

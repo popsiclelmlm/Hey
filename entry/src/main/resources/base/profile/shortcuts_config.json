@@ -1,0 +1,68 @@
+{
+  "shortcuts": [
+    {
+      "shortcutId": "shortcuts_switch",
+      "label": "$string:shortcut_toggle_label",
+      "icon": "$media:ic_refresh",
+      "visible": true,
+      "wants": [
+        {
+          "bundleName": "com.lmlm.hey",
+          "moduleName": "entry",
+          "abilityName": "EntryAbility",
+          "parameters": {
+            "hey.control.action": "toggle"
+          }
+        }
+      ]
+    },
+    {
+      "shortcutId": "shortcuts_scan",
+      "label": "$string:shortcut_scan_label",
+      "icon": "$media:ic_qr_code",
+      "visible": true,
+      "wants": [
+        {
+          "bundleName": "com.lmlm.hey",
+          "moduleName": "entry",
+          "abilityName": "EntryAbility",
+          "parameters": {
+            "hey.control.action": "scan"
+          }
+        }
+      ]
+    },
+    {
+      "shortcutId": "shortcuts_start",
+      "label": "$string:shortcut_start_label",
+      "icon": "$media:ic_play_arrow",
+      "visible": true,
+      "wants": [
+        {
+          "bundleName": "com.lmlm.hey",
+          "moduleName": "entry",
+          "abilityName": "EntryAbility",
+          "parameters": {
+            "hey.control.action": "start"
+          }
+        }
+      ]
+    },
+    {
+      "shortcutId": "shortcuts_stop",
+      "label": "$string:shortcut_stop_label",
+      "icon": "$media:ic_stop",
+      "visible": true,
+      "wants": [
+        {
+          "bundleName": "com.lmlm.hey",
+          "moduleName": "entry",
+          "abilityName": "EntryAbility",
+          "parameters": {
+            "hey.control.action": "stop"
+          }
+        }
+      ]
+    }
+  ]
+}

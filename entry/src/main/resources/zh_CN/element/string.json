@@ -55,6 +55,22 @@
     {
       "name": "control_card_scan",
       "value": "扫码"
+    },
+    {
+      "name": "shortcut_toggle_label",
+      "value": "开关"
+    },
+    {
+      "name": "shortcut_start_label",
+      "value": "启动"
+    },
+    {
+      "name": "shortcut_stop_label",
+      "value": "停止"
+    },
+    {
+      "name": "shortcut_scan_label",
+      "value": "扫码"
     }
   ]
 }
