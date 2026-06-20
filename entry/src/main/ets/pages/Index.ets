@@ -1096,22 +1096,22 @@ struct Index {
 
       Scroll() {
         Column({ space: Space.lg }) {
-          this.SettingsGroup(this.t('settings.group.nodes'), [
-            new SettingsRowModel($r('app.media.ic_add'), this.t('screen.import.title'), AppRoute.IMPORT),
-            new SettingsRowModel($r('app.media.ic_subscriptions'), this.t('screen.subscriptions.title'), AppRoute.SUBSCRIPTIONS),
-            new SettingsRowModel($r('app.media.ic_qr_code'), this.t('screen.scanner.title'), AppRoute.SCANNER)
+          this.SettingsGroup('settings.group.nodes', [
+            new SettingsRowModel($r('app.media.ic_add'), 'screen.import.title', AppRoute.IMPORT),
+            new SettingsRowModel($r('app.media.ic_subscriptions'), 'screen.subscriptions.title', AppRoute.SUBSCRIPTIONS),
+            new SettingsRowModel($r('app.media.ic_qr_code'), 'screen.scanner.title', AppRoute.SCANNER)
           ])
 
-          this.SettingsGroup(this.t('settings.group.network'), [
-            new SettingsRowModel($r('app.media.ic_route'), this.t('screen.routing.title'), AppRoute.ROUTING),
-            new SettingsRowModel($r('app.media.ic_apps'), this.t('screen.perApp.title'), AppRoute.PER_APP),
-            new SettingsRowModel($r('app.media.ic_folder'), this.t('screen.assets.title'), AppRoute.ASSETS)
+          this.SettingsGroup('settings.group.network', [
+            new SettingsRowModel($r('app.media.ic_route'), 'screen.routing.title', AppRoute.ROUTING),
+            new SettingsRowModel($r('app.media.ic_apps'), 'screen.perApp.title', AppRoute.PER_APP),
+            new SettingsRowModel($r('app.media.ic_folder'), 'screen.assets.title', AppRoute.ASSETS)
           ])
 
-          this.SettingsGroup(this.t('settings.group.general'), [
-            new SettingsRowModel($r('app.media.ic_settings'), this.t('settings.row.preferences'), AppRoute.SETTINGS),
-            new SettingsRowModel($r('app.media.ic_article'), this.t('screen.logs.title'), AppRoute.LOGS),
-            new SettingsRowModel($r('app.media.ic_info'), this.t('screen.about.title'), AppRoute.ABOUT)
+          this.SettingsGroup('settings.group.general', [
+            new SettingsRowModel($r('app.media.ic_settings'), 'settings.row.preferences', AppRoute.SETTINGS),
+            new SettingsRowModel($r('app.media.ic_article'), 'screen.logs.title', AppRoute.LOGS),
+            new SettingsRowModel($r('app.media.ic_info'), 'screen.about.title', AppRoute.ABOUT)
           ])
         }
         .width('100%')
@@ -1126,9 +1126,9 @@ struct Index {
   }
 
   @Builder
-  private SettingsGroup(title: string, rows: Array<SettingsRowModel>) {
+  private SettingsGroup(titleKey: string, rows: Array<SettingsRowModel>) {
     Column({ space: 0 }) {
-      Text(title)
+      Text(this.t(titleKey))
         .fontSize(FontSz.footnote)
         .fontColor(AppColor.textTertiary)
         .width('100%')
@@ -1137,7 +1137,7 @@ struct Index {
       Column({ space: 0 }) {
         ForEach(rows, (row: SettingsRowModel, index: number) => {
           this.SettingsRow(row, index === rows.length - 1)
-        }, (row: SettingsRowModel, index: number) => `${index}-${row.title}`)
+        }, (row: SettingsRowModel, index: number) => `${index}-${row.titleKey}`)
       }
       .width('100%')
       .backgroundColor(AppColor.surface)
@@ -1157,7 +1157,7 @@ struct Index {
           .height(22)
           .fillColor(AppColor.textSecondary)
 
-        Text(row.title)
+        Text(this.t(row.titleKey))
           .fontSize(FontSz.callout)
           .fontColor(AppColor.textPrimary)
           .layoutWeight(1)
@@ -2015,12 +2015,12 @@ struct Index {
 
 class SettingsRowModel {
   icon: Resource;
-  title: string;
+  titleKey: string;
   route: AppRoute;
 
-  constructor(icon: Resource, title: string, route: AppRoute) {
+  constructor(icon: Resource, titleKey: string, route: AppRoute) {
     this.icon = icon;
-    this.title = title;
+    this.titleKey = titleKey;
     this.route = route;
   }
 }
