@@ -25,6 +25,7 @@ import {
   exportNodesText,
   extractNodeEndpoint,
   filterNodes,
+  moveNodeWithinGroup,
   removeVisibleNodesFromGroups,
   removeVisibleTestFailedNodesFromGroups,
   sortGroupsByDelayTargets
@@ -913,6 +914,16 @@ struct Index {
       this.SwipeButton($r('app.media.ic_edit'), this.t('action.detail'), AppColor.textSecondary, () => {
         this.openNodeDetail(node);
       })
+      if (this.canMoveNode(node, -1)) {
+        this.SwipeButton($r('app.media.ic_arrow_upward'), this.t('action.moveUp'), AppColor.textSecondary, () => {
+          this.moveNode(node, -1);
+        })
+      }
+      if (this.canMoveNode(node, 1)) {
+        this.SwipeButton($r('app.media.ic_arrow_downward'), this.t('action.moveDown'), AppColor.textSecondary, () => {
+          this.moveNode(node, 1);
+        })
+      }
       this.SwipeButton($r('app.media.ic_delete'), this.t('action.delete'), AppColor.danger, () => {
         this.removeNode(node);
       })
@@ -1384,6 +1395,19 @@ struct Index {
     this.removeNodeImmediately(node);
   }
 
+  private async moveNode(node: ProxyNode, delta: number): Promise<void> {
+    const result = moveNodeWithinGroup(this.subscriptionGroups, this.selectedGroupId, node.id, delta, Date.now());
+    if (!result.moved) {
+      return;
+    }
+    const context = getContext(this) as common.Context;
+    const subscription = await SubscriptionStore.saveGroups(context, result.groups);
+    this.applySubscriptionsState(this.subscriptionStateFromProfile(subscription));
+    const message = this.f1('log.nodeReordered', 'name', node.name);
+    SHARED_RUNTIME_CONTROLLER.appendLog(message);
+    promptAction.showToast({ message });
+  }
+
   private async removeNodeImmediately(node: ProxyNode): Promise<void> {
     const context = getContext(this) as common.Context;
     const state = await NODES_CONTROLLER.removeNode(context, node.id, this.language);
@@ -1744,6 +1768,24 @@ struct Index {
     if (!this.groupAllDisplay || this.subscriptionGroups.length === 0) {
       this.allGroupsSelected = false;
     }
+  }
+
+  private canMoveNode(node: ProxyNode, delta: number): boolean {
+    if (this.allGroupsSelected || this.searchQuery.trim().length > 0) {
+      return false;
+    }
+    const index = this.activeNodeIndex(node.id);
+    const target = index + delta;
+    return index >= 0 && target >= 0 && target < this.nodes.length;
+  }
+
+  private activeNodeIndex(nodeId: string): number {
+    for (let index = 0; index < this.nodes.length; index++) {
+      if (this.nodes[index].id === nodeId) {
+        return index;
+      }
+    }
+    return -1;
   }
 
   private nodeEndpointText(node: ProxyNode): string {

@@ -194,10 +194,16 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 - 展示：首页节点列表与节点详情显示同一脱敏端点描述，TCP 延迟测速也复用结构化 endpoint 解析，避免从 JSON 文本里误取第一个 `address`/`port`
 - 测试：新增单测覆盖正则 alternation、锚点匹配、server 地址匹配、脱敏描述匹配、IPv4/域名/IPv6 描述格式和非法正则回退
 
+**进展（2026-06-20 续）**：节点顺序重排已对齐 v2rayNG：
+- 行为：普通订阅分组节点列表提供上移/下移，按 v2rayNG `MainRecyclerAdapter.onItemMove` / `MainViewModel.swapServer` 语义写回当前分组节点顺序
+- 边界：All 聚合分组不写入跨分组顺序；搜索过滤状态下隐藏重排入口，避免把局部视图误当完整顺序保存
+- 测试：新增纯函数单测覆盖上移、下移、首项越界、All 分组 no-op、选中节点保持和源分组不被原地修改
+
 **任务**
 - **订阅自动更新**：WorkScheduler 后台任务代码已接入并按 v2rayNG 升级为每订阅独立任务；下一步真机验证应用不打开时的周期唤醒与网络拉取
 - **正则过滤** `filter`：按节点名筛选导入（2026-06-15 已完成）
 - **节点列表搜索/描述**：按 v2rayNG `MainViewModel.updateCache` 与 `AngConfigManager.generateDescription` 语义支持正则优先、非法正则回退字面量匹配，并在列表/详情/搜索中使用脱敏端点描述（2026-06-20 已完成）
+- **节点顺序重排**：按 v2rayNG 列表拖拽排序语义保存当前订阅分组节点顺序；Hey 使用滑动上移/下移动作提供同等功能（2026-06-20 已完成）
 - **自定义 User-Agent**、订阅级 `allowInsecureUrl`、`prevProfile`/`nextProfile` 备注字段已完成
 - **订阅分组重排**：上移/下移并持久化顺序（2026-06-18 已完成）
 - **批量更新全部**：订阅页顶部刷新按钮更新全部启用订阅分组（已完成）
@@ -421,6 +427,7 @@ Harmony `VpnConfig.addresses`；VPN 绕过 LAN 也已按 v2rayNG 三态写入 Ha
 | 2026-06-15 | M3 | ✅ 测速后自动操作（`autoSortAfterTest`/`autoRemoveInvalidAfterTest` 设置项 + 设置页「节点测速」开关 + 批量测速后排序/删超时） |
 | 2026-06-19 | M3 | ✅ 手动按测试结果排序菜单完成；对齐 v2rayNG `sort_by_test_results`，按当前订阅分组或 All 虚拟分组分别排序并持久化 |
 | 2026-06-20 | M3 | ✅ 节点列表搜索与地址描述完成；对齐 v2rayNG 正则优先、非法正则退回字面量匹配，并在列表/详情/搜索中使用 `generateDescription` 同款 `addrPart : port` 脱敏端点 |
+| 2026-06-20 | M3 | ✅ 节点顺序重排完成；普通订阅分组节点滑动上移/下移会持久化当前分组顺序，All 聚合分组保持只读排序语义；补纯函数单测 |
 | 2026-06-15 | M4 | ✅ 二维码生成（节点详情页 `generateBarcode.createBarcode` 渲染分享链接 QR + 复制链接） |
 | 2026-06-15 | M4 | ✅ URL Scheme / Want 深链导入（`hey://install-sub`/`install-config` scheme + EntryAbility 暂存 + Index 解析导入订阅/节点） |
 | 2026-06-19 | M4 | ✅ 深链 fragment 名称兜底对齐 v2rayNG（`install-sub`/`install-config` 的外层 URI fragment 仅在内层 URL 缺少 fragment 时补入；补解析单测） |

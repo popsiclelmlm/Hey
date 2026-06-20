@@ -50,6 +50,7 @@ import {
   filterNodes,
   findInvalidNodes,
   formatV2rayNgEndpointDescription,
+  moveNodeWithinGroup,
   removeVisibleNodesFromGroups,
   removeVisibleTestFailedNodesFromGroups,
   sortGroupsByDelayTargets,
@@ -2439,6 +2440,38 @@ export default function localUnitTest() {
       expect(cleared.removedCount).assertEqual(2);
       expect(cleared.groups[0].nodes[0].id).assertEqual(nodes[0].id);
       expect(cleared.groups[1].nodes.length).assertEqual(2);
+    });
+
+    it('moves nodes within a subscription group like v2rayNG drag ordering', 0, () => {
+      const nodes = buildNodeFixture();
+      const groups = [
+        buildGroupFixture('sub-a', 'A', [nodes[0], nodes[1], nodes[2]], nodes[1].id),
+        buildGroupFixture('sub-b', 'B', [copyNode(nodes[2], 'node-other')], 'node-other')
+      ];
+
+      const movedUp = moveNodeWithinGroup(groups, 'sub-a', nodes[1].id, -1, 201);
+      expect(movedUp.moved).assertTrue();
+      expect(movedUp.groups[0].nodes[0].id).assertEqual(nodes[1].id);
+      expect(movedUp.groups[0].nodes[1].id).assertEqual(nodes[0].id);
+      expect(movedUp.groups[0].nodes[2].id).assertEqual(nodes[2].id);
+      expect(movedUp.groups[0].selectedNodeId).assertEqual(nodes[1].id);
+      expect(movedUp.groups[0].updatedAt).assertEqual(201);
+      expect(movedUp.groups[1].nodes[0].id).assertEqual('node-other');
+      expect(groups[0].nodes[0].id).assertEqual(nodes[0].id);
+
+      const movedDown = moveNodeWithinGroup(movedUp.groups, 'sub-a', nodes[1].id, 1, 202);
+      expect(movedDown.moved).assertTrue();
+      expect(movedDown.groups[0].nodes[0].id).assertEqual(nodes[0].id);
+      expect(movedDown.groups[0].nodes[1].id).assertEqual(nodes[1].id);
+      expect(movedDown.groups[0].updatedAt).assertEqual(202);
+
+      const outOfBounds = moveNodeWithinGroup(groups, 'sub-a', nodes[0].id, -1, 203);
+      expect(outOfBounds.moved).assertFalse();
+      expect(outOfBounds.groups[0].nodes[0].id).assertEqual(nodes[0].id);
+
+      const allGroupNoop = moveNodeWithinGroup(groups, '', nodes[1].id, -1, 204);
+      expect(allGroupNoop.moved).assertFalse();
+      expect(allGroupNoop.groups[0].nodes[1].id).assertEqual(nodes[1].id);
     });
 
     it('applies v2rayNG post delay-test remove and sort by subscription group', 0, () => {

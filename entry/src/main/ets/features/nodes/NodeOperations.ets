@@ -31,6 +31,12 @@ export interface NodeBatchMutationResult {
   sortedGroupCount: number;
 }
 
+export interface NodeMoveResult {
+  groups: Array<SubscriptionGroup>;
+  moved: boolean;
+  groupId: string;
+}
+
 export interface NodeEndpoint {
   address: string;
   port: string;
@@ -310,6 +316,37 @@ export function removeVisibleTestFailedNodesFromGroups(
   return removeVisibleNodesFromGroups(groups, failed, updatedAt);
 }
 
+export function moveNodeWithinGroup(
+  groups: Array<SubscriptionGroup>,
+  groupId: string,
+  nodeId: string,
+  delta: number,
+  updatedAt: number = 0
+): NodeMoveResult {
+  const nextGroups = copySubscriptionGroups(groups);
+  if (groupId.length === 0 || nodeId.length === 0 || delta === 0) {
+    return { groups: nextGroups, moved: false, groupId };
+  }
+
+  for (let groupIndex = 0; groupIndex < nextGroups.length; groupIndex++) {
+    const group = nextGroups[groupIndex];
+    if (group.id !== groupId) {
+      continue;
+    }
+    const fromIndex = findNodeIndex(group.nodes, nodeId);
+    const toIndex = fromIndex + delta;
+    if (fromIndex < 0 || toIndex < 0 || toIndex >= group.nodes.length) {
+      return { groups: nextGroups, moved: false, groupId };
+    }
+    const moving = group.nodes[fromIndex];
+    group.nodes[fromIndex] = group.nodes[toIndex];
+    group.nodes[toIndex] = moving;
+    group.updatedAt = updatedAt > 0 ? updatedAt : group.updatedAt;
+    return { groups: nextGroups, moved: true, groupId };
+  }
+  return { groups: nextGroups, moved: false, groupId };
+}
+
 export function dedupeVisibleNodesInGroups(
   groups: Array<SubscriptionGroup>,
   visibleNodes: Array<ProxyNode>,
@@ -587,6 +624,15 @@ function resolveSelectedNodeId(nodes: Array<ProxyNode>, selectedNodeId: string):
     }
   }
   return nodes.length > 0 ? nodes[0].id : '';
+}
+
+function findNodeIndex(nodes: Array<ProxyNode>, nodeId: string): number {
+  for (let index = 0; index < nodes.length; index++) {
+    if (nodes[index].id === nodeId) {
+      return index;
+    }
+  }
+  return -1;
 }
 
 function copySubscriptionGroups(groups: Array<SubscriptionGroup>): Array<SubscriptionGroup> {
