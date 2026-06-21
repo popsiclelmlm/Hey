@@ -1,5 +1,13 @@
 # libsingbox —— sing-box 内核的 HarmonyOS 封装（Phase 0 spike）
 
+> **现状（已超越本文档）**：sing-box 已作为可选第二内核接入主干，且与 Xray **统一走
+> tun2socks 数据面**——内核起一个本地 SOCKS(mixed) 入站（`127.0.0.1:10810`），由
+> `libheytun2socks.so` 把 Harmony TUN fd 的流量转发进来。**不再用本文 Stage B 描述的
+> `CGoSetTunFd` + tun 入站 + OpenTun + gvisor tun 栈**那条路线（那是 Phase 0 的设想，
+> 最终因 Go-on-musl TLS 墙与 TUN 栈复杂度被弃用）。本文保留为 Phase 0 历史记录；
+> 当前数据面架构见仓库根 `README` 与 [`docs/harmonyos-go-tls-wall.md`](../docs/harmonyos-go-tls-wall.md)，
+> sing-box 配置生成见 [`entry/src/main/ets/core/SingboxConfig.ets`](../entry/src/main/ets/core/SingboxConfig.ets)。
+
 这是「给 App 加 sing-box 作为可选内核」的第一步：**只验证 sing-box 能不能在
 HarmonyOS（musl libc）上编译运行**，还没碰 UI、没做完整配置生成器、没做内核选择。
 

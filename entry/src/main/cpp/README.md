@@ -1,31 +1,49 @@
 # Hey VPN Native Core
 
-`libheyvpn.so` is the ArkTS N-API bridge. It loads one packaged Go shared
-library beside it:
+`libheyvpn.so` is the ArkTS N-API bridge. It `dlopen`s the packaged Go shared
+libraries beside it:
 
-- `libxray.so`: built from XTLS/libXray with the required cgo exports:
-  - `CGoSetTunFd(int fd) -> void` (called before `CGoRunXrayFromJSON` so Xray's
-    native TUN inbound reads the Harmony VPN fd).
-  - `CGoRunXrayFromJSON(const char* base64Request) -> char*`
+- `libxray.so` — the Xray proxy core (built from XTLS/libXray). Exports:
+  - `CGoRunXrayFromJSON(const char* base64Request) -> char*` — start Xray from a
+    JSON config (the VPN config opens a local SOCKS inbound on `127.0.0.1:10810`).
   - `CGoStopXray() -> char*`
-  - `CGoPing(const char* base64Request) -> char*` (used by per-node outbound
-    delay testing; the bridge `dlopen`s `libxray.so` and calls this with a
-    base64 JSON request `{datDir, configPath, timeout, url, proxy}` and parses
-    the base64 `{success, data, err}` response for the delay in ms).
+  - `CGoQueryStats(const char* base64Request) -> char*` — Xray metrics (expvar).
+  - `CGoPing(const char* base64Request) -> char*` — per-node outbound delay
+    testing; the bridge calls it with a base64 JSON request
+    `{datDir, configPath, timeout, url, proxy}` and parses the base64
+    `{success, data, err}` response for the delay in ms.
+- `libsingbox.so` — the optional second core (sing-box). Exports
+  `CGoStartSingBox` / `CGoStopSingBox` (plus a UI-safe probe). Like Xray, its VPN
+  config opens a local SOCKS inbound rather than a native TUN inbound.
+- `libheytun2socks.so` — the `tun2socks` adapter. Exports
+  `HeyTun2SocksStart(fd, host, port, mtu)` / `HeyTun2SocksStop()` and byte
+  counters. It relays the Harmony VPN TUN fd's traffic into the core's local
+  SOCKS inbound.
 
-Build the Xray native core from the project root:
+## Data path
 
-```shell
-./scripts/build_libxray_ohos.sh
+```text
+TUN fd  ->  libheytun2socks.so  ->  127.0.0.1:10810 (core SOCKS inbound)  ->  outbound
 ```
 
-The script places `libxray.so` and `libxray.h` in
-`entry/src/main/cpp/prebuilt/arm64-v8a/`. CMake copies only `libxray.so` into
-the HAP native library directory after building `libheyvpn.so`, and removes old
-standalone executable wrapper artifacts from the build output.
+The core's native TUN inbound (`CGoSetTunFd` / `protocol: "tun"`) is **not** used
+on the VPN data path. The Go-on-HarmonyOS (musl) TLS wall and the toolchain gap
+for the native-TUN entry points pushed the data path back to
+`TUN fd -> tun2socks -> SOCKS inbound`. See
+[`docs/harmonyos-go-tls-wall.md`](../../../../docs/harmonyos-go-tls-wall.md).
 
-Note: the current Go toolchain does not expose `GOOS=ohos`. The build uses
-`GOOS=android GOARCH=arm64` with DevEco's `aarch64-unknown-linux-ohos-clang` as
-the cgo compiler, plus a tiny Android log stub for `android/log.h` and `-llog`.
-This avoids the `R_AARCH64_TLS_*` relocations produced by the Linux Go runtime
-that Harmony's loader rejects.
+## Build
+
+The shipped `libxray.so` / `libsingbox.so` / `libheytun2socks.so` are built with
+the **OpenHarmony Go fork** (`GOOS=openharmony`, arm64 **TLSDESC**) so that cgo
+works from ArkTS/foreign threads and the libraries `dlopen` cleanly on musl.
+`CGoSetTunFd` and the native-TUN entry points are intentionally not part of the
+SOCKS-inbound builds.
+
+`scripts/build_libxray_ohos.sh` still defaults to the older `GOOS=android`
+target (which crashes on UI-thread cgo) and does not yet script the
+`openharmony` fork build — the authoritative build recipe and its rationale live
+in [`docs/harmonyos-go-tls-wall.md`](../../../../docs/harmonyos-go-tls-wall.md)
+(§9.4). CMake copies the prebuilt `.so` files from
+`entry/src/main/cpp/prebuilt/arm64-v8a/` into the HAP native library directory
+after building `libheyvpn.so`.

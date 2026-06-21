@@ -21,11 +21,12 @@ English · [简体中文](README.zh-CN.md)
 ---
 
 Hey VPN is a HarmonyOS VPN client built with ArkTS, Stage model abilities,
-and a native Xray core. It imports proxy nodes and subscriptions,
-generates an Xray runtime config, starts a HarmonyOS VPN Extension, and routes
-the device TUN flow through Xray's native TUN inbound.
+and a native proxy core (Xray, with sing-box as a selectable second core). It
+imports proxy nodes and subscriptions, generates a runtime config, starts a
+HarmonyOS VPN Extension, and routes the device TUN flow into the core through a
+bundled `tun2socks` adapter that feeds a local SOCKS inbound.
 
-The current native path is:
+The current native data path (same for both cores) is:
 
 ```text
 User connects
@@ -34,12 +35,20 @@ User connects
   -> vpnExtension.createVpnConnection(context)
   -> vpnConnection.create(vpnConfig)
   -> TUN fd
-  -> libheyvpn.so dlopen(libxray.so)
-  -> CGoSetTunFd(tunFd)
-  -> CGoRunXrayFromJSON(config)
-  -> Xray native TUN inbound reads the Harmony VPN fd
-  -> Xray outbound
+  -> libheyvpn.so dlopen(libxray.so / libsingbox.so)
+  -> CGoRunXrayFromJSON(config) / CGoStartSingBox(config)
+       (core opens a local SOCKS inbound on 127.0.0.1:10810)
+  -> libheyvpn.so dlopen(libheytun2socks.so)
+  -> HeyTun2SocksStart(tunFd, 127.0.0.1, 10810, mtu)
+       (forwards Harmony TUN fd traffic into the SOCKS inbound)
+  -> core SOCKS inbound -> core outbound (proxy node)
 ```
+
+> Why tun2socks instead of the core's native TUN inbound: the Go-on-HarmonyOS
+> (musl) TLS wall and the toolchain gap for the native-TUN entry points pushed
+> the data path back to `TUN fd -> tun2socks -> SOCKS inbound`, which works with
+> the OHOS Go fork build. See
+> [`docs/harmonyos-go-tls-wall.md`](docs/harmonyos-go-tls-wall.md).
 
 ## Status
 
@@ -70,10 +79,11 @@ below.
   multi-subscription groups and per-node detail/edit pages.
 - Share-link parsing for `vless://`, `vmess://`, `trojan://`, `ss://`,
   `socks://`, `http(s)://`, `wireguard://`, and `hysteria2://` / `hy2://`.
-- Xray config generation with native TUN inbound plus proxy/direct/block
-  outbounds, and routing rules (bypass LAN/CN).
-- Native N-API bridge for packaged `libxray.so`, including TUN fd setup,
-  Xray lifecycle entry points, and real per-node delay testing (`CGoPing`).
+- Runtime config generation with a local SOCKS inbound (fed by the tun2socks
+  data path) plus proxy/direct/block outbounds, and routing rules (bypass LAN/CN).
+- Native N-API bridge for packaged `libxray.so` / `libsingbox.so` /
+  `libheytun2socks.so`, including core lifecycle entry points, the tun2socks
+  adapter, and real per-node delay testing (`CGoPing`).
 - Geo-asset management (geoip/geosite download, custom URLs, and status/count feedback).
 - Per-app proxy with allow/deny modes, a preset app list, and manual package
   entry (HarmonyOS NEXT restricts global app enumeration).
@@ -142,16 +152,18 @@ DEVECO_SDK_HOME=/Applications/DevEco-Studio.app/Contents/sdk ./scripts/device_vp
 
 ## Native Core
 
-The native bridge builds `libheyvpn.so` and loads one packaged Go shared
-library, `libxray.so`. That library exports Xray control symbols plus
-`CGoSetTunFd`, documented in
+The native bridge builds `libheyvpn.so` and loads packaged Go shared libraries:
+the proxy core (`libxray.so`, plus `libsingbox.so` for the optional second core)
+and the `tun2socks` adapter (`libheytun2socks.so`). These are documented in
 [`entry/src/main/cpp/README.md`](entry/src/main/cpp/README.md).
 
-Hey VPN does not bundle or invoke `tun2socks` for the VPN data path. HarmonyOS
-creates the VPN TUN fd, `libheyvpn.so` passes that fd into Xray with
-`CGoSetTunFd`, and the generated runtime config uses Xray's native
-`protocol: "tun"` inbound. A local SOCKS inbound may still be generated for
-per-node delay tests, but it is separate from VPN traffic forwarding.
+Hey VPN forwards the VPN data path through `tun2socks`. HarmonyOS creates the
+VPN TUN fd; the selected core starts with a local SOCKS inbound on
+`127.0.0.1:10810`; `libheyvpn.so` then loads `libheytun2socks.so` and calls
+`HeyTun2SocksStart(tunFd, 127.0.0.1, 10810, mtu)` to relay the TUN fd's traffic
+into that SOCKS inbound. The core's native TUN inbound (`CGoSetTunFd` /
+`protocol: "tun"`) is no longer used on the VPN data path — see
+[`docs/harmonyos-go-tls-wall.md`](docs/harmonyos-go-tls-wall.md) for why.
 
 ## Roadmap
 

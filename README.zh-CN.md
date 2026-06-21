@@ -21,9 +21,9 @@
 ---
 
 Hey 是一个面向 HarmonyOS NEXT 的 VPN 客户端，使用 ArkTS、Stage 模型、
-VPN Extension Ability 和原生 Xray 内核实现。项目目标是在鸿蒙设备上导入代理节点
-或订阅，生成 Xray 运行配置，启动系统 VPN，并把设备的 TUN 流量交给 Xray 原生
-TUN 入站处理。
+VPN Extension Ability 和原生代理内核（Xray，并支持把 sing-box 作为可选第二内核）实现。
+项目目标是在鸿蒙设备上导入代理节点或订阅，生成运行配置，启动系统 VPN，并通过内置的
+`tun2socks` 适配层把设备的 TUN 流量喂给内核本地的 SOCKS 入站。
 
 > 界面、节点与订阅管理、分享链接/JSON 导入、Xray 配置生成、节点测速、路由、
 > Geo 资源管理、分应用代理和 VPN Extension 启动链路均已实现并接通 Native 桥接。
@@ -37,8 +37,8 @@ TUN 入站处理。
 - 支持导入订阅 URL、Xray outbound JSON 和常见分享链接。
 - 分享链接解析覆盖 `vless://`、`vmess://`、`trojan://`、`ss://`、`socks://`、
   `http://`、`https://`、`wireguard://`、`hysteria2://` 和 `hy2://`。
-- 根据当前节点和设置生成 Xray 配置，包含原生 TUN 入站、代理出站、直连出站和阻断出站。
-- 通过 Native N-API 桥接打包的 `libxray.so`，支持 TUN fd 注入、Xray 启停和节点延迟测试。
+- 根据当前节点和设置生成运行配置，包含本地 SOCKS 入站（由 tun2socks 数据面喂入）、代理出站、直连出站和阻断出站。
+- 通过 Native N-API 桥接打包的 `libxray.so` / `libsingbox.so` / `libheytun2socks.so`，支持内核启停、tun2socks 适配层和节点延迟测试。
 - 提供诊断日志面板、Native 运行状态和基础流量统计展示。
 - 已搭建路由、设置、分应用代理、资源管理、扫码、订阅、日志、关于等页面。
 
@@ -48,7 +48,7 @@ TUN 入站处理。
 | --- | --- | --- |
 | 应用骨架 / 导航 / 多语言 | 基本完成 | 页面路由和中英文资源已具备 |
 | 节点与订阅 | 可用 | 支持多订阅分组、节点导入和当前节点选择 |
-| VPN 启停链路 | 已实现，待真机闭环 | `VpnExtensionAbility -> TUN fd -> Xray TUN inbound` 链路已接通 |
+| VPN 启停链路 | 已实现，真机可连 | `VpnExtensionAbility -> TUN fd -> tun2socks -> 内核 SOCKS 入站` 链路已接通 |
 | 节点测速 | 已实现，待更多真机验证 | 通过 `CGoPing` 做真实出站延迟测试 |
 | 路由设置 | 部分完成 | 基础绕过 LAN/CN 已进入配置，广告拦截和自定义规则仍待接入 |
 | Geo 资源 | 可用 | 支持 geoip/geosite 下载与自定义 URL 管理 |
@@ -57,7 +57,7 @@ TUN 入站处理。
 
 ## 运行链路
 
-当前 VPN 数据面的核心路径如下：
+当前 VPN 数据面的核心路径如下（两个内核一致）：
 
 ```text
 用户点击连接
@@ -66,17 +66,20 @@ TUN 入站处理。
   -> vpnExtension.createVpnConnection(context)
   -> vpnConnection.create(vpnConfig)
   -> 获取 Harmony VPN TUN fd
-  -> libheyvpn.so dlopen(libxray.so)
-  -> CGoSetTunFd(tunFd)
-  -> CGoRunXrayFromJSON(config)
-  -> Xray 原生 TUN inbound 读取 Harmony VPN fd
-  -> Xray outbound 出站
+  -> libheyvpn.so dlopen(libxray.so / libsingbox.so)
+  -> CGoRunXrayFromJSON(config) / CGoStartSingBox(config)
+       （内核在 127.0.0.1:10810 起一个本地 SOCKS 入站）
+  -> libheyvpn.so dlopen(libheytun2socks.so)
+  -> HeyTun2SocksStart(tunFd, 127.0.0.1, 10810, mtu)
+       （把 Harmony TUN fd 的流量转发进该 SOCKS 入站）
+  -> 内核 SOCKS 入站 -> 内核 outbound 出站
 ```
 
-Hey 不再通过 `tun2socks` 或 TUN-to-SOCKS 适配层转发 VPN 数据。系统创建 VPN
-TUN fd 后，`libheyvpn.so` 会通过 `CGoSetTunFd` 把 fd 交给 Xray，运行时配置使用
-Xray 的 `protocol: "tun"` 入站。节点延迟测试可能临时生成本地 SOCKS 入站，但它不参与
-VPN 数据面转发。
+Hey 通过 `tun2socks` 适配层转发 VPN 数据：系统创建 VPN TUN fd 后，所选内核先起一个
+本地 SOCKS 入站（`127.0.0.1:10810`），`libheyvpn.so` 再加载 `libheytun2socks.so`
+并调用 `HeyTun2SocksStart` 把 TUN fd 的流量转发进去。内核原生 TUN 入站
+（`CGoSetTunFd` / `protocol: "tun"`）已不再用于 VPN 数据面——原因见
+[`docs/harmonyos-go-tls-wall.md`](docs/harmonyos-go-tls-wall.md)。
 
 ## 项目结构
 
@@ -147,20 +150,24 @@ DEVECO_SDK_HOME=/Applications/DevEco-Studio.app/Contents/sdk ./scripts/device_vp
 2. 粘贴订阅 URL 或单个节点分享链接。
 3. 选择一个节点并点击连接。
 4. 接受系统 VPN 授权弹窗。
-5. 在日志中确认 `VPN created`、`Xray TUN fd configured`、`Xray started` 等事件。
+5. 在日志中确认 `VPN created`、`Xray started`（或 `sing-box started`）、`tun2socks started` 等事件。
 6. 打开浏览器或其他应用访问需要代理的网站。
 7. 回到 Hey，确认流量统计变化。
-8. 点击停止，确认 Xray 和 VPN 都正常释放。
+8. 点击停止，确认内核、tun2socks 和 VPN 都正常释放。
 
 ## Native 内核说明
 
-Native 桥接会构建 `libheyvpn.so`，并在运行时加载同目录下打包的 `libxray.so`。
-当前已接通的核心接口包括：
+Native 桥接会构建 `libheyvpn.so`，并在运行时加载同目录下打包的代理内核
+（`libxray.so`，可选第二内核 `libsingbox.so`）和 tun2socks 适配层
+（`libheytun2socks.so`）。当前已接通的核心接口包括：
 
-- `CGoSetTunFd`：把 Harmony VPN TUN fd 交给 Xray。
-- `CGoRunXrayFromJSON`：从 JSON 配置启动 Xray。
-- `CGoStopXray`：停止 Xray。
+- `CGoRunXrayFromJSON` / `CGoStartSingBox`：从 JSON 配置启动内核（含本地 SOCKS 入站）。
+- `HeyTun2SocksStart` / `HeyTun2SocksStop`：把 Harmony VPN TUN fd 的流量转发进/停出本地 SOCKS 入站。
+- `CGoStopXray` / `CGoStopSingBox`：停止内核。
 - `CGoPing`：用于节点真实延迟测试。
+
+> 内核原生 TUN 入站（`CGoSetTunFd` / `protocol: "tun"`）已不再用于 VPN 数据面，
+> 原因见 [`docs/harmonyos-go-tls-wall.md`](docs/harmonyos-go-tls-wall.md)。
 
 更多原生运行时细节见 [`entry/src/main/cpp/README.md`](entry/src/main/cpp/README.md)。
 
