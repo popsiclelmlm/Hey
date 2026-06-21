@@ -30,9 +30,12 @@ GO_LDFLAGS_DEFAULT="-s -w -checklinkname=0 -linkmode external -extldflags \"-Wl,
 # GOOS 选择见 build_libxray_ohos.sh 顶部那段长注释——同一堵 Go-on-musl TLS 墙。
 # android：dlopen 可用、VPN 线程可跑，但 UI 线程冷调会 SIGSEGV。先用 android。
 GOOS_TARGET="${GOOS_TARGET:-android}"
-# [SING-BOX] tun 的 gvisor 栈需要 with_gvisor。如需 Clash API 取流量统计，
-# 后续再加 with_clash_api。netgo 沿用 libxray 的做法。
-GO_TAGS="${GO_TAGS:-with_gvisor netgo}"
+# [SING-BOX] build tags（缺一不可，已用真实 sing-box NewService 校验，见 validate_test.go）：
+#   with_gvisor     tun 的 gvisor 协议栈
+#   with_utls       reality 客户端 + uTLS 指纹（生成器会产出 utls/reality，缺则被拒）
+#   with_clash_api  libbox.NewService 依赖它创建 command server，缺则核心根本起不来
+# netgo 沿用 libxray 的做法。后续加 hysteria2/tuic 等需再补 with_quic。
+GO_TAGS="${GO_TAGS:-with_gvisor with_utls with_clash_api netgo}"
 ANDROID_STUB_DIR="${WORK_DIR}/android-stub"
 
 mkdir -p "${WORK_DIR}" "${OUT_DIR}"
