@@ -17,11 +17,12 @@ import { ANDROID_PACKAGE_NAME_LIST_URL, clearVisiblePerAppPackages, exportPerApp
 import { shouldShowProxySharingStartWarning } from '../main/ets/core/ProxySharingWarning';
 import { APP_MODE_PROXY_ONLY, APP_MODE_VPN, AppSettings, ConnectionStatus, DEFAULT_DELAY_TEST_URL, DEFAULT_DELAY_TEST_URL_SECONDARY, DEFAULT_HEV_TUN_LOG_LEVEL, DEFAULT_HEV_TUN_RW_TIMEOUT, DEFAULT_IP_API_URL, DEFAULT_VPN_MTU, OUTBOUND_DOMAIN_RESOLVE_DNS_HOSTS, OUTBOUND_DOMAIN_RESOLVE_NONE, OUTBOUND_DOMAIN_RESOLVE_REPLACE, OutboundDomainResolveMethod, normalizeAppRuntimeMode, normalizeHevTunLogLevel, normalizeHevTunRwTimeout, normalizeRealPingConcurrency, normalizeRoutingDomainStrategy, normalizeUiModeNight, ProxyNode, resolveDelayTestUrl, RoutingRule, RuntimeStats, SubscriptionGroup } from '../main/ets/core/Profile';
 import { BUILTIN_GEO_DATA_FILE_NAMES, GEOIP_ONLY_CN_PRIVATE_FILE_NAME, GEOIP_ONLY_CN_PRIVATE_URL, GEO_FILE_SOURCES, V2RAYNG_GEO_FILE_SOURCE_REPOS, buildBuiltinGeoAssetUrl, formatGeoCountSummary, formatGeoCountUnavailable, geoDataSpecForFile, parseGeoCountData } from '../main/ets/core/GeoAssets';
-import { DELAY_TEST_SOCKS_PORT, LOCAL_HTTP_PROXY_LAN_HOST, LOCAL_HTTP_PROXY_PORT, LOCAL_SOCKS_PROXY_PORT, UNIDENTIFIED_PROCESS_PACKAGE, buildDelayTestConfig, buildRuntimeXrayConfig, buildXrayConfig, buildXrayConfigWithSettings, canUseProcessRouting, collectOutboundDomainPreResolveHosts, normalizeFullConfigRoutingProcesses, normalizeOutboundInput, normalizeRoutingRuleProcesses, validateFullConfigJson, validateOutboundJson, validatePolicyGroupConfigJson, validateProxyChainConfigJson, withOutboundDomainResolvedHosts } from '../main/ets/core/XrayConfig';
+import { DELAY_TEST_SOCKS_PORT, LOCAL_HTTP_PROXY_LAN_HOST, LOCAL_HTTP_PROXY_PORT, LOCAL_SOCKS_PROXY_PORT, UNIDENTIFIED_PROCESS_PACKAGE, buildDelayTestConfig, buildRuntimeXrayConfig, buildXrayConfig, buildXrayConfigWithSettings, canUseProcessRouting, collectOutboundDomainPreResolveHosts, normalizeFullConfigRoutingProcesses, normalizeOutboundInput, normalizeRoutingRuleProcesses, validateFullConfigJson, validateOutboundJson, validatePolicyGroupConfigJson, validateProxyChainConfigJson, withOutboundDomainResolvedHosts, injectXrayLogFile } from '../main/ets/core/XrayConfig';
 import { CONTROL_SHORTCUT_ACTION_PARAM, CONTROL_SHORTCUT_GUID_PARAM, CONTROL_SHORTCUT_NODE_ID_PARAM, CONTROL_SHORTCUT_URI_PARAM, TASKER_EXTRA_BUNDLE_GUID_PARAM, TASKER_EXTRA_BUNDLE_SWITCH_PARAM, controlUriFromShortcutParameters, deepLinkUriFromWant, parseDeepLink } from '../main/ets/core/DeepLink';
 import { HARMONY_SEND_DATA_ACTION, HARMONY_SHARE_ABSTRACT_KEY, HARMONY_SHARE_URL_KEY, HARMONY_TEXT_MIME_TYPE, SharedTextWantLike, extractSharedTextFromWant, isSharedTextWant } from '../main/ets/core/SharedTextImport';
 import { extractOutboundsFromXrayConfig } from '../main/ets/core/XrayOutbounds';
 import { SUPPORTED_SHARE_LINK_SCHEMES, buildUnsupportedShareLinkMessage, formatOutboundJsonToShareLink, isSupportedShareLink, parseShareLinkToOutboundJson } from '../main/ets/core/ShareLinkParser';
+import { buildSingboxConfig } from '../main/ets/core/SingboxConfig';
 import { exportRoutingRulesJson, importRoutingRulesJson, resetRoutingRulesFromPreset } from '../main/ets/core/RoutingRules';
 import { decideRuntimeSettingsRestart } from '../main/ets/core/SettingsChange';
 import {
@@ -36,7 +37,9 @@ import { findMatchedSubscriptionNode, resolveRetainedSelectedNodeId } from '../m
 import { buildSpeedNotificationAdditionalText, buildSpeedNotificationText, calculateSpeedNotificationRates, sampleSpeedNotificationStats, shouldPublishSpeedNotification } from '../main/ets/core/SpeedNotification';
 import { CURRENT_APP_VERSION, buildUpdateCheckResult, compareVersions, normalizeVersionTag } from '../main/ets/core/UpdateChecker';
 import { V2RAYNG_BROWSER_DIALER_MODE_OPTIONS, V2RAYNG_CORE_LOG_LEVEL_OPTIONS, V2RAYNG_DEFAULT_BROWSER_DIALER_MODE, V2RAYNG_DEFAULT_CORE_LOG_LEVEL, V2RAYNG_DEFAULT_FRAGMENT_PACKETS, V2RAYNG_DEFAULT_HYSTERIA2_SECURITY, V2RAYNG_DEFAULT_MUX_XUDP_QUIC, V2RAYNG_DEFAULT_STREAM_ALPN, V2RAYNG_DEFAULT_VMESS_SECURITY, V2RAYNG_FLOW_OPTIONS, V2RAYNG_FRAGMENT_PACKET_OPTIONS, V2RAYNG_GRPC_MODE_OPTIONS, V2RAYNG_HYSTERIA2_SECURITY_OPTIONS, V2RAYNG_KCP_HEADER_TYPE_OPTIONS, V2RAYNG_MUX_XUDP_QUIC_OPTIONS, V2RAYNG_SS_SECURITY_OPTIONS, V2RAYNG_STREAM_ALPN_OPTIONS, V2RAYNG_SUPPORTED_TRANSPORT_OPTIONS, V2RAYNG_TCP_HEADER_TYPE_OPTIONS, V2RAYNG_UTLS_FINGERPRINT_OPTIONS, V2RAYNG_VMESS_SECURITY_OPTIONS, V2RAYNG_XHTTP_MODE_OPTIONS, normalizeV2rayNgBrowserDialerMode, normalizeV2rayNgCoreLogLevel, normalizeV2rayNgFragmentPackets, normalizeV2rayNgHysteria2Security, normalizeV2rayNgMuxXudpQuic, normalizeV2rayNgStreamAlpn, normalizeV2rayNgStreamAlpnWithFallback, normalizeV2rayNgXhttpMode } from '../main/ets/core/V2rayNgOptions';
-import { filterLogItems, formatLogcatText } from '../main/ets/features/logs/LogOperations';
+import { countLogLevels, filterLogEntries, filterLogItems, formatLogcatText, formatLogEntriesText } from '../main/ets/features/logs/LogOperations';
+import { LogEntry, logLevelLabel, normalizeLogLevel } from '../main/ets/features/logs/LogModel';
+import { parseCoreLog } from '../main/ets/services/CoreLogReader';
 import { buildAssetDownloadProxyPorts } from '../main/ets/features/assets/AssetsController';
 import {
   applyDelayTestPostActionsToGroups,
@@ -65,7 +68,7 @@ import { SubscriptionManager } from '../main/ets/services/SubscriptionManager';
 import { buildTextShareWant } from '../main/ets/services/SystemShare';
 import { DEFAULT_APP_SETTINGS } from '../main/ets/storage/SettingsStore';
 import { formatBytes, formatDuration } from '../main/ets/utils/Formatters';
-import { formatOne, localizedProfileSavedText, localizeCoreMessage } from '../main/ets/utils/LocalizationPresenter';
+import { formatOne, localizedProfileSavedText, localizeCoreMessage, localizeDiagnosticHeartbeat } from '../main/ets/utils/LocalizationPresenter';
 import { BUNDLE_NAME, DEFAULT_VPN_DNS_ADDRESSES, createDefaultVpnConfig, normalizeVpnDnsAddresses } from '../main/ets/vpn/VpnConstants';
 
 const VLESS_REALITY_OUTBOUND: string =
@@ -2378,6 +2381,84 @@ export default function localUnitTest() {
       );
     });
 
+    it('normalizes log levels and labels for the leveled console', 0, () => {
+      expect(normalizeLogLevel('WARNING')).assertEqual('warn');
+      expect(normalizeLogLevel('warn')).assertEqual('warn');
+      expect(normalizeLogLevel('Error')).assertEqual('error');
+      expect(normalizeLogLevel('fatal')).assertEqual('error');
+      expect(normalizeLogLevel('debug')).assertEqual('debug');
+      expect(normalizeLogLevel('whatever')).assertEqual('info');
+      expect(logLevelLabel('warn')).assertEqual('Warning');
+      expect(logLevelLabel('error')).assertEqual('Error');
+      // 容错：诊断文件跨版本累积，缺失/非字符串 level 不能抛（否则整页日志清空）
+      expect(normalizeLogLevel(undefined as unknown as string)).assertEqual('info');
+      expect(normalizeLogLevel(123 as unknown as string)).assertEqual('info');
+    });
+
+    it('filters, counts and formats structured log entries by level and keyword', 0, () => {
+      const entries: Array<LogEntry> = [
+        { at: 3, time: '14:32:09', level: 'warn', source: 'dns', message: 'server timeout', raw: '14:32:09  [dns] server timeout' },
+        { at: 2, time: '14:32:08', level: 'info', source: 'vless', message: 'tunneling request', raw: '14:32:08  [vless] tunneling request' },
+        { at: 1, time: '14:32:07', level: 'error', source: 'vmess', message: 'connection reset', raw: '14:32:07  [vmess] connection reset' }
+      ];
+      const counts = countLogLevels(entries);
+      expect(counts.all).assertEqual(3);
+      expect(counts.warn).assertEqual(1);
+      expect(counts.info).assertEqual(1);
+      expect(counts.error).assertEqual(1);
+      expect(counts.debug).assertEqual(0);
+
+      expect(filterLogEntries(entries, 'all', '').length).assertEqual(3);
+      expect(filterLogEntries(entries, 'error', '').length).assertEqual(1);
+      expect(filterLogEntries(entries, 'all', 'TIMEOUT')[0].source).assertEqual('dns');
+      expect(filterLogEntries(entries, 'warn', 'reset').length).assertEqual(0);
+      expect(formatLogEntriesText(filterLogEntries(entries, 'info', ''))).assertEqual('14:32:08  [vless] tunneling request');
+    });
+
+    it('injects a core log file path into runtime config for the leveled console', 0, () => {
+      // 保留 full config 里已有的 loglevel，补上 error 文件路径
+      const withLevel = injectXrayLogFile('{"log":{"loglevel":"info"},"outbounds":[]}', '/data/x.log', 'warning');
+      expect(withLevel.indexOf('"error":"/data/x.log"') >= 0).assertTrue();
+      expect(withLevel.indexOf('"loglevel":"info"') >= 0).assertTrue();
+      // 无 log 时用兜底等级 + 注入路径
+      const noLog = injectXrayLogFile('{"outbounds":[]}', '/data/x.log', 'warning');
+      expect(noLog.indexOf('"loglevel":"warning"') >= 0).assertTrue();
+      expect(noLog.indexOf('"error":"/data/x.log"') >= 0).assertTrue();
+      // loglevel=none 表示用户显式关日志，不强开
+      const none = injectXrayLogFile('{"log":{"loglevel":"none"}}', '/data/x.log', 'warning');
+      expect(none.indexOf('/data/x.log') >= 0).assertFalse();
+    });
+
+    it('parses Xray core log lines into leveled entries', 0, () => {
+      const raw = [
+        '2024/01/15 10:30:45 [Warning] app/dns: server timeout',
+        '2024/01/15 10:30:46 [Info] app/proxyman/outbound: connection established',
+        '   continuation stack frame',
+        '2024/01/15 10:30:47 [Error] transport: i/o timeout'
+      ].join('\n');
+      const entries = parseCoreLog(raw);
+      expect(entries.length).assertEqual(3);
+      expect(entries[0].level).assertEqual('warn');
+      expect(entries[0].time).assertEqual('10:30:45');
+      expect(entries[0].source).assertEqual('core');
+      expect(entries[1].level).assertEqual('info');
+      // 续行并入上一条，保持多行错误完整
+      expect(entries[1].message.indexOf('continuation stack frame') >= 0).assertTrue();
+      expect(entries[2].level).assertEqual('error');
+    });
+
+    it('localizes the vpn heartbeat with traffic and core status', 0, () => {
+      const zh = localizeDiagnosticHeartbeat('zh-rCN', 1024 * 1024, 8 * 1024 * 1024, true, true);
+      expect(zh.indexOf('运行心跳') >= 0).assertTrue();
+      expect(zh.indexOf('1.0 MB') >= 0).assertTrue();
+      expect(zh.indexOf('8.0 MB') >= 0).assertTrue();
+      expect(zh.indexOf('Xray ✓') >= 0).assertTrue();
+      expect(zh.indexOf('TUN ✓') >= 0).assertTrue();
+      const en = localizeDiagnosticHeartbeat('en', 0, 0, false, false);
+      expect(en.indexOf('Heartbeat') >= 0).assertTrue();
+      expect(en.indexOf('✗') >= 0).assertTrue();
+    });
+
     it('filters nodes by v2rayNG-style regex or literal fallback', 0, () => {
       const nodes = buildNodeFixture();
       expect(filterNodes(nodes, 'alpha').length).assertEqual(1);
@@ -3038,6 +3119,34 @@ export default function localUnitTest() {
       expect(legacySlash.outboundJson).assertContain('"password": "pass:word:with:colons"');
       expect(legacySlash.outboundJson).assertContain('"address": "example.com"');
       expect(legacySlash.outboundJson).assertContain('"port": 8388');
+    });
+
+    it('imports anytls share links and converts to sing-box outbound', 0, () => {
+      // 真实订阅里的 anytls 节点格式：insecure=1 + sni，无 alpn。
+      const link = 'anytls://C4BB1AFA-D466-D81D-22C5-2046A78ED06C@sdfaxxfw.s4b4.com:40101?insecure=1&sni=ac9b90d0.sdsarsdg.xin#HK01';
+
+      // 1) 分享链接解析成功，产出 anytls outbound。
+      const imported = parseShareLinkToOutboundJson(link);
+      expect(imported.success).assertTrue();
+      expect(imported.protocol).assertEqual('anytls');
+      expect(imported.name).assertEqual('HK01');
+      expect(imported.outboundJson).assertContain('"protocol": "anytls"');
+      expect(imported.outboundJson).assertContain('"password": "C4BB1AFA-D466-D81D-22C5-2046A78ED06C"');
+
+      // 2) 订阅导入的校验闸门——此前因 anytls 不在白名单而拦掉整张订阅。
+      const validation = normalizeOutboundInput(link);
+      expect(validation.valid).assertTrue();
+      expect(validation.protocol).assertEqual('anytls');
+
+      // 3) sing-box 配置转换：type=anytls，TLS 由内联 server 字段组出。
+      const generated = buildSingboxConfig(validation.normalizedJson);
+      expect(generated.ok).assertTrue();
+      expect(generated.configJson).assertContain('"type":"anytls"');
+      expect(generated.configJson).assertContain('"server":"sdfaxxfw.s4b4.com"');
+      expect(generated.configJson).assertContain('"server_port":40101');
+      expect(generated.configJson).assertContain('"password":"C4BB1AFA-D466-D81D-22C5-2046A78ED06C"');
+      expect(generated.configJson).assertContain('"server_name":"ac9b90d0.sdsarsdg.xin"');
+      expect(generated.configJson).assertContain('"insecure":true');
     });
 
     it('matches v2rayNG ShadowsocksFmt parsing parity', 0, () => {
