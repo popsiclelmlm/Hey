@@ -5,7 +5,7 @@ import { IconButton } from '../components/IconButton';
 import { DEFAULT_LANGUAGE, translate } from '../core/I18n';
 import { shouldExposeLocalHttpProxy } from '../core/LocalProxy';
 import { AppLanguage, AppSettings, ConnectionStatus, normalizeRealPingConcurrency, ProxyNode, resolveDelayTestUrl, RuntimeStats, SubscriptionGroup, SubscriptionProfile } from '../core/Profile';
-import { LOCAL_HTTP_PROXY_PORT } from '../core/XrayConfig';
+import { DELAY_TEST_BATCH_PORT_BASE, LOCAL_HTTP_PROXY_PORT } from '../core/XrayConfig';
 import { DeepLinkControlAction, DeepLinkIntent, parseDeepLink, subscriptionNameFromDeepLink } from '../core/DeepLink';
 import { consumeRuntimeSettingsRestartDecision, markRuntimeSettingsRestartNeeded } from '../core/SettingsChange';
 import { resolveImportedNodeName } from '../core/ImportedNodeNames';
@@ -13,10 +13,12 @@ import { shouldShowProxySharingStartWarning } from '../core/ProxySharingWarning'
 import { DelayTester, DelayTestResult } from '../services/DelayTester';
 import { convertNativeShareTextToOutbounds } from '../services/NativeShareConverter';
 import { CONTROL_CARD_MANAGER } from '../services/ControlCardManager';
+import { calculateSpeedNotificationRates, sampleSpeedNotificationStats, SpeedNotificationSample } from '../core/SpeedNotification';
 import { SPEED_NOTIFICATION_MANAGER } from '../services/SpeedNotificationManager';
 import { SubscriptionBackgroundScheduler } from '../services/SubscriptionBackgroundScheduler';
 import { SubscriptionManager } from '../services/SubscriptionManager';
-import { SubscriptionStore } from '../storage/SubscriptionStore';
+import { NodeDelayUpdate, SubscriptionStore } from '../storage/SubscriptionStore';
+import { TrafficTotals, TrafficTotalsStore } from '../storage/TrafficTotalsStore';
 import { DEFAULT_APP_SETTINGS } from '../storage/SettingsStore';
 import {
   applyDelayTestPostActionsToGroups,
@@ -97,6 +99,17 @@ struct Index {
   @State private connectionOperationRunning: boolean = false;
   @State private elapsedText: string = '00:00';
   @State private stats: RuntimeStats = EMPTY_STATS;
+  @State private uploadSpeed: number = 0;
+  @State private downloadSpeed: number = 0;
+  private lastSpeedSample: SpeedNotificationSample | null = null;
+  // 持久累计总量（跨重连/重启）。totalUpload/Download 用于显示；lastSession* 是上次看到的
+  // 本会话计数，用来算增量 + 检测重连归零。trafficTotalsLoaded 防止首帧把持久值覆盖成 0。
+  @State private totalUpload: number = 0;
+  @State private totalDownload: number = 0;
+  private lastSessionUpload: number = 0;
+  private lastSessionDownload: number = 0;
+  private lastTrafficPersistAt: number = 0;
+  private trafficTotalsLoaded: boolean = false;
   @State private speedEnabled: boolean = false;
   @State private groupAllDisplay: boolean = false;
   @State private doubleColumnDisplay: boolean = false;
@@ -118,11 +131,17 @@ struct Index {
       clearInterval(this.timerId);
       this.timerId = -1;
     }
+    this.persistTrafficTotals(true);
   }
 
   onPageShow(): void {
     // 从订阅 / 导入等子页返回时，重新加载设置与节点，保证列表实时刷新
     this.refreshFromStorage();
+  }
+
+  onPageHide(): void {
+    // 退到后台 / 离开页面时立刻落盘累计总量，减少硬杀进程时的丢量。
+    this.persistTrafficTotals(true);
   }
 
   private async refreshFromStorage(): Promise<void> {
@@ -695,39 +714,55 @@ struct Index {
     })
   }
 
+  // 底部流量卡：时长已由圆环下方负责，这里专注「上传/下载 实时速度 + 累计总量」。
+  // 仅在开启【显示速度/流量统计】时出现，避免和圆环下方时长重复。
   @Builder
   private StatsCard() {
-    Row() {
-      this.StatCell('home.duration', this.isRunning() ? this.elapsedText : '--', AppColor.textPrimary)
-      if (this.speedEnabled) {
-        Divider().vertical(true).height(28).color(AppColor.divider)
-        this.StatCell('home.upload', this.formatBytes(this.stats.uploadBytes), AppColor.brand)
-        Divider().vertical(true).height(28).color(AppColor.divider)
-        this.StatCell('home.download', this.formatBytes(this.stats.downloadBytes), AppColor.success)
+    if (this.speedEnabled) {
+      Row() {
+        this.TrafficCell('upload', AppColor.brand)
+        Divider().vertical(true).height(36).color(AppColor.divider)
+        this.TrafficCell('download', AppColor.success)
       }
+      .width('100%')
+      .padding({ top: Space.md, bottom: Space.md })
+      .backgroundColor(AppColor.surface)
+      .borderRadius(Radius.lg)
+      .margin({ left: Space.lg, right: Space.lg, bottom: Space.xl })
     }
-    .width('100%')
-    .padding({ top: Space.md, bottom: Space.md })
-    .backgroundColor(AppColor.surface)
-    .borderRadius(Radius.lg)
-    .margin({ left: Space.lg, right: Space.lg, bottom: Space.xl })
   }
 
+  // 主值=实时速度（每秒），副行=方向标签 + 累计总量。动态值一律在 builder 内部读 this.*，
+  // 不按值传参（按值传进 private @Builder 会冻结，不随 @State 刷新）。
   @Builder
-  private StatCell(labelKey: string, value: string, valueColor: ResourceColor) {
+  private TrafficCell(kind: string, valueColor: ResourceColor) {
     Column({ space: 4 }) {
-      Text(value)
+      Text(this.trafficSpeedText(kind))
         .fontSize(FontSz.callout)
         .fontWeight(FontWeight.Bold)
         .fontColor(valueColor)
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
-      Text(this.t(labelKey))
+      Text(this.trafficTotalText(kind))
         .fontSize(FontSz.caption)
         .fontColor(AppColor.textTertiary)
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
     }
     .layoutWeight(1)
     .alignItems(HorizontalAlign.Center)
+  }
+
+  private trafficSpeedText(kind: string): string {
+    const bytesPerSecond = kind === 'download' ? this.downloadSpeed : this.uploadSpeed;
+    return `${this.formatBytes(bytesPerSecond)}/s`;
+  }
+
+  private trafficTotalText(kind: string): string {
+    if (kind === 'download') {
+      return `${this.t('home.download')} ${this.formatBytes(this.totalDownload)}`;
+    }
+    return `${this.t('home.upload')} ${this.formatBytes(this.totalUpload)}`;
   }
 
   // ---------------------------------------------------------------------------
@@ -929,7 +964,9 @@ struct Index {
           })
         }
         .swipeAction({ end: this.NodeSwipeActions(node) })
-      }, (node: ProxyNode, index: number) => `${index}-${node.id}`)
+        // key 必须编码选中态与延迟值：否则列表内容不变时 ForEach 按 key 复用旧子组件、
+        // 不重跑 item builder，导致切换选中节点（BUG-005）或延迟测完（BUG-003）后行不刷新。
+      }, (node: ProxyNode, index: number) => `${index}-${node.id}-${node.id === this.selectedNodeId ? 'S' : 'U'}-${node.delayStatus}-${node.delayMs}`)
     }
     .layoutWeight(1)
     .width('100%')
@@ -1208,7 +1245,28 @@ struct Index {
     await this.handlePendingDeepLink();
     await this.refreshDueSubscriptions();
     await this.syncSubscriptionBackgroundSchedule();
+    await this.loadTrafficTotals();
     await this.refreshRuntime();
+  }
+
+  // 读出持久化的累计总量与上次会话基线。必须在第一次 refreshRuntime（会触发累加）之前完成，
+  // 否则首帧会以 0 基线累加、把历史值冲掉。
+  private async loadTrafficTotals(): Promise<void> {
+    if (this.trafficTotalsLoaded) {
+      return;
+    }
+    try {
+      const context = getContext(this) as common.Context;
+      const totals = await TrafficTotalsStore.load(context);
+      this.totalUpload = totals.lifetimeUpload;
+      this.totalDownload = totals.lifetimeDownload;
+      this.lastSessionUpload = totals.lastSessionUpload;
+      this.lastSessionDownload = totals.lastSessionDownload;
+    } catch (error) {
+      // 读失败就从 0 起，不阻断启动
+    } finally {
+      this.trafficTotalsLoaded = true;
+    }
   }
 
   private async loadSettings(): Promise<void> {
@@ -1399,9 +1457,13 @@ struct Index {
     }
   }
 
-  private async shareNode(node: ProxyNode): Promise<void> {
-    await this.selectNode(node);
-    this.openRoute(AppRoute.EXPORT);
+  private shareNode(node: ProxyNode): void {
+    router.pushUrl({
+      url: AppRoute.EXPORT,
+      params: {
+        nodeId: node.id
+      }
+    });
   }
 
   private removeNode(node: ProxyNode): void {
@@ -1543,6 +1605,8 @@ struct Index {
 
   private async testVisibleNodeDelay(mode: NodeDelayTestMode = 'real'): Promise<void> {
     if (this.delayTesting) {
+      // 已有一轮测速在跑：给出提示，避免点击"完全没反应"被误判为功能坏掉（BUG-002）。
+      promptAction.showToast({ message: this.t('home.delayTesting') });
       return;
     }
     const targets = this.visibleNodes();
@@ -1555,33 +1619,12 @@ struct Index {
     try {
       const context = getContext(this) as common.Context;
       const concurrency = normalizeRealPingConcurrency(this.currentSettings.realPingConcurrency);
-      for (let start = 0; start < targets.length; start += concurrency) {
-        const batch = targets.slice(start, Math.min(targets.length, start + concurrency));
-        for (let index = 0; index < batch.length; index++) {
-          const node = batch[index];
-          const startedAt = Date.now();
-          this.markNodeDelay(node.id, -1, 'testing', startedAt);
-          SHARED_RUNTIME_CONTROLLER.appendLog(this.f1('log.delayTestingNode', 'name', node.name));
-        }
-
-        const results = await this.measureNodeDelayBatch(batch, context, mode);
-        for (let index = 0; index < results.length; index++) {
-          const item = results[index];
-          const result = item.result;
-          const delayMs = result.ok ? result.delayMs : -1;
-          const status = result.ok ? 'ok' : result.status;
-          const subscription = await SubscriptionStore.saveNodeDelay(context, item.node.id, delayMs, status, item.testedAt);
-          this.applySubscriptionsState({
-            subscriptionUrl: subscription.url,
-            nodes: subscription.nodes,
-            selectedNodeId: subscription.selectedNodeId,
-            subscriptionMessage: this.subscriptionMessage,
-            subscriptionUpdatedAt: subscription.updatedAt,
-            subscriptionGroups: subscription.groups,
-            selectedGroupId: subscription.selectedGroupId
-          });
-          SHARED_RUNTIME_CONTROLLER.appendLog(this.f2('log.delayResult', 'name', item.node.name, 'result', this.delayResultText(result)));
-        }
+      if (mode === 'real') {
+        // 真实延迟走原生批量：一次 cgo 调用、Go 内并发测全部，避免逐节点串行（BUG-001）。
+        await this.runRealDelayBatch(context, targets, concurrency);
+      } else {
+        // TCP 延迟是纯 ArkTS socket，本就轻量，沿用逐批并发。
+        await this.runTcpDelayLoop(context, targets, concurrency);
       }
       await this.applyPostTestActions(context, targets);
     } catch (error) {
@@ -1589,6 +1632,108 @@ struct Index {
       SHARED_RUNTIME_CONTROLLER.appendLog(this.lastError);
     } finally {
       this.delayTesting = false;
+    }
+  }
+
+  // 真实延迟流式测速：N 个并发"槽"各占一个固定 socks 端口（base+槽号），槽内顺序
+  // 领取节点测速。每个节点一测完就立刻刷新它那一行（内存态，逐个更新），落库则按
+  // 阈值后台批量进行（避免逐节点反复读写 preferences）。相比旧实现共享端口/配置文件
+  // 被迫串行，这里真正并发且渐进反馈（BUG-001）。
+  private async runRealDelayBatch(context: common.Context, targets: Array<ProxyNode>, concurrency: number): Promise<void> {
+    const startedAt = Date.now();
+    for (let index = 0; index < targets.length; index++) {
+      this.markNodeDelay(targets[index].id, -1, 'testing', startedAt);
+    }
+    SHARED_RUNTIME_CONTROLLER.appendLog(this.f1('log.delayTestingNode', 'name', `×${targets.length}`));
+
+    const url = resolveDelayTestUrl(this.currentSettings.delayTestUrl);
+    const datDir = context.filesDir;
+    // 每个并发 ping 会起一个临时 Xray 实例（比 TCP socket 重得多），把并发上限收紧到
+    // 32 防 OOM。槽 w 固定用端口 base+w：槽内顺序处理，故并发的 ping 不会撞端口。
+    const slots = Math.min(Math.max(concurrency, 1), 32);
+
+    let nextIndex = 0;
+    const pending = new Array<NodeDelayUpdate>();
+    let flushing = false;
+    const flush = async (): Promise<void> => {
+      if (flushing || pending.length === 0) {
+        return;
+      }
+      flushing = true;
+      const toSave = pending.splice(0, pending.length);
+      try {
+        await SubscriptionStore.saveNodeDelays(context, toSave);
+      } catch (error) {
+        // 持久化失败不影响已显示的内存态；下一轮 flush 或结束时再试。
+      }
+      flushing = false;
+    };
+
+    const runSlot = async (slotPort: number): Promise<void> => {
+      while (true) {
+        const index = nextIndex;
+        nextIndex = nextIndex + 1;
+        if (index >= targets.length) {
+          return;
+        }
+        const node = targets[index];
+        const result = await DelayTester.measureNodeOutbound(node.outboundJson, datDir, url, 8000, node.configType, slotPort);
+        // 逐个更新：该节点一测完立即刷新它那一行（内存态，含"全部"视图）。
+        this.markNodeDelay(node.id, result.ok ? result.delayMs : -1, result.ok ? 'ok' : result.status, Date.now());
+        pending.push({
+          nodeId: node.id,
+          delayMs: result.ok ? result.delayMs : -1,
+          delayStatus: result.ok ? 'ok' : result.status,
+          delayTestAt: Date.now()
+        });
+        SHARED_RUNTIME_CONTROLLER.appendLog(this.f2('log.delayResult', 'name', node.name, 'result', this.delayResultText(result)));
+        if (pending.length >= 24) {
+          await flush();
+        }
+      }
+    };
+
+    const workers = new Array<Promise<void>>();
+    for (let w = 0; w < slots; w++) {
+      workers.push(runSlot(DELAY_TEST_BATCH_PORT_BASE + w));
+    }
+    await Promise.all(workers);
+    // 收尾：把剩余未落库的结果一次性写入。
+    flushing = false;
+    if (pending.length > 0) {
+      await SubscriptionStore.saveNodeDelays(context, pending.splice(0, pending.length));
+    }
+  }
+
+  // TCP 延迟逐批并发（纯 ArkTS socket）。保留原有逐节点路径。
+  private async runTcpDelayLoop(context: common.Context, targets: Array<ProxyNode>, concurrency: number): Promise<void> {
+    for (let start = 0; start < targets.length; start += concurrency) {
+      const batch = targets.slice(start, Math.min(targets.length, start + concurrency));
+      for (let index = 0; index < batch.length; index++) {
+        const node = batch[index];
+        const startedAt = Date.now();
+        this.markNodeDelay(node.id, -1, 'testing', startedAt);
+        SHARED_RUNTIME_CONTROLLER.appendLog(this.f1('log.delayTestingNode', 'name', node.name));
+      }
+
+      const results = await this.measureNodeDelayBatch(batch, context, 'tcp');
+      for (let index = 0; index < results.length; index++) {
+        const item = results[index];
+        const result = item.result;
+        const delayMs = result.ok ? result.delayMs : -1;
+        const status = result.ok ? 'ok' : result.status;
+        const subscription = await SubscriptionStore.saveNodeDelay(context, item.node.id, delayMs, status, item.testedAt);
+        this.applySubscriptionsState({
+          subscriptionUrl: subscription.url,
+          nodes: subscription.nodes,
+          selectedNodeId: subscription.selectedNodeId,
+          subscriptionMessage: this.subscriptionMessage,
+          subscriptionUpdatedAt: subscription.updatedAt,
+          subscriptionGroups: subscription.groups,
+          selectedGroupId: subscription.selectedGroupId
+        });
+        SHARED_RUNTIME_CONTROLLER.appendLog(this.f2('log.delayResult', 'name', item.node.name, 'result', this.delayResultText(result)));
+      }
     }
   }
 
@@ -1647,10 +1792,48 @@ struct Index {
   }
 
   private markNodeDelay(nodeId: string, delayMs: number, delayStatus: string, delayTestAt: number): void {
+    this.nodes = this.patchNodeDelay(this.nodes, nodeId, delayMs, delayStatus, delayTestAt);
+    // "全部"视图的列表来自 subscriptionGroups，故同步更新对应分组里的节点，
+    // 否则批量测速期间该视图看不到"测速中"态（BUG-004）。
+    const nextGroups = new Array<SubscriptionGroup>();
+    let changed = false;
+    for (let index = 0; index < this.subscriptionGroups.length; index++) {
+      const group = this.subscriptionGroups[index];
+      const patchedNodes = this.patchNodeDelay(group.nodes, nodeId, delayMs, delayStatus, delayTestAt);
+      if (patchedNodes !== group.nodes) {
+        changed = true;
+        nextGroups.push({
+          id: group.id,
+          name: group.name,
+          url: group.url,
+          enabled: group.enabled,
+          selectedNodeId: group.selectedNodeId,
+          nodes: patchedNodes,
+          updatedAt: group.updatedAt,
+          userAgent: group.userAgent,
+          filter: group.filter,
+          prevProfile: group.prevProfile,
+          nextProfile: group.nextProfile,
+          allowInsecureUrl: group.allowInsecureUrl,
+          autoUpdate: group.autoUpdate,
+          updateIntervalMinutes: group.updateIntervalMinutes
+        });
+      } else {
+        nextGroups.push(group);
+      }
+    }
+    if (changed) {
+      this.subscriptionGroups = nextGroups;
+    }
+  }
+
+  private patchNodeDelay(nodes: Array<ProxyNode>, nodeId: string, delayMs: number, delayStatus: string, delayTestAt: number): Array<ProxyNode> {
+    let found = false;
     const next = new Array<ProxyNode>();
-    for (let index = 0; index < this.nodes.length; index++) {
-      const node = this.nodes[index];
+    for (let index = 0; index < nodes.length; index++) {
+      const node = nodes[index];
       if (node.id === nodeId) {
+        found = true;
         next.push({
           id: node.id,
           name: node.name,
@@ -1668,7 +1851,7 @@ struct Index {
         next.push(node);
       }
     }
-    this.nodes = next;
+    return found ? next : nodes;
   }
 
   private async refreshRuntime(): Promise<void> {
@@ -1735,9 +1918,90 @@ struct Index {
     this.status = state.status;
     this.elapsedText = state.elapsedText;
     this.stats = state.stats;
+    this.updateRealtimeSpeed();
+    this.accumulateTraffic();
     this.lastError = state.lastError;
     this.syncSpeedNotification();
     this.syncControlCard();
+  }
+
+  // 用累计字节差算实时速度（每秒）。VPN 扩展每 2s 才写一次统计，UI 每秒刷新，所以按
+  // 两次「累计值真正发生变化」的样本之间的真实时间差计算，避免出现 0/峰值 来回跳。
+  private updateRealtimeSpeed(): void {
+    if (this.status !== ConnectionStatus.RUNNING) {
+      this.uploadSpeed = 0;
+      this.downloadSpeed = 0;
+      this.lastSpeedSample = null;
+      return;
+    }
+    const now = Date.now();
+    const sample = sampleSpeedNotificationStats(this.stats, now);
+    if (this.lastSpeedSample === null) {
+      this.lastSpeedSample = sample;
+      return;
+    }
+    const changed = sample.uploadBytes !== this.lastSpeedSample.uploadBytes
+      || sample.downloadBytes !== this.lastSpeedSample.downloadBytes;
+    if (changed) {
+      const rates = calculateSpeedNotificationRates(this.lastSpeedSample, sample);
+      this.uploadSpeed = rates.uploadBytesPerSecond;
+      this.downloadSpeed = rates.downloadBytesPerSecond;
+      this.lastSpeedSample = sample;
+      return;
+    }
+    // 累计值未变：在一个统计周期内保持上次速率（平滑掉 2s 采样间隔的空档），超过即判
+    // 空闲、速度归零，避免流量停止后数字卡死在最后的峰值。
+    const IDLE_RESET_MS: number = 3000;
+    if (now - this.lastSpeedSample.at >= IDLE_RESET_MS) {
+      this.uploadSpeed = 0;
+      this.downloadSpeed = 0;
+    }
+  }
+
+  // 把本会话的新增字节累加进持久化的历史总量。会话计数（this.stats.*）每次重连从 0 起，
+  // 所以用「当前会话计数 - 上次会话计数」算增量；若当前值比上次小，说明换了新会话（重连/
+  // 重启核），增量即为当前值本身。
+  private accumulateTraffic(): void {
+    if (!this.trafficTotalsLoaded) {
+      return;
+    }
+    const sessionUpload = Math.max(0, Math.floor(this.stats.uploadBytes));
+    const sessionDownload = Math.max(0, Math.floor(this.stats.downloadBytes));
+    const deltaUpload = sessionUpload >= this.lastSessionUpload
+      ? sessionUpload - this.lastSessionUpload : sessionUpload;
+    const deltaDownload = sessionDownload >= this.lastSessionDownload
+      ? sessionDownload - this.lastSessionDownload : sessionDownload;
+    this.lastSessionUpload = sessionUpload;
+    this.lastSessionDownload = sessionDownload;
+    if (deltaUpload <= 0 && deltaDownload <= 0) {
+      return;
+    }
+    this.totalUpload += deltaUpload;
+    this.totalDownload += deltaDownload;
+    this.persistTrafficTotals(false);
+  }
+
+  // 持久化累计。每秒写盘太频繁，平时节流（每 10s 一次）；force=true 用于退到后台/离开页面
+  // 时立刻落盘。硬杀进程最多丢 10s 增量，对流量计数可接受。
+  private persistTrafficTotals(force: boolean): void {
+    if (!this.trafficTotalsLoaded) {
+      return;
+    }
+    const now = Date.now();
+    if (!force && now - this.lastTrafficPersistAt < 10000) {
+      return;
+    }
+    this.lastTrafficPersistAt = now;
+    const totals: TrafficTotals = {
+      lifetimeUpload: this.totalUpload,
+      lifetimeDownload: this.totalDownload,
+      lastSessionUpload: this.lastSessionUpload,
+      lastSessionDownload: this.lastSessionDownload
+    };
+    const context = getContext(this) as common.Context;
+    TrafficTotalsStore.save(context, totals).catch((error: Error) => {
+      SHARED_RUNTIME_CONTROLLER.appendLog(JSON.stringify(error));
+    });
   }
 
   private syncSpeedNotification(): void {

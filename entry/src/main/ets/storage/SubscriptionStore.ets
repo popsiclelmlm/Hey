@@ -20,6 +20,14 @@ export interface ManualNodeUpdateResult {
   profile: SubscriptionProfile;
 }
 
+// 批量延迟落库的单条更新。
+export interface NodeDelayUpdate {
+  nodeId: string;
+  delayMs: number;
+  delayStatus: string;
+  delayTestAt: number;
+}
+
 export class SubscriptionStore {
   static async load(context: common.Context): Promise<SubscriptionProfile> {
     const store = await preferences.getPreferences(context, PREFERENCES_NAME);
@@ -100,6 +108,29 @@ export class SubscriptionStore {
           group.nodes[nodeIndex].delayMs = delayMs;
           group.nodes[nodeIndex].delayStatus = delayStatus;
           group.nodes[nodeIndex].delayTestAt = delayTestAt;
+        }
+      }
+    }
+    await SubscriptionStore.save(context, SubscriptionStore.normalize(profile));
+    return SubscriptionStore.load(context);
+  }
+
+  // 批量落库一组节点的延迟结果：一次 load/save 写完整块，避免逐节点反复读写
+  // preferences（大列表分块测速时每块只写一次）。
+  static async saveNodeDelays(context: common.Context, updates: Array<NodeDelayUpdate>): Promise<SubscriptionProfile> {
+    const profile = await SubscriptionStore.load(context);
+    const byId = new Map<string, NodeDelayUpdate>();
+    for (let i = 0; i < updates.length; i++) {
+      byId.set(updates[i].nodeId, updates[i]);
+    }
+    for (let groupIndex = 0; groupIndex < profile.groups.length; groupIndex++) {
+      const group = profile.groups[groupIndex];
+      for (let nodeIndex = 0; nodeIndex < group.nodes.length; nodeIndex++) {
+        const update = byId.get(group.nodes[nodeIndex].id);
+        if (update !== undefined) {
+          group.nodes[nodeIndex].delayMs = update.delayMs;
+          group.nodes[nodeIndex].delayStatus = update.delayStatus;
+          group.nodes[nodeIndex].delayTestAt = update.delayTestAt;
         }
       }
     }
