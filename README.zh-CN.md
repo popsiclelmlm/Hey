@@ -10,7 +10,7 @@
   <img src="https://img.shields.io/badge/platform-HarmonyOS%20NEXT-0A0A0A" alt="platform" />
   <img src="https://img.shields.io/badge/ArkTS-API%2024-1E88E5" alt="ArkTS API 24" />
   <img src="https://img.shields.io/badge/core-Xray-6E56CF" alt="Xray core" />
-  <img src="https://img.shields.io/badge/version-1.2.0-E85D04" alt="version 1.2.0" />
+  <img src="https://img.shields.io/badge/version-1.3.0-E85D04" alt="version 1.3.0" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-3DA639" alt="license GPL-3.0" /></a>
 </p>
 
