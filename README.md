@@ -78,7 +78,8 @@ below.
 - Import of subscription URLs, Xray outbound JSON, and share links, with
   multi-subscription groups and per-node detail/edit pages.
 - Share-link parsing for `vless://`, `vmess://`, `trojan://`, `ss://`,
-  `socks://`, `http(s)://`, `wireguard://`, and `hysteria2://` / `hy2://`.
+  `socks://`, `http(s)://`, `wireguard://`, `anytls://`, and
+  `hysteria2://` / `hy2://`.
 - Runtime config generation with a local SOCKS inbound (fed by the tun2socks
   data path) plus proxy/direct/block outbounds, and routing rules (bypass LAN/CN).
 - Native N-API bridge for packaged `libxray.so` / `libsingbox.so` /
@@ -87,8 +88,11 @@ below.
 - Geo-asset management (geoip/geosite download, custom URLs, and status/count feedback).
 - Per-app proxy with allow/deny modes, a preset app list, and manual package
   entry (HarmonyOS NEXT restricts global app enumeration).
-- Scan/import and export pages, diagnostic log panel, native runtime stat
-  display, settings, and an about page — with full English/Chinese i18n.
+- QR support via ScanKit: camera and from-image scanning to import share
+  links, plus QR code generation on the node detail and export pages for sharing.
+- Import and export pages, diagnostic log panel, native runtime stat and
+  traffic-total display, settings, and an about page — with full
+  English/Chinese i18n.
 
 ## Project Layout
 
@@ -169,9 +173,8 @@ into that SOCKS inbound. The core's native TUN inbound (`CGoSetTunFd` /
 
 - Real-device VPN traffic validation across more HarmonyOS versions.
 - Node sorting, duplicate cleanup, and automatic subscription refresh.
-- Camera-based QR scanning and QR code generation for share/export.
 - Protocol editors for advanced VLESS/VMess/Trojan/Shadowsocks/WireGuard/
-  Hysteria2 fields, plus TUIC support.
+  Hysteria2/AnyTLS fields, plus TUIC support.
 - Expanded routing rulesets, including ad-blocking and custom rule editing.
 - HarmonyOS deep-link import, shortcuts, and platform-specific automation.
 
