@@ -87,7 +87,7 @@ bash scripts/build_libxray_ohos.sh           # 默认 openharmony
 - gvisor `isSocketFD` 的 Fstat 补丁改为**尽力而为**（SOCKS 版通常不命中，不中只告警不中断）。
 - 顺带把内置 Xray 核版本号戳进 `entry/src/main/ets/core/CoreInfo.ets`（`BUNDLED_XRAY_VERSION`），About 页用它显示，避免运行时原生冷调用。
 
-旧的 `GOOS_TARGET=android` 路线仍保留在脚本里，但**已废弃**——新版 HarmonyOS 上 cgo→Go 必崩，仅作历史对照。
+脚本已收敛为单一 openharmony 路线；旧的 `GOOS_TARGET=android` 分支（在新版 HarmonyOS 上 cgo→Go 必崩）已从脚本删除，「为什么不用 android / linux」的取舍只保留在脚本顶部注释里。
 
 ### 3.2 libsingbox.so
 

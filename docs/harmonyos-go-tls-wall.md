@@ -179,8 +179,8 @@ HarmonyOS TUN fd
 - `libsingbox.so`：同样用 OpenHarmony Go fork 重编，作为可选第二内核。它仍导出
   `CGoSetTunFd` 等历史生命周期符号，但 VPN 数据面已经不再把 TUN fd 交给 sing-box。
 - `libheytun2socks.so`：负责读取 HarmonyOS TUN fd，并把流量转进本地 SOCKS 入站。
-  现有产物已是 OpenHarmony fork + TLSDESC；构建脚本还待恢复，手工配方见
-  [`building-native-cores.md`](building-native-cores.md)。
+  现有产物已是 OpenHarmony fork + TLSDESC；构建脚本见 `scripts/build_tun2socks_ohos.sh`，
+  完整配方见 [`building-native-cores.md`](building-native-cores.md)。
 - `HeyVpnAbility.ets`：Xray 和 sing-box 都统一走 tun2socks 数据面，核心先起本地
   SOCKS 入站，再启动 `startNativeTun2Socks(tunFd, 127.0.0.1, 10810, mtu)`。
 - `XrayConfig.ets` / `SingboxConfig.ets`：VPN 入站都改成本地 SOCKS / mixed 入站，

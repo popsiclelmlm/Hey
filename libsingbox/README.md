@@ -98,10 +98,9 @@ TUIC 已在生成器里实现，但还应补对应测试样例。
 bash scripts/build_libsingbox_ohos.sh
 ```
 
-脚本默认使用：
+脚本固定走 `GOOS=openharmony`（已无 `GOOS_TARGET` 开关），默认配置：
 
 ```text
-GOOS_TARGET=openharmony
 GO_TAGS="with_gvisor with_utls with_clash_api"
 OHOS_GO_FORK=~/hey-ohos-build/ohos_golang_go
 ```
