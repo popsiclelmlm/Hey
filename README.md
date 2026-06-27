@@ -4,7 +4,7 @@
 
 # Hey VPN
 
-**A HarmonyOS NEXT VPN client built around Xray, with a selectable sing-box preview core.**
+**A native Xray & sing-box proxy client, built for HarmonyOS NEXT.**
 
 <p>
   <img src="https://img.shields.io/badge/platform-HarmonyOS%20NEXT-0A0A0A" alt="platform" />

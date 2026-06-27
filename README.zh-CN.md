@@ -4,7 +4,7 @@
 
 # Hey VPN
 
-**一个以 Xray 为主运行路径、可切换 sing-box 预览内核的 HarmonyOS NEXT VPN 客户端。**
+**为 HarmonyOS NEXT 打造的原生 Xray / sing-box 代理客户端。**
 
 <p>
   <img src="https://img.shields.io/badge/platform-HarmonyOS%20NEXT-0A0A0A" alt="platform" />
