@@ -1,281 +1,252 @@
-# HarmonyOS Go cgo TLS 墙 —— VPN 启动崩溃排查与修复方案
+# HarmonyOS Go cgo TLS 墙：VPN 启动崩溃排查记录
 
-> 状态：**根因已定，修复方向已验证可行，正在落地**（2026-06-21）
-> 设备：ALN-AL80 / HarmonyOS 6.1.0.117(SP6C00E115R4P9) / API 23
-
-本文记录"真机点连接 → 启动 VPN 失败：VPN 扩展没有回写启动完成状态"这一问题的
-完整排查过程、根因、探索过的所有方案及其结论，以及选定的落地路径。配套背景见
-`docs/vpn-native-runtime-fix.md`（当前 native-TUN 链路文档）。
+> 状态：根因已确认，Xray / sing-box / tun2socks 的现役产物都已改走
+> `GOOS=openharmony` + TLSDESC。本文记录问题怎么定位、为什么最后回到
+> tun2socks 数据面，以及后续构建时要避开的坑。
+>
+> 首次排查设备：ALN-AL80 / HarmonyOS 6.1.0.117(SP6C00E115R4P9) / API 23。
+> 构建配方请以 [`building-native-cores.md`](building-native-cores.md) 为准。
 
 ---
 
-## 1. 现象
+## 1. 当时看到的现象
 
-真机点击"连接"后报：
+真机点「连接」后，主进程最后报：
 
-```
+```text
 connection start failed: 启动 VPN 失败：启动 VPN 未确认完成：VPN 扩展没有回写启动完成状态。
 ```
 
-机制：主进程 `ConnectionController.start()` 调 `startVpnExtensionAbility()` 后，
-轮询共享的 `DiagnosticLog` 文件，等 VPN 扩展进程回写 `Native VPN bridge started.`
-或 `VPN start failed.`，12 秒内一个都没等到 → 报上面的错。
+这条错误本身不是根因。它的意思是：`ConnectionController.start()` 调了
+`startVpnExtensionAbility()`，然后轮询共享的 `DiagnosticLog`，等 VPN 扩展进程写入
+`Native VPN bridge started.` 或 `VPN start failed.`。12 秒内两个都没等到，于是主进程
+只能认为启动失败。
 
-**"零回写"只可能是 VPN 扩展进程在写任何回执前就崩了**（任何 `throw` 都会被 catch
-并回写 `VPN start failed.`）。用户记得 1.1 版本（2026-06-05 发布，仅两周前）是好的。
+如果 ArkTS 里正常抛异常，`catch` 会写入 `VPN start failed.`。所以「零回写」高度指向
+VPN 扩展进程在写任何回执前就已经退出了，最常见的就是 native 层 SIGSEGV。
+
+当时还有一个误导点：用户记得 1.1 版本（2026-06-05 发布）能跑。后面验证发现，把
+1.1 的 `libxray.so` 字节级还原回来也会崩，说明这不是单纯的 App 二进制回归。
 
 ---
 
-## 2. 根因：GOOS=android 的 bionic TLS 槽，被环境变化踩爆
+## 2. 崩溃栈给出的线索
 
-### 2.1 真机崩溃栈（决定性证据）
+清空 hilog 后在真机复现，抓到的关键栈大致是：
 
-清空 hilog → 真机复现 → 抓到：
-
-```
+```text
 Reason: Signal:SIGSEGV(SEGV_MAPERR)@0x000103ffd50323b7
 Process name: com.lmlm.hey:vpn   life time: 2s
-#00 pc 0x...fc3e38 libxray.so          ← 崩在 libxray 的 Go 运行时内部
+#00 pc 0x...fc3e38 libxray.so
 #01 pc 0x...fc3dfc libxray.so
-#02 pc 0x...0106e4 libheyvpn.so         ← napi 正确地调到了 g_setTunFd
+#02 pc 0x...0106e4 libheyvpn.so
 #03 libace_napi.z.so ArkNativeFunctionCallBack
 #06 at setNativeTunFd (HeyNative.ets:111)
 #07 at startVpn (HeyVpnAbility.ets:101)
 ArkEtsVm: runtime: SIGSEGV in managed thread (native code)
-DfxUnwinder: Failed to step first frame, lr fallback   （反复出现）
+DfxUnwinder: Failed to step first frame, lr fallback
 ```
 
-- 崩点是**进入 libxray 的第一个 cgo 调用**（先是 preflight 的 `CGoTestXray`，
-  去掉后变成 `CGoSetTunFd`）。
-- 故障地址 `0x103ffd50323b7` 是个野指针；栈无法正常回溯——典型的 **Go 运行时
-  TLS/栈被当成垃圾解引用**的特征。
+几个点很关键：
 
-### 2.2 为什么是 android target 的 TLS 问题
+- 崩在进入 `libxray.so` 的第一个 cgo 调用附近。最开始是 preflight 的 `CGoTestXray`，
+  去掉 preflight 后，下一次 `CGoSetTunFd` 又崩。
+- `libheyvpn.so` 已经正确调到了 Go 导出的 C 符号，问题不是 N-API 没接上。
+- 地址像野指针，栈也回不稳，很符合 Go runtime 在线程本地状态上读到垃圾值后的表现。
 
-`libxray.so` / `libsingbox.so` 都由 `GOOS=android GOARCH=arm64` + OHOS clang 编译。
-
-- **GOOS=android**：Go 把 goroutine 指针 `g` 存进 **Android bionic 的固定 TLS 槽**
-  （`.so` **没有 PT_TLS 段**，验证：`llvm-readelf -l libxray.so | grep TLS` 为空）。
-- HarmonyOS 是 **musl** libc，不是 bionic。在 ArkTS/native 外来线程上，那个 bionic
-  槽里的值**不受 Go 控制**：
-  - 槽里恰好是 0 → Go 走 `needm` 正常分配 `g` → 能跑（**1.1 当时就是这样**）。
-  - 槽里是非零垃圾 → Go 当成已有 `g` 直接解引用 → **SIGSEGV**（现在这样）。
-
-**所以"1.1 好的、现在崩"不是代码/二进制回归，而是环境变化**（几乎可以肯定是
-设备 HarmonyOS 系统 OTA 升级，把 VPN 扩展线程的那个 TLS 槽从良性翻成了垃圾）。
-验证：把 `libxray.so` 还原成 1.1 的字节级相同二进制，**照崩、地址一样**。
-
-> 这堵墙在更早的会话里已记录（见全局记忆 `libxray-ohos-tls-dlopen-wall`），当时
-> 的结论是"UI 线程 cgo 崩、但 VPN 扩展还能用"。本次的新发现是：**墙已经蔓延到
-> VPN 扩展线程**，VPN 主路也崩了。
+这让方向从「某个 Xray 函数写坏内存」转成了「Go runtime 在 HarmonyOS 线程上拿错了
+TLS 里的 g 指针」。
 
 ---
 
-## 3. 探索过的方案及结论
+## 3. 真正的问题：Android target 的 TLS 假设不适合 HarmonyOS
 
-| 方案 | 结论 |
-|---|---|
-| 删掉 `HeyVpnAbility` 里的 `testNativeXrayConfig` preflight（第 78 行的冷 cgo） | ✅ 修掉了那一处崩溃，但**下一个 cgo 调用 `setNativeTunFd` 接着崩**——证明不是某个函数的问题 |
-| 还原 1.1 的 `libxray.so` | ❌ 照崩，地址一样 → **环境问题，非二进制回归** |
-| `dlopen` 改启动时链接（DT_NEEDED） | ❌ 旧会话已验证：musl 只给"初始镜像库"静态 TLS，而整个 native 模块是被运行时 `dlopen` 的，链接救不了 |
-| 改用 sing-box 核 | ❌ `libsingbox.so` 同样 `GOOS=android`、同样无 PT_TLS → 撞同一堵墙；换核救不了 |
-| **OHOS 官方 Go fork（`GOOS=openharmony`）** | ✅ **正解**，见第 4 节 |
+修复前的 `libxray.so` / `libsingbox.so` 都是用标准 Go 的
+`GOOS=android GOARCH=arm64`，配 OHOS clang 编出来的。
 
----
+这个组合能产出可加载的 `.so`，但里面有一个隐藏前提：Android target 会按 bionic 的
+规则，把 Go 的 goroutine 指针 `g` 放在固定 TLS 槽里。`llvm-readelf -l libxray.so |
+grep TLS` 为空，也就是没有真正的 ELF `PT_TLS` 段。
 
-## 4. 验证可行的修复方向：OHOS Go fork + TLSDESC
+HarmonyOS 这里跑的是 musl，不是 bionic。在 ArkTS / native 外来线程上，那个固定槽并不
+归 Go runtime 管：
 
-OpenHarmony-SIG 维护了 Go 的官方移植：**`gitcode.com/openharmony-sig/ohos_golang_go`**
-（分支 `release-branch.go1.24`，即 go1.24.5）。它为 arm64 补上了 **TLSDESC（通用动态
-TLS）** 支持——这正是 musl 能在 `dlopen` 的库里解析的 TLS 模型。
+- 槽里刚好是 0 时，Go 会走 `needm`，给这个外来线程补上 Go 的运行时状态，于是看起来能跑。
+- 槽里是非零垃圾时，Go 会把它当成现成的 `g` 直接用，随后就是 SIGSEGV。
 
-### 已完成的验证
+这也解释了「以前能跑，现在崩」这种很不舒服的现象。更保守地说，它说明运行环境变了：
+可能是系统 OTA，也可能是 VPN 扩展进程的线程布局、TLS 初值或加载顺序变化。我们没有
+证明是哪一个变化，但 1.1 旧二进制在同一台设备上也崩，足够排除「只是新代码写坏了」。
 
-1. 用本机 go1.25.4 做 bootstrap，`make.bash` 编出 OHOS go1.24.5 工具链。
-2. 最小 cgo c-shared 冒烟测试（`GOOS=openharmony`）：
-
-```
-PT_TLS 段：存在（真正的 ELF TLS，不再走 bionic 槽）
-tls_g 重定位：R_AARCH64_TLSDESC   ← 通用动态模型，musl dlopen 可解析
-```
-
-这两点同时满足，意味着用该工具链编出的 `.so`：**既能被 libheyvpn 在 musl 上
-`dlopen`，外来线程 cgo 调用也不会读到垃圾 TLS** —— 两难一次解掉。
+之前我们已经在 UI 线程冷调 cgo 时踩过同一类墙；这次更麻烦，因为 VPN 扩展线程也踩到了，
+主链路不再只是「诊断按钮会崩」，而是连 VPN 都起不来。
 
 ---
 
-## 5. 卡点：核版本与工具链版本的鸿沟
+## 4. 走过的路
 
-OHOS Go fork 只发布到 **go1.24.5**（master 是更旧的 go1.22，无 1.25/1.26 分支）。
-而当前 native-TUN 链路依赖的东西要求更高的 Go：
-
-- 当前 `libXray` 要求 **go 1.26.3**；其依赖 `xray-core` 自 2025-09 起就要求 **go ≥ 1.25**。
-- 上游 Go **直到 1.26 都不含 openharmony 移植**（`grep -r openharmony go1.26.3/src` 为 0）。
-- VPN 数据面用的 **`CGoSetTunFd`** 是 libXray 在 **2026-04-01** 才加的，且从加入起
-  go.mod 就是 go1.26；它依赖 xray-core 的 `proxy/tun` 包 + `platform.TunFdKey`，
-  而：
-  - `xray-core v1.250803.0`（go1.24，2025-08）：**没有 `proxy/tun`、没有 `TunFdKey`**。
-  - `xray-core v1.260206.0`（go1.25.7，2026-02）：**有** `proxy/tun/tun_android.go` + `TunFdKey`。
-
-**结论**：用现成的 go1.24.5 fork **编不出有原生 TUN 能力的核**。native-TUN 链路
-最低需要 go1.25 工具链（前向移植）。
+| 尝试 | 结果 |
+| --- | --- |
+| 删掉 `HeyVpnAbility` 里的 `testNativeXrayConfig` preflight | 绕过了第一处冷 cgo，但下一个 `CGoSetTunFd` 继续崩，说明不是 preflight 自身的问题。 |
+| 换回 1.1 的 `libxray.so` | 仍然崩，且故障地址一致。问题在运行环境和 target 假设上，不在这次新编出来的某个函数里。 |
+| 把 `dlopen` 改成启动时链接 / DT_NEEDED | 没解决。native 模块本身仍是运行时加载，musl 对 TLS 模型的限制绕不过去。 |
+| 换 sing-box 核 | 当时的 sing-box 也是 `GOOS=android`，同样没有 `PT_TLS`，会撞同一堵墙。 |
+| 用 OpenHarmony Go fork 编 `GOOS=openharmony` | 方向成立：产物有真正的 `PT_TLS` 和 `R_AARCH64_TLSDESC`，外来线程 cgo 不再读 bionic 固定槽。 |
 
 ---
 
-## 6. 两条落地路径
+## 5. 能解 TLS 的方案：OpenHarmony Go fork + TLSDESC
 
-两条路**都用 OHOS fork 的 TLSDESC 作为真正的 TLS 修复**，区别在数据面与工具链：
+OpenHarmony-SIG 维护了 Go 的 OpenHarmony 移植：
 
-### 路径 A：tun2socks 复活（选定）
-
-复活 `5a21b4e`（2026-06-03 "Remove tun2socks VPN adapter"）之前的旧数据面：
-
-```
-TUN fd → libheytun2socks.so（xjasonlyu/tun2socks v2.6.0 + gVisor netstack）
-       → Xray 的 SOCKS 入站 → Xray outbound
+```text
+https://gitcode.com/openharmony-sig/ohos_golang_go
+branch: release-branch.go1.24
+version: go1.24.5
 ```
 
-- `tun2socks_adapter/go.mod` 是 **`go 1.23.4`、不依赖 xray-core** → 用 go1.24.5 fork 直接编。
-- `libxray.so` 只需 **SOCKS 入站**（远古特性）→ go1.24 的 `xray-core v1.250803.0`
-  即可，**不需要 `CGoSetTunFd`/`proxy/tun`/`TunFdKey`**。
-- ✅ **无需任何上游 Go 移植**；构建侧完全确定。
-- ⚠️ 代价：把数据面**改回** TUN→tun2socks→SOCKS（动 napi + XrayConfig + HeyVpnAbility），
-  重建 2 个 Go 库；重新引入已删掉的 gVisor 用户态中转层（性能略低、多一库维护）。
-- 核：xray-core 2025-08（go1.24）。
+这个 fork 给 arm64 补了 TLSDESC，也就是 musl 能在 `dlopen` 的共享库里处理的动态 TLS
+模型。最小 cgo `c-shared` 冒烟验证看到了两个标志：
 
-### 路径 B：go1.25 工具链前向移植（备选）
-
-把 OHOS 的 openharmony 补丁从 go1.24.5 前移到上游 go1.25，编出 go1.25 OHOS 工具链，
-保留当前 native-TUN 架构，用 `xray-core v1.260206.0`（go1.25.7）重建 libxray。
-
-- ✅ 保留更干净的原生 TUN 架构，App 代码几乎不动。
-- ⚠️ 需要移植 `cmd/dist` / `cmd/link`（arm64 TLSDESC 是硬骨头）/ runtime / syscall，
-  跨一个大版本有冲突风险，构建侧不确定，可能多轮迭代。
-- 核：xray-core 2026-02（go1.25.7）。
-
-### 选定：路径 A（tun2socks 复活）
-
-理由：**构建侧完全确定**（不赌上游 Go 移植能否成），是"已验证能跑的旧设计 +
-正确的 TLSDESC 修复"的组合，风险最低。执行上**不做 `git revert 5a21b4e`**（会与
-近 3 周的 sing-box / 设置重构大面积冲突），而是从该提交**挑出数据面三件套**
-（tun2socks 适配器源码 + 构建脚本 + SOCKS 入站配置 + napi 适配器控制）重新接到
-当前代码上。
-
----
-
-## 7. 关键事实速查
-
-- 当前 prebuilt `libxray.so`（d37ab36）= GOOS=android、含 12 个 CGo 导出、**会崩**。
-- 1.1 的 `libxray.so` = 同为 GOOS=android、仅 4 个导出、**也会崩**（环境问题）。
-- VPN 必需的 napi 符号：`CGoRunXrayFromJSON` / `CGoStopXray` / `CGoPing` /
-  `CGoSetTunFd`（native-TUN 路）。tun2socks 路**不需要** `CGoSetTunFd`。
-- OHOS Go fork：`gitcode.com/openharmony-sig/ohos_golang_go @ release-branch.go1.24`
-  （go1.24.5），已在本机 `build/native/ohos_golang_go/`（gitignored）编好。
-- 构建 OHOS 目标：`GOOS=openharmony GOARCH=arm64 CC=<OHOS clang> CGO_CFLAGS="-ftls-model=global-dynamic" GOTOOLCHAIN=local`。
-- `gvisor` 的 `isSocketFD` Fstat 补丁对所有 target 都要打（Harmony VPN fd 拒绝 Fstat）。
-
----
-
-## 8. 下一步（路径 A）
-
-1. **试编 tun2socks 适配器**：从 `5a21b4e^` 取回 `tun2socks_adapter/` + `build_tun2socks_ohos.sh`，
-   用 go1.24.5 fork（`GOOS=openharmony`）编 `libheytun2socks.so`，确认依赖树不卡 go1.25
-   且产物带 PT_TLS + TLSDESC。**编过了再动 App 代码。**
-2. 编 SOCKS-入站版 `libxray.so`（xray-core v1.250803.0 + go1.24.5 fork）。
-3. 把数据面三件套接回当前代码（napi 适配器控制 + XrayConfig 改 SOCKS 入站 +
-   HeyVpnAbility 改走适配器）。
-4. `scripts/device_vpn_smoke_test.sh build`（含 `hvigor clean`）→ `install` → 真机验证；
-   成功时 hilog 应见 `Native VPN bridge started.` 且无 SIGSEGV。
-
----
-
-## 附：本机环境与工具
-
-- OHOS Go 工具链：`/Users/liumin/Hey/build/native/ohos_golang_go/bin/go`（go1.24.5）。
-- OHOS clang：`<DevEco>/sdk/default/openharmony/native/llvm/bin/aarch64-unknown-linux-ohos-clang`。
-- 命令行打包：`<DevEco>/tools/hvigor/bin/hvigorw`（需 `NODE_HOME`、`DEVECO_SDK_HOME`）。
-- hdc：`~/Library/OpenHarmony/Sdk/14/toolchains/hdc`（设备 `29Q0223920001682`）。
-- 检查 .so 的 TLS 模型：`llvm-readelf -l <so> | grep TLS`（要有 PT_TLS）、
-  `llvm-readelf -r <so> | grep TLSDESC`（要是 TLSDESC，不能是 TPREL/IE）。
-
----
-
-## 9. 本次实现改动记录（2026-06-21）
-
-### 9.1 方案落地概述
-
-按路径 A（tun2socks 复活）实现，**用 OHOS Go fork（TLSDESC）重编两个 Go 库**，
-数据面改为 `TUN fd → libheytun2socks.so → Xray 的 SOCKS 入站 → outbound`：
-
-- **TLS 墙**：两个 .so 都用 OHOS go1.24.5 fork（`GOOS=openharmony`）编，产物带
-  `PT_TLS + R_AARCH64_TLSDESC`，musl 下可 dlopen、外来线程 cgo 不再 SIGSEGV。
-- **TUN fd 读取**：tun2socks 用的 gvisor 和 libxray 一样要打 `isSocketFD` 跳过
-  `Fstat` 的补丁（Harmony VPN fd 拒绝 Fstat），否则 `engine.Start()` 会 `log.Fatal`
-  退出进程。
-
-真机结果（ALN-AL80 / HarmonyOS 6.1）：原"VPN 扩展没有回写启动完成状态"的崩溃
-**已解决**，VPN 能连上、能上网（数据面通）。
-
-### 9.2 源码改动清单（本次）
-
-| 文件 | 改动 |
-|---|---|
-| `cpp/napi_init.cpp` | `#include <thread>`；新增 tun2socks 类型/全局（独立 handle `g_tun2socksHandle`）；`LoadXrayCore` 不再强求 `CGoSetTunFd`（SOCKS 路不需要）；新增 `LoadTun2SocksCore`（dlopen `libheytun2socks.so`）；`GetStats` 用适配器字节刷新流量；新增 `StartTun2Socks`/`StopTun2Socks` 并在 `Init` 注册 |
-| `cpp/CMakeLists.txt` | foreach 拷贝列表加 `libheytun2socks.so` |
-| `cpp/types/libheyvpn/Index.d.ts` | 加 `startTun2Socks`/`stopTun2Socks` 声明 |
-| `cpp/prebuilt/arm64-v8a/libxray.so` | 替换为 **SOCKS 入站版**（xray-core v1.250803.0 + OHOS fork，TLSDESC）；导出仅 `CGoRunXrayFromJSON/CGoStopXray/CGoPing/CGoQueryStats` |
-| `cpp/prebuilt/arm64-v8a/libheytun2socks.so` | **新增**（xjasonlyu/tun2socks v2.6.0 + OHOS fork，TLSDESC，含 gvisor Fstat 补丁） |
-| `ets/native/HeyNative.ets` | 加 `startNativeTun2Socks`/`stopNativeTun2Socks` 绑定 |
-| `ets/core/XrayConfig.ets` | 加 `VPN_DATA_SOCKS_HOST=127.0.0.1` / `VPN_DATA_SOCKS_PORT=10810`；VPN 数据面入站由 `protocol:'tun'` 改为 **`protocol:'socks'`**（tag 仍 `tun-in`，路由不动） |
-| `ets/vpn/HeyVpnAbility.ets` | 删 `testNativeXrayConfig` preflight；Xray 路改为 `startNativeXray(socks)` 后 `startNativeTun2Socks(tunFd, 127.0.0.1, 10810, mtu)`；`cleanup` 加 `stopNativeTun2Socks`；sing-box 路暂保持原生 TUN 不变 |
-| `docs/harmonyos-go-tls-wall.md` | 新增本排查/方案文档 |
-
-> 注：`ShareLinkParser.ets` / `SubscriptionDetail.ets` / `SubscriptionEdit.ets` /
-> `QrScan.ets` 是并行的其它改动（扫码/分享链接），**不属于本次 VPN 修复**。
-
-### 9.3 ⚠️ 临时诊断改动（待回退）
-
-为排查数据面加的临时代码，**确认稳定后要删**：
-
-- `XrayConfig.ets`：`XrayLogConfig` 的 `access?`/`error?` 字段；VPN config 的
-  `log` 段写死了 `loglevel:'debug'` + 落盘 `xray_error.log`/`xray_access.log`。
-  应还原为 `loglevel: normalizeV2rayNgCoreLogLevel(settings?.logLevel ?? DEFAULT_LOG_LEVEL, ...)`。
-- `HeyVpnAbility.ets`：`import fs`、`precreateDiagnosticLogs()` 方法及其调用、`[临时诊断]` 注释。
-
-### 9.4 .so 构建方式（脚本尚未更新，先记命令）
-
-构建产物与工具链在 **`~/hey-ohos-build/`**（仓库外，避免被 `hvigor clean` 删——
-**教训：`hvigor clean` 会删除 `<repo>/build/`，native 产物不能放那里**）。
-
-OHOS Go 工具链：`git clone --branch release-branch.go1.24 https://gitcode.com/openharmony-sig/ohos_golang_go.git`，
-`cd src && GOROOT_BOOTSTRAP=/usr/local/go GOTOOLCHAIN=local ./make.bash`。
-
-公共构建环境：
-```
-FORK=~/hey-ohos-build/ohos_golang_go
-CC=<DevEco>/sdk/default/openharmony/native/llvm/bin/aarch64-unknown-linux-ohos-clang
-公共 env：CGO_ENABLED=1 GOOS=openharmony GOARCH=arm64 CC=$CC CXX=${CC}++ \
-         CGO_CFLAGS="-ftls-model=global-dynamic" GOTOOLCHAIN=local
-注意：openharmony 的 net 端口需要 cgo，**不能加 `-tags netgo`**（会报 _C_getifaddrs undefined）。
+```text
+PT_TLS 段：存在
+tls_g 重定位：R_AARCH64_TLSDESC
 ```
 
-- **libheytun2socks.so**：源码取自 `git show 5a21b4e^:entry/src/main/cpp/tun2socks_adapter/{go.mod,go.sum,main.go}`；
-  把 gvisor 复制一份、patch `pkg/tcpip/link/fdbased/endpoint.go` 的 `isSocketFD` 为
-  `return false, nil`，`go mod edit -replace gvisor.dev/gvisor=<patched>`；
-  `go build -buildmode=c-shared -o libheytun2socks.so .`。
-- **libxray.so（SOCKS 版）**：libXray 源取 `git -C <libXray全history> archive 20d70a98`（2025-08，go.mod 钉 xray-core v1.250803.0）；
-  `go mod edit -go=1.24`；复制 `build/template/main.go` 到根并把根目录 `package libXray`→`package main`；
-  version-script 只导出 `CGoRunXrayFromJSON;CGoStopXray;CGoPing;CGoQueryStats`；
-  `go build -buildmode=c-shared -ldflags="... -checklinkname=0 -linkmode external ..." -o libxray.so .`。
+这正好补上了标准 Go 两条路各自的短板：
 
-### 9.5 待办
+- 标准 `GOOS=android`：能 `dlopen`，但外来线程上的 bionic TLS 槽不可靠。
+- 标准 `GOOS=linux`：用真 ELF TLS，但会带 initial-exec TLS，musl 不接受这种库再被
+  `dlopen`。
+- `GOOS=openharmony` fork：用 TLSDESC，既能被 musl `dlopen`，也能让外来线程上的 cgo
+  正常进入 Go runtime。
 
-1. **回退 9.3 的临时诊断改动**。
-2. 把 9.4 的构建写进 `scripts/build_libxray_ohos.sh`（加 `openharmony` 分支：fork + 去 netgo + 钉 v1.250803.0 + SOCKS exports）和恢复 `scripts/build_tun2socks_ohos.sh`（fork + gvisor 补丁）。
-   - **2026-06-22 更新**：9.4 的 libxray 配方已**实测可复现**——用 `~/hey-ohos-build/ohos_golang_go`（go1.24.6 fork）
-     + libXray @ `20d70a98` + `build/template/main.go`，编出过体积/导出/TLSDESC 与现役 .so 一致的产物
-     （当时还试加了 `CGoPingBatch` 导出，后因改走纯 ArkTS 流式测速而弃用、还原原版 .so，见 bug-plan BUG-001）。
-     脚本化（写进 `build_libxray_ohos.sh` 的 openharmony 分支）仍待补。
-3. 出干净正式版重新装机确认（含 `device_vpn_smoke_test.sh`）。
-4. 复核稳定性（首连冷启动是否偶发不通 / DNS-over-UDP 是否需加固）。
-5. sing-box 核迁移到同方案（OHOS fork 重编 + 走 SOCKS 入站）——后续。
+---
+
+## 6. 为什么没有继续走 native-TUN
+
+TLS 问题解决后，还剩一个版本鸿沟。
+
+OpenHarmony Go fork 目前只到 go1.24.5；远端分支也只有 `release-branch.go1.24` 和更旧的
+`master`（go1.22）。但当前 libXray 主线已经要求 go1.26.3，xray-core 从 2025-09 之后也
+抬到了 go1.25 以上。上游 Go 到 1.26 仍没有 `GOOS=openharmony`。
+
+而我们当时的 native-TUN 路径正好依赖较新的东西：
+
+- `CGoSetTunFd` 是 libXray 在 2026-04-01 加的。
+- 这条路依赖 xray-core 的 `proxy/tun` 包和 `platform.TunFdKey`。
+- `xray-core v1.250803.0` 是 go1.24，可编，但没有 `proxy/tun` / `TunFdKey`。
+- `xray-core v1.260206.0` 有 `proxy/tun/tun_android.go` / `TunFdKey`，但 go.mod 是
+  `go 1.25.7`。
+
+所以现成的 go1.24.5 fork 编不出带 native-TUN 能力的 Xray 核。要保留 native-TUN，就要
+把 OpenHarmony Go 补丁前移到 go1.25 或 go1.26。这个方向并非不可做，但风险主要在
+`cmd/dist`、`cmd/link`、runtime 和 syscall，尤其是 arm64 TLSDESC，短期内不适合作为
+主线修复。
+
+---
+
+## 7. 最后选的路：回到 tun2socks 数据面
+
+为了先把真机 VPN 救回来，最后选择恢复旧数据面：
+
+```text
+HarmonyOS TUN fd
+  -> libheytun2socks.so
+  -> 127.0.0.1:10810 SOCKS 入站
+  -> Xray / sing-box outbound
+```
+
+这个方案的好处很直接：
+
+- `tun2socks_adapter/go.mod` 是 `go 1.23.4`，不依赖 xray-core，用 go1.24.5 fork 能编。
+- Xray 只需要提供 SOCKS 入站，钉在 libXray `20d70a98` / xray-core `v1.250803.0` 就够了。
+- 不需要 `CGoSetTunFd`、`proxy/tun` 或 `TunFdKey`。
+- Go-on-HarmonyOS 的 TLS 问题仍然用 fork + TLSDESC 正面解决，不再碰 bionic 固定槽。
+
+代价也要承认：数据面多了一层 gVisor 用户态转发，性能和维护成本都不如 native-TUN 干净。
+但它构建确定、风险可控，而且和项目早期跑通过的设计一致。
+
+---
+
+## 8. 当前实现状态
+
+截至 2026-06-28，现役状态是：
+
+- `libxray.so`：`GOOS=openharmony`，带 `PT_TLS + R_AARCH64_TLSDESC`，只导出
+  `CGoRunXrayFromJSON` / `CGoStopXray` / `CGoPing` / `CGoQueryStats`。脚本见
+  `scripts/build_libxray_ohos.sh`。
+- `libsingbox.so`：同样用 OpenHarmony Go fork 重编，作为可选第二内核。它仍导出
+  `CGoSetTunFd` 等历史生命周期符号，但 VPN 数据面已经不再把 TUN fd 交给 sing-box。
+- `libheytun2socks.so`：负责读取 HarmonyOS TUN fd，并把流量转进本地 SOCKS 入站。
+  现有产物已是 OpenHarmony fork + TLSDESC；构建脚本还待恢复，手工配方见
+  [`building-native-cores.md`](building-native-cores.md)。
+- `HeyVpnAbility.ets`：Xray 和 sing-box 都统一走 tun2socks 数据面，核心先起本地
+  SOCKS 入站，再启动 `startNativeTun2Socks(tunFd, 127.0.0.1, 10810, mtu)`。
+- `XrayConfig.ets` / `SingboxConfig.ets`：VPN 入站都改成本地 SOCKS / mixed 入站，
+  不再生成核心自己的 TUN 入站。
+
+当时真机验证结果：ALN-AL80 / HarmonyOS 6.1 上，原来的「VPN 扩展没有回写启动完成状态」
+已消失，VPN 能连上，也能走通流量。
+
+---
+
+## 9. gVisor Fstat 补丁
+
+tun2socks 和历史 native-TUN 栈都绕不开 gVisor 的 fd endpoint。这里有另一个 HarmonyOS
+差异：VPN fd 可以 `readv` / `writev`，但会拒绝 `Fstat`。gVisor 的 `fdbased` endpoint
+默认会用 `unix.Fstat` 判断这个 fd 是不是 socket；在 HarmonyOS VPN fd 上，这一步会失败。
+
+所以 tun2socks 这边必须 patch：
+
+```go
+func isSocketFD(fd int) (bool, error) {
+    return false, nil
+}
+```
+
+对当前 SOCKS 版 `libxray.so` 来说，这个补丁通常不会命中，因为 Xray 已经不直接读 TUN fd。
+脚本里仍保留了尽力而为的 patch，是为了防止历史依赖路径或后续实验重新踩到。
+
+---
+
+## 10. 构建和校验
+
+完整构建步骤放在 [`building-native-cores.md`](building-native-cores.md)。这里只留几条最容易
+忘的规则：
+
+- OpenHarmony Go fork 放仓库外，默认路径是 `~/hey-ohos-build/ohos_golang_go`。不要放
+  `<repo>/build/`，`hvigor clean` 会删。
+- 公共环境：
+
+```bash
+CGO_ENABLED=1 \
+GOOS=openharmony \
+GOARCH=arm64 \
+CC=<DevEco>/sdk/default/openharmony/native/llvm/bin/aarch64-unknown-linux-ohos-clang \
+CXX=<DevEco>/sdk/default/openharmony/native/llvm/bin/aarch64-unknown-linux-ohos-clang++ \
+CGO_CFLAGS="-ftls-model=global-dynamic" \
+GOTOOLCHAIN=local
+```
+
+- `GOOS=openharmony` 下不要加 `-tags netgo`。OpenHarmony 的 net 端口需要 cgo，加了会报
+  `_C_getifaddrs undefined`。
+- 每次重编 `.so` 后至少看这几项：
+
+```bash
+strings -a entry/src/main/cpp/prebuilt/arm64-v8a/libxray.so | grep -m1 'GOOS=openharmony'
+llvm-readelf -l entry/src/main/cpp/prebuilt/arm64-v8a/libxray.so | grep -i TLS
+llvm-readelf -r entry/src/main/cpp/prebuilt/arm64-v8a/libxray.so | grep -i TLSDESC
+nm -D entry/src/main/cpp/prebuilt/arm64-v8a/libxray.so | grep ' T .*CGo'
+```
+
+`libxray.so` 的 CGo 导出应该只有 4 个。`libxray.h` 是 cgo 生成的历史头文件，可能列出
+现役 `.so` 不再导出的符号，判断导出集以 `nm -D` 为准。
+
+---
+
+## 11. 还没收尾的事
+
+- 继续观察冷启动首连、DNS-over-UDP、长时间运行后的稳定性。
+- 如果以后想回到 native-TUN，需要先做 go1.25+ 的 OpenHarmony 工具链前向移植；在那之前，
+  不建议把 Xray 主线和 native-TUN 重新接回 VPN 数据面。

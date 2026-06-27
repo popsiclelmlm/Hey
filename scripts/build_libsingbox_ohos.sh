@@ -19,7 +19,6 @@ SDK_HOME="${DEVECO_SDK_HOME:-/Applications/DevEco-Studio.app/Contents/sdk}"
 OHOS_NATIVE_HOME="${OHOS_NATIVE_HOME:-${SDK_HOME}/default/openharmony/native}"
 CC_BIN="${OHOS_NATIVE_HOME}/llvm/bin/aarch64-unknown-linux-ohos-clang"
 CXX_BIN="${OHOS_NATIVE_HOME}/llvm/bin/aarch64-unknown-linux-ohos-clang++"
-AR_BIN="${OHOS_NATIVE_HOME}/llvm/bin/llvm-ar"
 WORK_DIR="${ROOT_DIR}/build/native/libsingbox-ohos"
 # [SING-BOX] 源码是仓库内第一方 wrapper，不 clone。
 SRC_DIR="${ROOT_DIR}/libsingbox"
@@ -34,7 +33,6 @@ GO_LDFLAGS_DEFAULT="-s -w -checklinkname=0 -linkmode external -extldflags \"-Wl,
 # CGoSingBoxVersion 都一调就 SIGSEGV(@0x000103ffd50323b7)，VPN 扩展进程当场死。libxray 现在
 # 能用，正是因为它已用本 fork 重编过。
 OHOS_GO_FORK="${OHOS_GO_FORK:-${HOME}/hey-ohos-build/ohos_golang_go}"
-GOOS_TARGET="${GOOS_TARGET:-openharmony}"
 # build tags（已用真实 sing-box NewService 校验，见 validate_test.go）：
 #   with_gvisor / with_utls(reality+uTLS) / with_clash_api(libbox.NewService 必需)。
 # ⚠️ 不能加 netgo：openharmony 的 net 端口需要 cgo，加了会报 _C_getifaddrs undefined。
@@ -49,7 +47,6 @@ else
   echo "  cd ohos_golang_go/src && GOROOT_BOOTSTRAP=/usr/local/go GOTOOLCHAIN=local ./make.bash" >&2
   exit 1
 fi
-ANDROID_STUB_DIR="${WORK_DIR}/android-stub"
 
 mkdir -p "${WORK_DIR}" "${OUT_DIR}"
 
@@ -64,57 +61,9 @@ cat > "${EXPORTS_FILE}" <<'MAP'
 };
 MAP
 
-if [[ "${GOOS_TARGET}" == "android" ]]; then
-  mkdir -p "${ANDROID_STUB_DIR}/android"
-  cat > "${ANDROID_STUB_DIR}/android/log.h" <<'H'
-#pragma once
-#include <stdarg.h>
-#define ANDROID_LOG_FATAL 6
-#ifdef __cplusplus
-extern "C" {
-#endif
-int __android_log_vprint(int prio, const char* tag, const char* fmt, va_list ap);
-#ifdef __cplusplus
-}
-#endif
-H
-  cat > "${ANDROID_STUB_DIR}/android/api-level.h" <<'H'
-#pragma once
-#ifdef __cplusplus
-extern "C" {
-#endif
-int android_get_device_api_level(void);
-#ifdef __cplusplus
-}
-#endif
-H
-  cat > "${ANDROID_STUB_DIR}/android_log_stub.c" <<'C'
-#include <stdarg.h>
-#include <stdio.h>
-int __android_log_vprint(int prio, const char* tag, const char* fmt, va_list ap) {
-    (void)prio;
-    if (tag != 0) {
-        fprintf(stderr, "%s: ", tag);
-    }
-    int n = vfprintf(stderr, fmt, ap);
-    fputc('\n', stderr);
-    return n;
-}
-int android_get_device_api_level(void) {
-    return 35;
-}
-C
-  "${CC_BIN}" -c "${ANDROID_STUB_DIR}/android_log_stub.c" -o "${ANDROID_STUB_DIR}/android_log_stub.o"
-  "${AR_BIN}" rcs "${ANDROID_STUB_DIR}/liblog.a" "${ANDROID_STUB_DIR}/android_log_stub.o"
-  export CGO_CFLAGS="${CGO_CFLAGS:-} -I${ANDROID_STUB_DIR}"
-  export CGO_LDFLAGS="${CGO_LDFLAGS:-} -L${ANDROID_STUB_DIR}"
-fi
-
-if [[ "${GOOS_TARGET}" == "openharmony" ]]; then
-  # 去掉其余 IE-TLS 重定位，配合 fork 的 tls_g TLSDESC——musl 在 dlopen 的库里只接受
-  # 通用动态 TLS（global-dynamic / TLSDESC），不接受 initial-exec。
-  export CGO_CFLAGS="${CGO_CFLAGS:-} -ftls-model=global-dynamic"
-fi
+# 去掉其余 IE-TLS 重定位，配合 fork 的 tls_g TLSDESC——musl 在 dlopen 的库里只接受
+# 通用动态 TLS（global-dynamic / TLSDESC），不接受 initial-exec。
+export CGO_CFLAGS="${CGO_CFLAGS:-} -ftls-model=global-dynamic"
 
 cd "${SRC_DIR}"
 
@@ -179,7 +128,7 @@ else
 fi
 
 CGO_ENABLED=1 \
-GOOS="${GOOS_TARGET}" \
+GOOS=openharmony \
 GOARCH=arm64 \
 CC="${CC_BIN}" \
 CXX="${CXX_BIN}" \

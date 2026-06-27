@@ -1,5 +1,7 @@
 # Hey VPN Native Core
 
+English · [简体中文](README.zh-CN.md)
+
 `libheyvpn.so` is the ArkTS N-API bridge. It `dlopen`s the packaged Go shared
 libraries beside it:
 
@@ -37,13 +39,16 @@ for the native-TUN entry points pushed the data path back to
 The shipped `libxray.so` / `libsingbox.so` / `libheytun2socks.so` are built with
 the **OpenHarmony Go fork** (`GOOS=openharmony`, arm64 **TLSDESC**) so that cgo
 works from ArkTS/foreign threads and the libraries `dlopen` cleanly on musl.
-`CGoSetTunFd` and the native-TUN entry points are intentionally not part of the
-SOCKS-inbound builds.
+The native-TUN entry points are leftovers from an earlier experiment: `libxray.so`
+drops `CGoSetTunFd` entirely, while `libsingbox.so` still ships it (and its
+`OpenTun()` stub) but nothing on the SOCKS data path ever calls it.
 
-`scripts/build_libxray_ohos.sh` still defaults to the older `GOOS=android`
-target (which crashes on UI-thread cgo) and does not yet script the
-`openharmony` fork build — the authoritative build recipe and its rationale live
-in [`docs/harmonyos-go-tls-wall.md`](../../../../docs/harmonyos-go-tls-wall.md)
-(§9.4). CMake copies the prebuilt `.so` files from
+`scripts/build_libxray_ohos.sh` and `scripts/build_libsingbox_ohos.sh` default
+to the `openharmony` fork build. The authoritative build recipe (toolchain
+setup, pinned revisions, per-library exports, and artifact checks) lives in
+[`docs/building-native-cores.md`](../../../../docs/building-native-cores.md);
+the underlying TLS rationale is in
+[`docs/harmonyos-go-tls-wall.md`](../../../../docs/harmonyos-go-tls-wall.md).
+CMake copies the prebuilt `.so` files from
 `entry/src/main/cpp/prebuilt/arm64-v8a/` into the HAP native library directory
 after building `libheyvpn.so`.
