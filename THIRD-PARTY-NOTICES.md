@@ -20,6 +20,24 @@ part of Hey VPN.
   exact correspondence between a released `libxray.so` and its source, pin the
   upstream commit/tag in that script (currently it clones the latest `HEAD`).
 
+### sing-box — GPL-3.0-or-later
+
+- Source: https://github.com/SagerNet/sing-box
+- License: GNU General Public License v3.0 or later (GPL-3.0-or-later)
+- Usage: wrapped by the repository's `libsingbox/` CGo bridge and distributed
+  as `entry/src/main/cpp/prebuilt/arm64-v8a/libsingbox.so`.
+- Obligation: the complete corresponding source for Hey VPN is distributed
+  under GPL-3.0, and the sing-box source is available from the upstream
+  repository above. Released builds should keep `libsingbox/go.mod` pinned to
+  the exact sing-box version used for the packaged library.
+
+### tun2socks — MIT
+
+- Source: https://github.com/xjasonlyu/tun2socks
+- License: MIT
+- Usage: used by the bundled `libheytun2socks.so` adapter to relay the HarmonyOS
+  VPN TUN fd into the selected core's local SOCKS inbound.
+
 ## Build-time / wrapper
 
 ### libXray — MIT
@@ -35,5 +53,6 @@ part of Hey VPN.
 
 MPL-2.0 is file-level (weak) copyleft and is compatible with GPL-3.0; the
 combined work is distributed under GPL-3.0 while the Xray-core files retain
-MPL-2.0. MIT is a permissive license and only requires attribution, provided
-above.
+MPL-2.0. sing-box is GPL-3.0-or-later, which is aligned with Hey VPN's GPL-3.0
+distribution. MIT is a permissive license and only requires attribution,
+provided above.

@@ -4,12 +4,12 @@
 
 # Hey VPN
 
-**A HarmonyOS VPN client powered by a native Xray core.**
+**A HarmonyOS NEXT VPN client built around Xray, with a selectable sing-box preview core.**
 
 <p>
   <img src="https://img.shields.io/badge/platform-HarmonyOS%20NEXT-0A0A0A" alt="platform" />
-  <img src="https://img.shields.io/badge/ArkTS-API%2024-1E88E5" alt="ArkTS API 24" />
-  <img src="https://img.shields.io/badge/core-Xray-6E56CF" alt="Xray core" />
+  <img src="https://img.shields.io/badge/target-6.0.1%20(21)-1E88E5" alt="target SDK 6.0.1(21)" />
+  <img src="https://img.shields.io/badge/core-Xray%20%2B%20sing--box-6E56CF" alt="Xray and sing-box cores" />
   <img src="https://img.shields.io/badge/version-1.3.0-E85D04" alt="version 1.3.0" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-3DA639" alt="license GPL-3.0" /></a>
 </p>
@@ -20,173 +20,159 @@ English · [简体中文](README.zh-CN.md)
 
 ---
 
-Hey VPN is a HarmonyOS VPN client built with ArkTS, Stage model abilities,
-and a native proxy core (Xray, with sing-box as a selectable second core). It
-imports proxy nodes and subscriptions, generates a runtime config, starts a
-HarmonyOS VPN Extension, and routes the device TUN flow into the core through a
-bundled `tun2socks` adapter that feeds a local SOCKS inbound.
+Hey VPN is a HarmonyOS NEXT app written in ArkTS. The codebase uses the Stage
+model, a VPN Extension Ability, a form-based control card, WorkScheduler,
+ScanKit QR scanning, launcher shortcuts, `hey://` deep links, system share
+import, and a native N-API bridge for the packaged proxy cores.
 
-The current native data path (same for both cores) is:
+The main runtime is Xray. sing-box is also packaged and can be selected in
+settings, but its app integration is intentionally narrower today.
+
+## Current State
+
+The Xray path is the production path in this repository. It supports VPN mode
+and proxy-only mode, generates runtime Xray config from the selected profile,
+starts/stops the HarmonyOS VPN Extension, and routes VPN traffic through the
+packaged `libheytun2socks.so` adapter.
+
+The current VPN data path for both cores is:
 
 ```text
-User connects
-  -> vpnExtension.startVpnExtensionAbility(...)
-  -> HeyVpnAbility.onCreate(want)
-  -> vpnExtension.createVpnConnection(context)
-  -> vpnConnection.create(vpnConfig)
-  -> TUN fd
-  -> libheyvpn.so dlopen(libxray.so / libsingbox.so)
-  -> CGoRunXrayFromJSON(config) / CGoStartSingBox(config)
-       (core opens a local SOCKS inbound on 127.0.0.1:10810)
-  -> libheyvpn.so dlopen(libheytun2socks.so)
-  -> HeyTun2SocksStart(tunFd, 127.0.0.1, 10810, mtu)
-       (forwards Harmony TUN fd traffic into the SOCKS inbound)
-  -> core SOCKS inbound -> core outbound (proxy node)
+HarmonyOS VPN TUN fd
+  -> libheytun2socks.so
+  -> 127.0.0.1:10810 (local SOCKS/mixed inbound)
+  -> Xray or sing-box outbound
 ```
 
-> Why tun2socks instead of the core's native TUN inbound: the Go-on-HarmonyOS
-> (musl) TLS wall and the toolchain gap for the native-TUN entry points pushed
-> the data path back to `TUN fd -> tun2socks -> SOCKS inbound`, which works with
-> the OHOS Go fork build. See
-> [`docs/harmonyos-go-tls-wall.md`](docs/harmonyos-go-tls-wall.md).
+This is why the app does not hand the TUN fd directly to Xray or sing-box. The
+OpenHarmony Go fork and TLSDESC build route are documented in
+[`docs/harmonyos-go-tls-wall.md`](docs/harmonyos-go-tls-wall.md), and the native
+build notes are in [`docs/building-native-cores.md`](docs/building-native-cores.md).
 
-## Status
+The sing-box path currently supports VPN mode with one converted outbound.
+The converter accepts VLESS, VMess, Trojan, Shadowsocks, AnyTLS, and TUIC, with
+basic tcp/ws/grpc/http/httpupgrade transport mapping and none/tls/reality
+security mapping. It does not yet support full configs, proxy chains, policy
+groups, proxy-only mode, Hysteria2, WireGuard, SOCKS, HTTP, or sing-box-native
+traffic stats.
 
-The client is feature-complete across the UI and config layers: node and
-subscription management, share-link and JSON import, Xray config generation,
-native delay testing, routing, geo-asset management, per-app proxy, and the
-full VPN extension startup path are all implemented and wired to the native
-bridge. The remaining gap is end-to-end traffic validation, which should be
-done on a real HarmonyOS device because some emulator/system images do not
-include the VPN authorization component.
+## Implemented In Code
 
-## Download
+- HarmonyOS entry points: `EntryAbility`, `HeyVpnAbility`, `ControlCardAbility`,
+  `SubscriptionUpdateWorkAbility`, launcher shortcuts, `hey://` routes, and
+  `text/plain` system share import.
+- Pages for server list, node detail/edit, import, JSON import, advanced
+  outbound, subscriptions, subscription detail/edit, routing, settings,
+  language, per-app proxy, assets, logs, scanner, backup, export, and about.
+- Node and subscription handling: multiple subscription groups, selected group
+  and node state, custom User-Agent, filters, pre/post profile fields, manual
+  refresh, due refresh, WorkScheduler background refresh, search/sort/cleanup,
+  and real delay testing through the native bridge.
+- Imports: subscription URLs, v2rayN plain/base64 text, Xray outbound/full JSON,
+  Clash-style YAML proxy entries, WireGuard config files, QR codes, system share
+  text, and share links for `vless://`, `vmess://`, `trojan://`, `ss://`,
+  `socks://`, `socks4://`, `socks5://`, `http://`, `https://`,
+  `wireguard://`, `hysteria2://`, `hy2://`, `anytls://`, and `tuic://`.
+- Exports: node share links for the protocols implemented by
+  `formatOutboundJsonToShareLink`, QR generation on export/detail flows, routing
+  rule JSON, and full local backup JSON.
+- Xray runtime config: VPN SOCKS inbound for `tun2socks`, optional local
+  SOCKS/HTTP proxy, proxy/direct/block outbounds, DNS settings, sniffing,
+  mux, fragmentation/finalmask, Hysteria2 runtime shape, WireGuard IPv6
+  handling, proxy chains, policy groups, metrics, and routing rules.
+- Routing: traffic modes, domain strategy, LAN/CN/global/Iran/Russia/ad-block
+  presets, custom rules, locked rules, process/port/network/protocol matchers,
+  and rule import/export.
+- Per-app proxy: allow/bypass mode plus stored package-name list. HarmonyOS NEXT
+  does not expose a general global app enumeration path here, so manual or
+  preset package entries remain part of the design.
+- Assets and diagnostics: built-in geo source definitions, custom geo asset
+  URLs, native geo data counting, runtime logs, core logs, optional speed
+  display, persistent traffic totals, update checking, remote IP info, and
+  English/Chinese plus additional language resources.
+- Backup/restore: profile, subscription groups, settings, routing rules,
+  per-app list, and custom asset URLs are exported as local JSON. Runtime
+  traffic totals and control-card state are intentionally not migrated.
 
-Signed HAP packages are published on the
-[**Releases**](https://github.com/popsiclelmlm/Hey/releases) page. Grab the
-latest `entry-default-signed.hap` and install it with DevEco Studio or `hdc`
-(see [Install And Test](#install-and-test)). Building from source is covered
-below.
+## Known Limits
 
-> Note: the UI and config layers are feature-complete; end-to-end VPN traffic
-> should be validated on a real HarmonyOS device (see Status).
-
-## Features
-
-- HarmonyOS Stage app with `EntryAbility` and `HeyVpnAbility`, plus core VPN routing, config, and sharing flows.
-- Node list, search, selection, start/stop/restart controls, and runtime status.
-- Import of subscription URLs, Xray outbound JSON, and share links, with
-  multi-subscription groups and per-node detail/edit pages.
-- Share-link parsing for `vless://`, `vmess://`, `trojan://`, `ss://`,
-  `socks://`, `http(s)://`, `wireguard://`, `anytls://`, and
-  `hysteria2://` / `hy2://`.
-- Runtime config generation with a local SOCKS inbound (fed by the tun2socks
-  data path) plus proxy/direct/block outbounds, and routing rules (bypass LAN/CN).
-- Native N-API bridge for packaged `libxray.so` / `libsingbox.so` /
-  `libheytun2socks.so`, including core lifecycle entry points, the tun2socks
-  adapter, and real per-node delay testing (`CGoPing`).
-- Geo-asset management (geoip/geosite download, custom URLs, and status/count feedback).
-- Per-app proxy with allow/deny modes, a preset app list, and manual package
-  entry (HarmonyOS NEXT restricts global app enumeration).
-- QR support via ScanKit: camera and from-image scanning to import share
-  links, plus QR code generation on the node detail and export pages for sharing.
-- Import and export pages, diagnostic log panel, native runtime stat and
-  traffic-total display, settings, and an about page — with full
-  English/Chinese i18n.
+- End-to-end VPN behavior still needs real-device coverage across more
+  HarmonyOS NEXT devices and system versions. Some emulator/system images lack
+  the VPN authorization component.
+- sing-box is a preview runtime in the app: it is packaged and selectable, but
+  the app only starts it for VPN mode with a single supported outbound.
 
 ## Project Layout
 
 ```text
-AppScope/                         App-level HarmonyOS metadata and resources
-entry/src/main/ets/               ArkTS UI, services, storage, VPN ability
-entry/src/main/cpp/               Native N-API bridge and prebuilt core notes
-entry/src/main/cpp/prebuilt/      Packaged arm64-v8a native libraries
-scripts/                          Native build and device smoke-test scripts
-docs/                             Real-device test documentation
+AppScope/                         App metadata, version, icon, label
+entry/src/main/ets/               ArkTS UI, stores, services, routing, VPN code
+entry/src/main/cpp/               N-API bridge and native library packaging
+entry/src/main/cpp/prebuilt/      Packaged arm64-v8a .so files
+libsingbox/                       Go wrapper for the sing-box c-shared library
+scripts/                          App build/install/log scripts and native builds
+docs/                             Native build and HarmonyOS notes
 ```
 
-## Requirements
+## Build And Install
 
-- DevEco Studio / HarmonyOS SDK 6.1.1, API 24.
-- A HarmonyOS phone or tablet for end-to-end VPN testing.
-- Go and DevEco native toolchains when rebuilding the Xray shared library.
+The app is configured for HarmonyOS target SDK `6.0.1(21)` and compatible SDK
+`5.1.1(19)`. The project smoke-test script wraps `hvigorw` and `hdc`.
 
-## Build
-
-Build the app with the project smoke-test script:
+Build the signed HAP:
 
 ```bash
-DEVECO_SDK_HOME=/Applications/DevEco-Studio.app/Contents/sdk ./scripts/device_vpn_smoke_test.sh build
+./scripts/device_vpn_smoke_test.sh build
 ```
 
-The output HAP is expected at:
+If DevEco Studio is not in the default macOS location, pass the SDK/tool paths:
+
+```bash
+DEVECO_SDK_HOME=/Applications/DevEco-Studio.app/Contents/sdk \
+HVIGOR=/Applications/DevEco-Studio.app/Contents/tools/hvigor/bin/hvigorw \
+./scripts/device_vpn_smoke_test.sh build
+```
+
+The expected output is:
 
 ```text
 entry/build/default/outputs/default/entry-default-signed.hap
 ```
 
-Rebuild the Xray native core when needed:
+Useful device commands:
 
 ```bash
-./scripts/build_libxray_ohos.sh
+./scripts/device_vpn_smoke_test.sh targets
+./scripts/device_vpn_smoke_test.sh doctor
+./scripts/device_vpn_smoke_test.sh install
+./scripts/device_vpn_smoke_test.sh logs
 ```
 
-The script places `libxray.so` and `libxray.h` under
-`entry/src/main/cpp/prebuilt/arm64-v8a/`.
+## Native Libraries
 
-## Install And Test
+`libheyvpn.so` is built from `entry/src/main/cpp/napi_init.cpp`. CMake then
+copies the packaged Go shared libraries into the HAP native library directory:
 
-List connected targets:
+| Library | Current role | Build status |
+| --- | --- | --- |
+| `libxray.so` | Main Xray runtime; exports start/stop, ping, and stats entry points. | Scripted by `scripts/build_libxray_ohos.sh`. |
+| `libsingbox.so` | Optional sing-box runtime; exports start/stop/version/probe entry points. | Scripted by `scripts/build_libsingbox_ohos.sh`. |
+| `libheytun2socks.so` | Relays the HarmonyOS VPN TUN fd into the core's local inbound. | Packaged and used; built by `scripts/build_tun2socks_ohos.sh`. |
 
-```bash
-DEVECO_SDK_HOME=/Applications/DevEco-Studio.app/Contents/sdk ./scripts/device_vpn_smoke_test.sh targets
-```
-
-Install the HAP:
-
-```bash
-DEVECO_SDK_HOME=/Applications/DevEco-Studio.app/Contents/sdk ./scripts/device_vpn_smoke_test.sh install
-```
-
-Watch VPN and native bridge logs:
-
-```bash
-DEVECO_SDK_HOME=/Applications/DevEco-Studio.app/Contents/sdk ./scripts/device_vpn_smoke_test.sh logs
-```
-
-## Native Core
-
-The native bridge builds `libheyvpn.so` and loads packaged Go shared libraries:
-the proxy core (`libxray.so`, plus `libsingbox.so` for the optional second core)
-and the `tun2socks` adapter (`libheytun2socks.so`). These are documented in
-[`entry/src/main/cpp/README.md`](entry/src/main/cpp/README.md).
-
-Hey VPN forwards the VPN data path through `tun2socks`. HarmonyOS creates the
-VPN TUN fd; the selected core starts with a local SOCKS inbound on
-`127.0.0.1:10810`; `libheyvpn.so` then loads `libheytun2socks.so` and calls
-`HeyTun2SocksStart(tunFd, 127.0.0.1, 10810, mtu)` to relay the TUN fd's traffic
-into that SOCKS inbound. The core's native TUN inbound (`CGoSetTunFd` /
-`protocol: "tun"`) is no longer used on the VPN data path — see
-[`docs/harmonyos-go-tls-wall.md`](docs/harmonyos-go-tls-wall.md) for why.
-
-## Roadmap
-
-- Real-device VPN traffic validation across more HarmonyOS versions.
-- Node sorting, duplicate cleanup, and automatic subscription refresh.
-- Protocol editors for advanced VLESS/VMess/Trojan/Shadowsocks/WireGuard/
-  Hysteria2/AnyTLS fields, plus TUIC support.
-- Expanded routing rulesets, including ad-blocking and custom rule editing.
-- HarmonyOS deep-link import, shortcuts, and platform-specific automation.
+Both scripted Go builds use the OpenHarmony Go fork with `GOOS=openharmony`.
+Keep the fork toolchain outside the repository; `hvigor clean` removes the
+repository `build/` directory.
 
 ## License
 
 Copyright (C) 2026 popsiclelmlm
 
-Hey VPN is licensed under the [GNU General Public License v3.0](LICENSE).
-You may use, modify, and redistribute it — including commercially — provided
-derivative works remain under GPL-3.0 and you make the corresponding source
+Hey VPN is released under the [GNU General Public License v3.0](LICENSE). You
+may use, modify, and redistribute it, including commercially, as long as
+derivative works stay under GPL-3.0 and the corresponding source is made
 available.
 
-It bundles the Xray native core (Xray-core, MPL-2.0) and builds on libXray
-(MIT). Those components keep their own licenses; see
-[`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md) for details.
+The project packages Xray-core (MPL-2.0), builds on libXray (MIT), packages
+sing-box (GPL-3.0-or-later), and uses a tun2socks adapter based on
+xjasonlyu/tun2socks (MIT). These components keep their own licenses; see
+[`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md).
