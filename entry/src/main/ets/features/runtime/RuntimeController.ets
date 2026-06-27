@@ -75,6 +75,19 @@ export class RuntimeController {
     return this.refresh(context, language);
   }
 
+  // 运行中按传入的新 Profile 热切换：先停后启。非运行态直接返回当前快照，调用方无需自行判断。
+  // 供没有连接管线的页面（如订阅详情）复用，避免「界面显示已切换、隧道仍跑旧配置」。
+  async reconnectWithProfile(context: common.Context, profile: ProxyProfile, settings: AppSettings, language: AppLanguage): Promise<RuntimeViewState> {
+    if (this.status !== ConnectionStatus.RUNNING) {
+      return this.snapshot();
+    }
+    const stopped = await this.stop(context, language);
+    if (stopped.status !== ConnectionStatus.IDLE) {
+      return stopped;
+    }
+    return this.start(context, profile, settings, language);
+  }
+
   async refresh(context: common.Context, language: AppLanguage): Promise<RuntimeViewState> {
     this.stats = this.controller.getStats();
     this.coreLabel = isSingboxCore(await CoreSelectionStore.load(context)) ? 'sing-box' : 'Xray';
