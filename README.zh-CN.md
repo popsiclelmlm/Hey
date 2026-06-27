@@ -10,7 +10,7 @@
   <img src="https://img.shields.io/badge/platform-HarmonyOS%20NEXT-0A0A0A" alt="platform" />
   <img src="https://img.shields.io/badge/target-6.0.1%20(21)-1E88E5" alt="target SDK 6.0.1(21)" />
   <img src="https://img.shields.io/badge/core-Xray%20%2B%20sing--box-6E56CF" alt="Xray and sing-box cores" />
-  <img src="https://img.shields.io/badge/version-1.3.0-E85D04" alt="version 1.3.0" />
+  <img src="https://img.shields.io/badge/version-1.3.1-E85D04" alt="version 1.3.1" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-3DA639" alt="license GPL-3.0" /></a>
 </p>
 
