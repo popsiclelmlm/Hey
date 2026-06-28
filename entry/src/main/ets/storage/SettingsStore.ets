@@ -54,7 +54,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   localSocksUdpEnabled: true,
   localSocksUsername: '',
   localSocksPassword: '',
-  useHevTun: true,
+  useHevTun: false,
   hevTunLogLevel: DEFAULT_HEV_TUN_LOG_LEVEL,
   hevTunRwTimeout: DEFAULT_HEV_TUN_RW_TIMEOUT,
   muxEnabled: false,

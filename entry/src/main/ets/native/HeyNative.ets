@@ -84,6 +84,7 @@ interface NativeBridge {
   stopXray(): NativeResult;
   getStats(): RuntimeStats;
   startTun2Socks(tunFd: number, socksHost: string, socksPort: number, mtu: number): NativeResult;
+  startHevTun(tunFd: number, configYaml: string): NativeResult;
   stopTun2Socks(): NativeResult;
   pingOutbound(configJson: string, datDir: string, url: string, timeoutSeconds: number, proxy: string): NativePingResult;
   queryStats(server: string): NativeResult;
@@ -127,6 +128,13 @@ export function getNativeStats(): RuntimeStats {
 
 export function startNativeTun2Socks(tunFd: number, socksHost: string, socksPort: number, mtu: number): NativeResult {
   return bridge.startTun2Socks(tunFd, socksHost, socksPort, mtu);
+}
+
+// hev-socks5-tunnel 数据面（「使用 Hev TUN 引擎」开关打开时走它，对照 gvisor 的
+// startNativeTun2Socks）。configYaml 由 HevTunConfig.buildHevTunConfigYaml 生成。
+// 停止仍走 stopNativeTun2Socks —— 原生侧按当前引擎自动分发。
+export function startNativeHevTun(tunFd: number, configYaml: string): NativeResult {
+  return bridge.startHevTun(tunFd, configYaml);
 }
 
 export function stopNativeTun2Socks(): NativeResult {

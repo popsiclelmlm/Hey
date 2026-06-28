@@ -14,6 +14,7 @@ import { SETTINGS_CONTROLLER } from '../features/settings/SettingsController';
 import {
   getNativeStats,
   queryNativeTraffic,
+  startNativeHevTun,
   startNativeSingbox,
   startNativeTun2Socks,
   startNativeXray,
@@ -22,6 +23,7 @@ import {
   stopNativeXray
 } from '../native/HeyNative';
 import { METRICS_SERVER_URL, VPN_DATA_SOCKS_HOST, VPN_DATA_SOCKS_PORT } from '../core/XrayConfig';
+import { buildHevTunConfigYaml } from '../core/HevTunConfig';
 import { isSingboxCore } from '../core/CoreSelection';
 import { DiagnosticLog } from '../services/DiagnosticLog';
 
@@ -99,8 +101,8 @@ export default class HeyVpnAbility extends VpnExtensionAbility {
       this.emitInfo('VPN created.', `tunFd=${this.tunFd}, dns=${dnsAddresses.join(',')}, ipv6=${settings.ipv6Enabled}, preferIpv6=${settings.preferIpv6}, mtu=${vpnMtu}, address=${addressConfig.displayName}, bypassLan=${settings.vpnBypassLan}`);
 
       // 两个内核统一走 tun2socks 数据面：内核在 127.0.0.1:VPN_DATA_SOCKS_PORT 起本地
-      // SOCKS 入站，再由 libheytun2socks.so 把 Harmony TUN fd 的流量转发进去。sing-box
-      // 因此不需要把 tun fd 交给核心（无 OpenTun / gvisor tun 栈），与 Xray 路径一致。
+      // SOCKS 入站，再把 Harmony TUN fd 的流量转发进去。sing-box 因此不需要把 tun fd
+      // 交给核心（无 OpenTun / gvisor tun 栈），与 Xray 路径一致。
       const coreResult = useSingbox
         ? startNativeSingbox(configJson, this.context.filesDir)
         : startNativeXray(configJson, this.context.filesDir);
@@ -109,11 +111,20 @@ export default class HeyVpnAbility extends VpnExtensionAbility {
       }
       this.emitInfo(`${useSingbox ? 'sing-box' : 'Xray'} started.`, coreResult.message);
 
-      const tun2socksResult = startNativeTun2Socks(this.tunFd, VPN_DATA_SOCKS_HOST, VPN_DATA_SOCKS_PORT, vpnMtu);
+      // 数据面引擎二选一：useHevTun=true 走 hev-socks5-tunnel（高性能，libhevsocks5tun.so），
+      // 否则走默认 gvisor/xjasonlyu（libheytun2socks.so）。两者都把 TUN fd 转发到同一个
+      // 本地 SOCKS 入站，只是实现不同。停止时统一调 stopNativeTun2Socks（原生侧按引擎分发）。
+      const useHevTun = settings.useHevTun;
+      const tun2socksResult = useHevTun
+        ? startNativeHevTun(
+            this.tunFd,
+            buildHevTunConfigYaml(vpnMtu, VPN_DATA_SOCKS_HOST, VPN_DATA_SOCKS_PORT, settings.hevTunLogLevel, settings.hevTunRwTimeout)
+          )
+        : startNativeTun2Socks(this.tunFd, VPN_DATA_SOCKS_HOST, VPN_DATA_SOCKS_PORT, vpnMtu);
       if (!tun2socksResult.ok) {
         throw new Error(tun2socksResult.message);
       }
-      this.emitInfo('tun2socks started.', `${VPN_DATA_SOCKS_HOST}:${VPN_DATA_SOCKS_PORT}, mtu=${vpnMtu}, core=${useSingbox ? 'singbox' : 'xray'}, ${tun2socksResult.message}`);
+      this.emitInfo('tun data plane started.', `engine=${useHevTun ? 'hev' : 'gvisor'}, ${VPN_DATA_SOCKS_HOST}:${VPN_DATA_SOCKS_PORT}, mtu=${vpnMtu}, core=${useSingbox ? 'singbox' : 'xray'}, ${tun2socksResult.message}`);
 
       if (settings.speedEnabled) {
         this.startStatsTimer();

@@ -1,14 +1,19 @@
-# 构建原生内核库（libxray / libsingbox / libheytun2socks）
+# 构建原生内核库（libxray / libsingbox / libheytun2socks / libhevsocks5tun）
 
-Hey 打包了三个用 Go 写的 `.so`：
+Hey 打包了四个 `.so`（前三个 Go，第四个 C）：
 
-| 库 | 作用 | 构建脚本 |
-| --- | --- | --- |
-| `libxray.so` | Xray 内核（默认内核），提供本地 SOCKS 入站 | `scripts/build_libxray_ohos.sh` |
-| `libsingbox.so` | sing-box 内核（可选第二内核），提供本地 SOCKS 入站 | `scripts/build_libsingbox_ohos.sh` |
-| `libheytun2socks.so` | tun2socks 适配层，把 VPN TUN fd 的流量转发进核心的本地 SOCKS 入站 | `scripts/build_tun2socks_ohos.sh` |
+| 库 | 语言 | 作用 | 构建脚本 |
+| --- | --- | --- | --- |
+| `libxray.so` | Go | Xray 内核（默认内核），提供本地 SOCKS 入站 | `scripts/build_libxray_ohos.sh` |
+| `libsingbox.so` | Go | sing-box 内核（可选第二内核），提供本地 SOCKS 入站 | `scripts/build_libsingbox_ohos.sh` |
+| `libheytun2socks.so` | Go | 默认 tun2socks 引擎（gvisor/xjasonlyu），把 VPN TUN fd 的流量转发进核心的本地 SOCKS 入站 | `scripts/build_tun2socks_ohos.sh` |
+| `libhevsocks5tun.so` | C | 可选 tun2socks 引擎（hev-socks5-tunnel），同样把 TUN fd 转发进本地 SOCKS 入站；「使用 Hev TUN 引擎」开关打开时启用 | `scripts/build_hev_ohos.sh` |
 
 产物统一落在 `entry/src/main/cpp/prebuilt/arm64-v8a/`，由 CMake 在构建 `libheyvpn.so` 后拷进 HAP。
+
+> `libheytun2socks.so`（gvisor，默认）与 `libhevsocks5tun.so`（hev，可选）是**同一数据面的
+> 两套实现**，运行时由设置项 `useHevTun` 二选一，互斥。原生侧（`napi_init.cpp`）按当前引擎
+> 分发 start/stop/stats，停止统一走 `stopTun2Socks`。
 
 > 这是“怎么从源码构建这三个库”的权威说明（single source of truth）。
 > **为什么必须这么编**的深度原理见 [`harmonyos-go-tls-wall.md`](harmonyos-go-tls-wall.md)。
@@ -115,6 +120,21 @@ bash scripts/build_tun2socks_ohos.sh
 - gvisor `isSocketFD` 的 Fstat 补丁是 **required**（不像 libxray 的 SOCKS 版那样尽力而为）：tun2socks 必把 TUN fd 交给 gvisor fdbased，HarmonyOS VPN fd 拒 Fstat，不打补丁 `engine.Start()` 会 `log.Fatal` 退出整个进程；补丁匹配不上即报错退出。
 - 这是 VPN 数据面的命脉，两个内核都依赖它（见 §1 表）。
 - 构建期会对 `tun2socks_adapter/go.mod` 注入 gvisor `replace`，脚本结尾 `go mod edit -dropreplace` 撤回——提交前确认 `go.mod` 不含机器绝对路径。
+
+### 3.4 libhevsocks5tun.so
+
+```bash
+bash scripts/build_hev_ohos.sh
+```
+
+脚本要点（[`scripts/build_hev_ohos.sh`](../scripts/build_hev_ohos.sh)）：
+
+- 源码是上游 [heiher/hev-socks5-tunnel](https://github.com/heiher/hev-socks5-tunnel)（含 `hev-task-system` / `yaml` 子模块），`HEV_PIN` 钉死版本（默认 `2.9.0`，可覆盖）。
+- **纯 C，不走 Go fork**：hev 不碰 Go-on-musl 的 TLS 墙（[`harmonyos-go-tls-wall.md`](harmonyos-go-tls-wall.md)），用 DevEco 的 OHOS clang（`aarch64-unknown-linux-ohos-clang` + sysroot）直接 `--target=aarch64-linux-ohos` 交叉编译即可，**不需要 OHOS Go fork**。
+- 先 `make static` 出静态库，再用 `clang -shared -Wl,--whole-archive` 把整个 `.a` 链成共享库，保留导出符号。
+- 导出 3 个符号：`hev_socks5_tunnel_main_from_str`（阻塞，跑到 quit 才返回）/ `hev_socks5_tunnel_quit` / `hev_socks5_tunnel_stats`，由 `napi_init.cpp` 的 `LoadHevCore`/`StartHevTun`/`StopTun2Socks`/`GetStats` dlsym 调用。yaml 配置由 ArkTS 侧 [`HevTunConfig.ets`](../entry/src/main/ets/core/HevTunConfig.ets) 生成。
+- ⚠️ 升级 `HEV_PIN` 前确认上游未改符号名或 yaml 字段（`tunnel.mtu` / `socks5.address|port|udp` / `misc.log-level|tcp-read-write-timeout|udp-read-write-timeout`）；若变了，需同步 `napi_init.cpp` 与 `HevTunConfig.ets`。
+- 校验：`nm -D libhevsocks5tun.so | grep hev_socks5_tunnel` 应见 3 个符号。
 
 ---
 

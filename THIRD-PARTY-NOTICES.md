@@ -35,8 +35,19 @@ part of Hey VPN.
 
 - Source: https://github.com/xjasonlyu/tun2socks
 - License: MIT
-- Usage: used by the bundled `libheytun2socks.so` adapter to relay the HarmonyOS
-  VPN TUN fd into the selected core's local SOCKS inbound.
+- Usage: used by the bundled `libheytun2socks.so` adapter (the default "gvisor"
+  TUN engine) to relay the HarmonyOS VPN TUN fd into the selected core's local
+  SOCKS inbound.
+
+### hev-socks5-tunnel — MIT
+
+- Source: https://github.com/heiher/hev-socks5-tunnel
+- License: MIT
+- Usage: cross-compiled (with its `hev-task-system` and `yaml` submodules) into
+  `entry/src/main/cpp/prebuilt/arm64-v8a/libhevsocks5tun.so` by
+  [`scripts/build_hev_ohos.sh`](scripts/build_hev_ohos.sh). It is the optional
+  high-performance TUN engine selected by the "Use Hev TUN engine" setting; the
+  same TUN-fd → local SOCKS relay as tun2socks, implemented in C.
 
 ## Build-time / wrapper
 

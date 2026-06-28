@@ -67,7 +67,7 @@ struct SettingsPage {
   @State private settingLocalSocksUdp: boolean = true;
   @State private settingLocalSocksUsername: string = '';
   @State private settingLocalSocksPassword: string = '';
-  @State private settingUseHevTun: boolean = true;
+  @State private settingUseHevTun: boolean = false;
   @State private settingHevTunLogLevel: string = DEFAULT_HEV_TUN_LOG_LEVEL;
   @State private settingHevTunRwTimeout: string = DEFAULT_HEV_TUN_RW_TIMEOUT;
   @State private settingMux: boolean = false;

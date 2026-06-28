@@ -75,6 +75,24 @@ Tun2SocksStopFunc g_stopTun2Socks = nullptr;
 Tun2SocksStatsFunc g_tun2SocksUploadBytes = nullptr;
 Tun2SocksStatsFunc g_tun2SocksDownloadBytes = nullptr;
 
+// hev-socks5-tunnel 引擎（libhevsocks5tun.so）：「使用 Hev TUN 引擎」开关打开时的高性能
+// 数据面，对照默认 gvisor 的 libheytun2socks.so。hev 是纯 C：main 阻塞（跑到 quit 才返回），
+// 所以必须放到独立线程跑；stats 是 (tx_pkts, tx_bytes, rx_pkts, rx_bytes) 四个出参。
+using HevStartFunc = int (*)(const unsigned char*, unsigned int, int);
+using HevQuitFunc = void (*)();
+using HevStatsFunc = void (*)(size_t*, size_t*, size_t*, size_t*);
+void* g_hevHandle = nullptr;
+HevStartFunc g_hevStart = nullptr;
+HevQuitFunc g_hevQuit = nullptr;
+HevStatsFunc g_hevStats = nullptr;
+std::thread g_hevThread;
+
+// 当前 TUN 数据面引擎：0=无，1=gvisor(tun2socks)，2=hev。stop/stats 据此分发。
+constexpr int TUN_ENGINE_NONE = 0;
+constexpr int TUN_ENGINE_GVISOR = 1;
+constexpr int TUN_ENGINE_HEV = 2;
+std::atomic<int> g_tunEngine(TUN_ENGINE_NONE);
+
 const char* BASE64_TABLE = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 void LogInfo(const std::string& message)
@@ -412,6 +430,36 @@ bool LoadTun2SocksCore(std::string& message)
         return false;
     }
     g_tun2socksHandle = handle;
+    return true;
+}
+
+// 懒加载 libhevsocks5tun.so 并解析 hev_socks5_tunnel_* 符号。独立 handle。
+constexpr const char* HEV_TUN_LIB = "libhevsocks5tun.so";
+
+bool LoadHevCore(std::string& message)
+{
+    if (g_hevHandle != nullptr && g_hevStart != nullptr && g_hevQuit != nullptr) {
+        return true;
+    }
+    void* handle = dlopen(ExecPath(HEV_TUN_LIB).c_str(), RTLD_LAZY | RTLD_LOCAL);
+    if (handle == nullptr) {
+        handle = dlopen(HEV_TUN_LIB, RTLD_LAZY | RTLD_LOCAL);
+    }
+    if (handle == nullptr) {
+        const char* error = dlerror();
+        message = std::string("hev tun unavailable: failed to load ") + HEV_TUN_LIB + ": " +
+            (error != nullptr ? error : "unknown error");
+        return false;
+    }
+    dlerror();
+    g_hevStart = reinterpret_cast<HevStartFunc>(dlsym(handle, "hev_socks5_tunnel_main_from_str"));
+    g_hevQuit = reinterpret_cast<HevQuitFunc>(dlsym(handle, "hev_socks5_tunnel_quit"));
+    g_hevStats = reinterpret_cast<HevStatsFunc>(dlsym(handle, "hev_socks5_tunnel_stats"));
+    if (g_hevStart == nullptr || g_hevQuit == nullptr) {
+        message = "hev tun unavailable: required hev_socks5_tunnel symbols missing.";
+        return false;
+    }
+    g_hevHandle = handle;
     return true;
 }
 
@@ -1032,11 +1080,25 @@ napi_value GetStats(napi_env env, napi_callback_info info)
 
     napi_value result = nullptr;
     napi_create_object(env, &result);
-    // tun2socks 运行时，用适配器的字节计数刷新流量统计（仅在已加载适配器的 VPN
-    // 扩展进程里命中；主进程指针为 null，自动跳过）。
-    if (g_tunRunning.load() && g_tun2SocksUploadBytes != nullptr && g_tun2SocksDownloadBytes != nullptr) {
-        g_uploadBytes.store(g_tun2SocksUploadBytes());
-        g_downloadBytes.store(g_tun2SocksDownloadBytes());
+    // TUN 数据面运行时，用当前引擎的字节计数刷新流量统计（仅在已加载引擎的 VPN 扩展
+    // 进程里命中；主进程指针为 null，自动跳过）。注：这只是兜底，真实分流量优先取
+    // queryNativeTraffic（Xray metrics）。
+    if (g_tunRunning.load()) {
+        const int engine = g_tunEngine.load();
+        if (engine == TUN_ENGINE_HEV && g_hevStats != nullptr) {
+            // hev_socks5_tunnel_stats(tx_pkts, tx_bytes, rx_pkts, rx_bytes)，相对 TUN 网卡：
+            // tx=从 TUN 收到上行、rx=回写 TUN 的下行。若真机方向相反，调换这两行即可。
+            size_t txPackets = 0;
+            size_t txBytes = 0;
+            size_t rxPackets = 0;
+            size_t rxBytes = 0;
+            g_hevStats(&txPackets, &txBytes, &rxPackets, &rxBytes);
+            g_uploadBytes.store(static_cast<int64_t>(txBytes));
+            g_downloadBytes.store(static_cast<int64_t>(rxBytes));
+        } else if (g_tun2SocksUploadBytes != nullptr && g_tun2SocksDownloadBytes != nullptr) {
+            g_uploadBytes.store(g_tun2SocksUploadBytes());
+            g_downloadBytes.store(g_tun2SocksDownloadBytes());
+        }
     }
     napi_set_named_property(env, result, "uploadBytes", CreateInt64(env, g_uploadBytes.load()));
     napi_set_named_property(env, result, "downloadBytes", CreateInt64(env, g_downloadBytes.load()));
@@ -1087,21 +1149,82 @@ napi_value StartTun2Socks(napi_env env, napi_callback_info info)
         return CreateResult(env, false, "tun2socks adapter start failed.");
     }
     g_tunRunning.store(true);
+    g_tunEngine.store(TUN_ENGINE_GVISOR);
     return CreateResult(env, true, "tun2socks adapter started.");
+}
+
+// 启动 hev-socks5-tunnel 引擎：把 TUN fd 的流量按 yaml 配置转发到本地 SOCKS。与
+// StartTun2Socks 互斥（同一时刻只跑一条数据面）。hev 的 main 阻塞，放到独立线程。
+napi_value StartHevTun(napi_env env, napi_callback_info info)
+{
+    size_t argc = 2;
+    napi_value args[2] = { nullptr };
+    napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+    if (argc < 2) {
+        return CreateResult(env, false, "Missing hev tun arguments.");
+    }
+    int32_t tunFd = GetIntArg(env, args[0]);
+    std::string configYaml = GetStringArg(env, args[1]);
+    if (tunFd < 0) {
+        return CreateResult(env, false, "Invalid TUN fd.");
+    }
+    if (configYaml.empty()) {
+        return CreateResult(env, false, "Empty hev tun config.");
+    }
+    if (g_tunRunning.load()) {
+        return CreateResult(env, true, "tun data plane already running.");
+    }
+    g_uploadBytes.store(0);
+    g_downloadBytes.store(0);
+
+    std::string message;
+    if (!LoadHevCore(message)) {
+        g_lastMessage = message;
+        LogError(message);
+        return CreateResult(env, false, message);
+    }
+    if (!MakeFdInheritable(tunFd, message)) {
+        return CreateResult(env, false, message);
+    }
+
+    // hev_socks5_tunnel_main_from_str 阻塞到 quit；起独立线程跑它。注意：配置解析失败时
+    // 它会立刻返回（非阻塞），此处无法同步拿到该错误，只能靠日志/统计为 0 旁证。
+    if (g_hevThread.joinable()) {
+        g_hevThread.join();
+    }
+    HevStartFunc start = g_hevStart;
+    g_hevThread = std::thread([start, configYaml, tunFd]() {
+        start(reinterpret_cast<const unsigned char*>(configYaml.c_str()),
+            static_cast<unsigned int>(configYaml.size()), tunFd);
+    });
+    g_tunRunning.store(true);
+    g_tunEngine.store(TUN_ENGINE_HEV);
+    return CreateResult(env, true, "hev tun engine started.");
 }
 
 napi_value StopTun2Socks(napi_env env, napi_callback_info info)
 {
     (void)info;
     if (!g_tunRunning.load()) {
-        return CreateResult(env, true, "tun2socks already stopped.");
+        return CreateResult(env, true, "tun data plane already stopped.");
     }
+    const int engine = g_tunEngine.exchange(TUN_ENGINE_NONE);
+    g_tunRunning.store(false);
+    if (engine == TUN_ENGINE_HEV) {
+        // hev：quit 让阻塞的 main 返回，再 join 回收线程。
+        if (g_hevQuit != nullptr) {
+            g_hevQuit();
+        }
+        if (g_hevThread.joinable()) {
+            g_hevThread.join();
+        }
+        return CreateResult(env, true, "hev tun stop requested.");
+    }
+    // gvisor：engine.Stop() 可能阻塞，放到分离线程避免卡住 ArkTS 调用线程。
     std::string message;
     if (!LoadTun2SocksCore(message)) {
         return CreateResult(env, false, message);
     }
-    g_tunRunning.store(false);
-    // engine.Stop() 可能阻塞，放到分离线程避免卡住 ArkTS 调用线程。
     Tun2SocksStopFunc stop = g_stopTun2Socks;
     std::thread([stop]() { stop(); }).detach();
     return CreateResult(env, true, "tun2socks stop requested.");
@@ -1320,6 +1443,7 @@ static napi_value Init(napi_env env, napi_value exports)
         { "stopXray", nullptr, StopXray, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "getStats", nullptr, GetStats, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "startTun2Socks", nullptr, StartTun2Socks, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "startHevTun", nullptr, StartHevTun, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "stopTun2Socks", nullptr, StopTun2Socks, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "pingOutbound", nullptr, PingOutbound, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "queryStats", nullptr, QueryStats, nullptr, nullptr, nullptr, napi_default, nullptr },
