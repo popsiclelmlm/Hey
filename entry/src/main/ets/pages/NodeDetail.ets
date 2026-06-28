@@ -253,6 +253,8 @@ struct NodeDetailPage {
     .borderRadius(14)
     .backgroundColor(this.isActionActive(kind) ? AppColor.brand : AppColor.surface)
     .border({ width: 1, color: this.isActionActive(kind) ? AppColor.brand : AppColor.border })
+    .opacity(this.isActionDisabled(kind) ? 0.4 : 1)
+    .enabled(!this.isActionDisabled(kind))
     .onClick(() => {
       this.onActionTap(kind);
     })
@@ -448,6 +450,14 @@ struct NodeDetailPage {
       return this.showFullConfig;
     }
     return false;
+  }
+
+  // 订阅来源节点（带 sourceUrl/rawLink）不可手动编辑：更新订阅会覆盖本地改动，故置灰编辑入口。
+  private isActionDisabled(kind: string): boolean {
+    if (kind !== 'edit') {
+      return false;
+    }
+    return this.node.sourceUrl.trim().length > 0 || this.node.rawLink.trim().length > 0;
   }
 
   private onActionTap(kind: string): void {
