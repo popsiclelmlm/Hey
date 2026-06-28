@@ -189,6 +189,9 @@ interface XrayDnsConfig {
   hosts?: Object;
   tag?: string;
   enableParallelQuery?: boolean;
+  // 'UseIP'(双栈,默认) | 'UseIPv4' | 'UseIPv6'。关闭 IPv6 时设为 'UseIPv4',
+  // 核心只返回 A 记录,App 拿不到 AAAA 就不会发起 v6 连接,避免物理 IPv6 泄漏。
+  queryStrategy?: string;
 }
 
 interface DnsHostsParseResult {
@@ -940,8 +943,9 @@ export function buildRuntimeXrayConfig(configJson: string, settings?: AppSetting
 
   if (validation.configType === 'full') {
     const fullConfig = stripFullConfigProfileMetadata(validation.normalizedJson);
+    const withProcesses = normalizeFullConfigRoutingProcesses(fullConfig, resolveProcessUid, canUseProcessRouting(settings));
     return {
-      configJson: normalizeFullConfigRoutingProcesses(fullConfig, resolveProcessUid, canUseProcessRouting(settings))
+      configJson: suppressIpv6InFullConfig(withProcesses, settings)
     };
   }
   if (validation.configType === 'proxy-chain') {
@@ -978,6 +982,73 @@ export function normalizeFullConfigRoutingProcesses(
         rule.process = uids;
       }
     }
+    return JSON.stringify(config, null, 2);
+  } catch (error) {
+    return configJson;
+  }
+}
+
+const HEY_BLOCK_IPV6_OUTBOUND_TAG: string = 'hey-block-ipv6';
+
+// 关闭 IPv6 时,给「完整透传配置」(configType='full')补上 v6 抑制。这类配置不经过
+// buildDnsConfig / buildRoutingRules,核心侧毫无 v6 防护——浏览器等绕过核心 DNS 拿到 AAAA 发起的
+// v6 直连会按用户原始路由走,CN 段命中 direct 就从本机物理口直出,测速显示本地运营商。
+// 注入两层:① 有 dns 块则设 queryStrategy=UseIPv4(只返回 A 记录);② 在路由规则最前面插入
+// ip:['::/0'] → blackhole,并确保存在 blackhole 出站,把所有 v6 目标秒拒、逼应用回落 IPv4 走节点。
+// 开启 IPv6(节点支持 v6)时原样返回,保持双栈。解析失败回退原串(不破坏用户配置)。
+export function suppressIpv6InFullConfig(configJson: string, settings?: AppSettings): string {
+  if (settings === undefined || settings.ipv6Enabled) {
+    return configJson;
+  }
+  try {
+    const config = parseFullConfig(configJson);
+
+    // ① DNS 只解析 A 记录(仅当用户配置里本就有 dns 块时,不凭空伪造 servers)
+    const dns = config.dns;
+    if (dns !== undefined && dns !== null) {
+      dns.queryStrategy = 'UseIPv4';
+    }
+
+    // ② 确保有 blackhole 出站(复用用户已有的,否则新增一个专用 tag)
+    const outbounds = config.outbounds;
+    if (!Array.isArray(outbounds)) {
+      return configJson;
+    }
+    let blockTag = HEY_BLOCK_IPV6_OUTBOUND_TAG;
+    let hasBlock = false;
+    for (let index = 0; index < outbounds.length; index++) {
+      const ob = outbounds[index];
+      if (ob !== undefined && ob !== null && ob.protocol === 'blackhole' && typeof ob.tag === 'string' && ob.tag.length > 0) {
+        blockTag = ob.tag;
+        hasBlock = true;
+        break;
+      }
+    }
+    if (!hasBlock) {
+      const blockOutbound: XrayOutbound = {
+        tag: HEY_BLOCK_IPV6_OUTBOUND_TAG,
+        protocol: 'blackhole',
+        settings: new EmptySettings()
+      };
+      outbounds.push(blockOutbound);
+    }
+
+    // ③ 在路由规则最前面插入 v6 → blackhole
+    let routing = config.routing;
+    if (routing === undefined || routing === null) {
+      routing = { domainStrategy: 'AsIs', rules: new Array<XrayRoutingRule>() };
+      config.routing = routing;
+    }
+    if (!Array.isArray(routing.rules)) {
+      routing.rules = new Array<XrayRoutingRule>();
+    }
+    const blockIpv6Rule: XrayRoutingRule = {
+      type: 'field',
+      outboundTag: blockTag,
+      ip: ['::/0']
+    };
+    routing.rules.unshift(blockIpv6Rule);
+
     return JSON.stringify(config, null, 2);
   } catch (error) {
     return configJson;
@@ -2117,7 +2188,8 @@ function ensureDelayTestOutboundTag(outbound: XrayOutbound, fallback: string): s
 function buildDnsConfig(settings: AppSettings | undefined): XrayDnsConfig {
   if (settings === undefined) {
     const defaultDns: XrayDnsConfig = {
-      servers: ['1.1.1.1', '8.8.8.8']
+      servers: ['1.1.1.1', '8.8.8.8'],
+      queryStrategy: 'UseIPv4'
     };
     return defaultDns;
   }
@@ -2132,7 +2204,10 @@ function buildDnsConfig(settings: AppSettings | undefined): XrayDnsConfig {
   }
   const dns: XrayDnsConfig = {
     servers,
-    tag: DNS_TAG
+    tag: DNS_TAG,
+    // 与 sing-box 的 strategy(ipv4_only / prefer_ipv4)对齐:关 IPv6 时强制只解析 A 记录,
+    // 杜绝双栈站点优先走物理 v6 绕过隧道(显示本地运营商的泄漏);开 IPv6 时走双栈。
+    queryStrategy: settings.ipv6Enabled ? 'UseIP' : 'UseIPv4'
   };
   if (remoteDns.length + domesticDns.length > 2) {
     dns.enableParallelQuery = true;
@@ -2729,6 +2804,19 @@ function buildRoutingRules(settings: AppSettings | undefined, proxyBalancerTag?:
       domain: ['geosite:category-ads-all']
     };
     rules.push(adBlockRule);
+  }
+
+  // 关闭 IPv6 时,把所有 v6 目标地址直接 blackhole。浏览器等自带 DNS(DoH)的应用会绕过
+  // 核心 queryStrategy 拿到 AAAA 并发起 v6 直连,这些连接已被 TUN 接管进核心,这里立刻拒绝,
+  // 逼应用回落 IPv4 走节点。必须早于下面的 direct/CN 规则,否则 CN 段 v6 会走 direct 从物理口
+  // 泄漏(测速显示本地运营商)。只匹配目标 IP 为 v6 的连接,不影响域名连接(解析为 A 走 v4)。
+  if (!settings.ipv6Enabled) {
+    const blockIpv6Rule: XrayRoutingRule = {
+      type: 'field',
+      outboundTag: 'block',
+      ip: ['::/0']
+    };
+    rules.push(blockIpv6Rule);
   }
 
   if (settings.trafficMode === 'direct') {
