@@ -255,7 +255,8 @@ struct JsonImportPage {
       this.editMode = true;
       this.editNodeId = params.nodeId;
       const state = await NODES_CONTROLLER.load(context, this.language);
-      const node = NODES_CONTROLLER.findNode(state.nodes, this.editNodeId);
+      // 跨所有订阅组查找：待编辑节点可能不在当前浏览的活动组里。
+      const node = NODES_CONTROLLER.findNodeInGroups(state.subscriptionGroups, this.editNodeId);
       if (node === null) {
         this.lastError = this.t('jsonImport.editMissing');
       } else if (!this.isEditableJsonNode(node)) {

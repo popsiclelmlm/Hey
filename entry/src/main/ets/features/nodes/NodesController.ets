@@ -257,7 +257,7 @@ export class NodesController {
   }
 
   // 跨所有订阅组查找节点：全局当前节点可能不在当前浏览的活动组中。
-  private findNodeInGroups(groups: Array<SubscriptionGroup>, nodeId: string): ProxyNode | null {
+  findNodeInGroups(groups: Array<SubscriptionGroup>, nodeId: string): ProxyNode | null {
     if (nodeId.length === 0) {
       return null;
     }

@@ -863,7 +863,8 @@ struct NodeEditPage {
 
     const state = await NODES_CONTROLLER.load(context, this.language);
     this.selectedNodeId = state.selectedNodeId;
-    const found = NODES_CONTROLLER.findNode(state.nodes, this.editNodeId);
+    // 跨所有订阅组查找：待编辑节点可能不在当前浏览的活动组里（如手动节点在 sub-local 组）。
+    const found = NODES_CONTROLLER.findNodeInGroups(state.subscriptionGroups, this.editNodeId);
     if (found === null ||
       found.sourceUrl.trim().length > 0 ||
       found.rawLink.trim().length > 0 ||
