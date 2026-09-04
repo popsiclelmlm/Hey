@@ -1,4 +1,4 @@
-import { common } from '@kit.AbilityKit';
+import { common, wantAgent, WantAgent, Want } from '@kit.AbilityKit';
 import { notificationManager } from '@kit.NotificationKit';
 import { AppLanguage, ConnectionStatus, RuntimeStats } from '../core/Profile';
 import {
@@ -14,6 +14,9 @@ import { DiagnosticLog } from './DiagnosticLog';
 
 const SPEED_NOTIFICATION_ID: number = 42001;
 const SPEED_NOTIFICATION_LABEL: string = 'hey-speed';
+// 点击速度通知拉起主界面用（bundleName 见 AppScope/app.json5，abilityName 见 module.json5）。
+const APP_BUNDLE_NAME: string = 'com.lmlm.hey';
+const MAIN_ABILITY_NAME: string = 'EntryAbility';
 
 export class SpeedNotificationManager {
   private published: boolean = false;
@@ -23,6 +26,32 @@ export class SpeedNotificationManager {
   private publishing: boolean = false;
   private lastPublishAt: number = 0;
   private lastSample: SpeedNotificationSample | null = null;
+  private tapWantAgent: WantAgent | null = null;
+
+  // 构建「点击通知拉起 Hey 主界面」的 WantAgent；首次构建后缓存复用。
+  // 失败返回 null（不影响通知本身发布，只是点击不跳转）。
+  private async ensureTapWantAgent(): Promise<WantAgent | null> {
+    if (this.tapWantAgent !== null) {
+      return this.tapWantAgent;
+    }
+    try {
+      const want: Want = {
+        bundleName: APP_BUNDLE_NAME,
+        abilityName: MAIN_ABILITY_NAME
+      };
+      const info: wantAgent.WantAgentInfo = {
+        wants: [want],
+        actionType: wantAgent.OperationType.START_ABILITY,
+        requestCode: SPEED_NOTIFICATION_ID,
+        // 已存在则更新、不重复创建，保证点击总是拉起当前实例。
+        actionFlags: [wantAgent.WantAgentFlags.UPDATE_PRESENT_FLAG]
+      };
+      this.tapWantAgent = await wantAgent.getWantAgent(info);
+    } catch (error) {
+      this.tapWantAgent = null;
+    }
+    return this.tapWantAgent;
+  }
 
   async sync(
     context: common.Context,
@@ -81,6 +110,7 @@ export class SpeedNotificationManager {
         return;
       }
       await this.ensureSlot();
+      const tapAgent = await this.ensureTapWantAgent();
       const request: notificationManager.NotificationRequest = {
         id: SPEED_NOTIFICATION_ID,
         label: SPEED_NOTIFICATION_LABEL,
@@ -97,6 +127,10 @@ export class SpeedNotificationManager {
           }
         }
       };
+      // 点击常驻速度通知即拉起 Hey 主界面（issue #16）：后台被中断时重连、用完关都更方便。
+      if (tapAgent !== null) {
+        request.wantAgent = tapAgent;
+      }
       await notificationManager.publish(request);
       this.published = true;
       this.notificationMayBeVisible = true;
