@@ -30,11 +30,15 @@ struct BackupPage {
 
   private async loadSummary(): Promise<void> {
     try {
-      const context = getContext(this) as common.UIAbilityContext;
+      // 读配置统一用 UIContext 宿主 context：getContext(this) 在部分场景拿到的
+      // 不是承载 preferences 的那个 context，会静默读到空数据（真机回归）。
+      const context = this.getUIContext().getHostContext() as common.Context;
       const backup = await BackupManager.collectBackup(context);
       this.refreshSummary(backup);
     } catch (error) {
-      // 概要加载失败不阻断页面
+      // 概要加载失败不阻断页面，但必须让日志看见，否则会静默显示 0。
+      const detail = error instanceof Error ? error.message : JSON.stringify(error);
+      SHARED_RUNTIME_CONTROLLER.appendLog(`backup summary failed: ${detail}`);
     }
   }
 
@@ -96,10 +100,10 @@ struct BackupPage {
   @Builder
   private SummaryCard() {
     Column({ space: Space.sm }) {
-      this.SummaryRow(this.t('backup.stat.subscriptions'), this.subscriptionCount)
-      this.SummaryRow(this.t('backup.stat.nodes'), this.nodeCount)
-      this.SummaryRow(this.t('backup.stat.routing'), this.routingCount)
-      this.SummaryRow(this.t('backup.stat.assets'), this.assetCount)
+      this.SummaryRow('backup.stat.subscriptions', 'subscriptions')
+      this.SummaryRow('backup.stat.nodes', 'nodes')
+      this.SummaryRow('backup.stat.routing', 'routing')
+      this.SummaryRow('backup.stat.assets', 'assets')
     }
     .width('100%')
     .padding(Space.lg)
@@ -107,14 +111,16 @@ struct BackupPage {
     .backgroundColor(AppColor.surface)
   }
 
+  // 值按 key 取、在 Builder 内部读状态：@Builder 的按值形参在状态变化后会冻结，
+  // 直接传 this.xxxCount 会让统计永远显示初始值 0（真机回归）。
   @Builder
-  private SummaryRow(label: string, value: number) {
+  private SummaryRow(labelKey: string, valueKey: string) {
     Row() {
-      Text(label)
+      Text(this.t(labelKey))
         .fontSize(FontSz.body)
         .fontColor(AppColor.textSecondary)
         .layoutWeight(1)
-      Text(value.toString())
+      Text(this.summaryValue(valueKey).toString())
         .fontSize(FontSz.body)
         .fontWeight(FontWeight.Medium)
         .fontColor(AppColor.textPrimary)
@@ -153,7 +159,9 @@ struct BackupPage {
     }
     this.busy = true;
     try {
-      const context = getContext(this) as common.UIAbilityContext;
+      // 读配置统一用 UIContext 宿主 context：getContext(this) 在部分场景拿到的
+      // 不是承载 preferences 的那个 context，会静默读到空数据（真机回归）。
+      const context = this.getUIContext().getHostContext() as common.Context;
       const backup = await BackupManager.collectBackup(context);
       const text = serializeConfigBackup(backup);
       const saveOptions = new picker.DocumentSaveOptions();
@@ -248,6 +256,19 @@ struct BackupPage {
     } finally {
       this.busy = false;
     }
+  }
+
+  private summaryValue(key: string): number {
+    if (key === 'subscriptions') {
+      return this.subscriptionCount;
+    }
+    if (key === 'nodes') {
+      return this.nodeCount;
+    }
+    if (key === 'routing') {
+      return this.routingCount;
+    }
+    return this.assetCount;
   }
 
   private refreshSummary(backup: ConfigBackup): void {
