@@ -1014,6 +1014,16 @@ export default function localUnitTest() {
       expect(result.configJson).assertContain('"domain:proxy.example"');
       expect(result.configJson).assertContain('"destOverride"');
 
+      // 出厂零规则时 fakedns 域名列表为空：必须省略 domains 字段而不是写成空数组，
+      // 空数组会被核心判为非法 fakedns 配置，导致 VPN 扩展启动失败（真机回归）。
+      const noRuleSettings = buildSettingsFixture();
+      noRuleSettings.localDnsEnabled = true;
+      noRuleSettings.fakeDnsEnabled = true;
+      noRuleSettings.routingRules = [];
+      const noRuleResult = buildXrayConfigWithSettings(VLESS_REALITY_OUTBOUND, noRuleSettings);
+      expect(noRuleResult.configJson).assertContain('"fakedns"');
+      expect(noRuleResult.configJson.indexOf('"domains": []')).assertEqual(-1);
+
       settings.dnsHosts = '{"example.com":"127.0.0.1"}';
       result = buildXrayConfigWithSettings(VLESS_REALITY_OUTBOUND, settings);
       expect(result.configJson).assertContain('"example.com": "127.0.0.1"');

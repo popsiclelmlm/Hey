@@ -2234,10 +2234,14 @@ function buildDnsConfig(settings: AppSettings | undefined): XrayDnsConfig {
     dns.enableParallelQuery = true;
   }
   if (settings.localDnsEnabled && settings.fakeDnsEnabled) {
-    dns.servers.unshift({
-      address: 'fakedns',
-      domains: buildFakeDnsDomains(settings)
-    });
+    // 出厂无内置规则，域名列表可能为空。空的 domains 数组会被核心判为非法 fakedns
+    // 配置而拒绝启动，因此为空时干脆不附 domains 字段（等于对全部域名生效）。
+    const fakeDnsDomains = buildFakeDnsDomains(settings);
+    const fakeDnsServer: XrayDnsServerConfig = { address: 'fakedns' };
+    if (fakeDnsDomains.length > 0) {
+      fakeDnsServer.domains = fakeDnsDomains;
+    }
+    dns.servers.unshift(fakeDnsServer);
   }
   applyDnsHosts(dns, settings);
   return dns;
@@ -2265,6 +2269,11 @@ function addDomesticDnsServers(
   const domains = new Array<string>();
   for (let index = 0; index < directDomains.length; index++) {
     addUniqueString(domains, directDomains[index]);
+  }
+  // 没有直连域名就不需要这组 server。写成空的 domains 数组会被核心判为非法配置，
+  // 出厂零规则时必然走到这里（真机回归）。
+  if (domains.length === 0) {
+    return;
   }
 
   for (let index = 0; index < domesticDns.length; index++) {
