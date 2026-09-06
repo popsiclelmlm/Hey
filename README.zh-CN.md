@@ -27,6 +27,22 @@ VPN Extension Ability、服务卡片、WorkScheduler、ScanKit 扫码、桌面�
 项目的主运行路径是 Xray。sing-box 也已经随包打入，并且可以在设置里切换，但它在应用里的
 能力范围目前比 Xray 窄，属于预览路径。
 
+## 设计原则
+
+> **不主观提供任何用途，允许用户自行摸索。**
+
+每一处改动都对照同一个问题：*这是应用替用户做的决定，还是用户自己做的决定？*
+支持一种协议、解析一种配置格式、暴露一个传输参数，都属于用户自己做的决定，
+保留并且要让它好用；预设规则、内置源、自动选择、按地区分流的硬编码逻辑，
+都属于应用替用户做的决定，不实现。
+
+落到代码上：仓库不内置任何服务器地址、配置源地址、规则集，也没有任何以国家或地区
+命名的预设。延迟测试地址、出口地址查询、各项 DNS 的出厂默认值全部为空。深链、
+系统分享、扫码这类外部入口一律先展示内容、等用户明确确认，然后才添加或发起请求。
+
+不会实现的完整清单见 [`CONTRIBUTING.md`](CONTRIBUTING.md)，
+其中的措辞部分由 `./scripts/compliance_scan.sh` 做机器校验。
+
 ## 当前状态
 
 Xray 路径是这个仓库里的主路径。它支持 VPN 模式和仅代理模式，可以从当前节点/配置生成运行时
@@ -37,7 +53,7 @@ VPN 流量。
 
 ```text
 HarmonyOS VPN TUN fd
-  -> libheytun2socks.so
+  -> libheytun2socks.so（gvisor，默认）或 libhevsocks5tun.so（hev）
   -> 127.0.0.1:18082（本地 SOCKS/mixed 入站）
   -> Xray 或 sing-box outbound
 ```
@@ -45,7 +61,9 @@ HarmonyOS VPN TUN fd
 也就是说，应用现在不会把 TUN fd 直接交给 Xray 或 sing-box。为什么要这样做、OpenHarmony Go
 fork 和 TLSDESC 构建路线怎么来的，见
 [`docs/harmonyos-go-tls-wall.md`](docs/harmonyos-go-tls-wall.md)；原生库构建说明见
-[`docs/building-native-cores.md`](docs/building-native-cores.md)。
+[`docs/building-native-cores.md`](docs/building-native-cores.md)；
+让 `::/0` 真正进 TUN 的 IPv6 路由写法见
+[`docs/ipv6-leak-prevention.md`](docs/ipv6-leak-prevention.md)。
 
 sing-box 路径目前支持 VPN 模式下的单个转换后 outbound。转换器覆盖 VLESS、VMess、Trojan、
 Shadowsocks、AnyTLS 和 TUIC，并处理基础的 tcp/ws/grpc/http/httpupgrade 传输以及
@@ -57,13 +75,15 @@ WireGuard、SOCKS、HTTP，或 sing-box 自身的细粒度流量统计。
 - HarmonyOS 入口：`EntryAbility`、`HeyVpnAbility`、`ControlCardAbility`、
   `SubscriptionUpdateWorkAbility`、桌面快捷方式、`hey://` 路由和 `text/plain` 系统分享导入。
 - 页面：服务器列表、节点详情/编辑、导入、JSON 导入、高级出站、订阅、订阅详情/编辑、路由、
-  设置、语言、分应用隧道、数据文件、日志、扫码、备份、导出和关于。
+  设置、语言、分应用隧道、网络场景、数据文件、日志、扫码、备份、导出和关于。
 - 节点与订阅：多订阅分组、当前分组和节点状态、自定义 User-Agent、过滤、前置/后置配置字段、
   手动刷新、到期刷新、WorkScheduler 后台刷新、搜索/排序/清理，以及通过原生桥做真实延迟测试。
 - 导入：订阅 URL、v2rayN 明文/BASE64 文本、Xray outbound/full JSON、Clash 风格 YAML 节点、
   WireGuard 配置文件、二维码、系统分享文本，以及 `vless://`、`vmess://`、`trojan://`、
   `ss://`、`socks://`、`socks4://`、`socks5://`、`http://`、`https://`、`wireguard://`、
   `hysteria2://`、`hy2://`、`anytls://`、`tuic://` 分享链接。
+  `hey://` 深链、系统分享、扫码这三个外部入口都会先完整展示目标内容并等待用户确认，
+  不会自行添加配置源，也不会自行发起请求。
 - 导出：`formatOutboundJsonToShareLink` 已实现协议的节点分享链接、节点详情/导出页二维码、
   路由规则 JSON，以及本地完整备份 JSON。
 - Xray 运行时配置：给 `tun2socks` 用的 VPN SOCKS 入站、可选本地 SOCKS/HTTP 代理、
@@ -72,11 +92,15 @@ WireGuard、SOCKS、HTTP，或 sing-box 自身的细粒度流量统计。
 - 路由：流量模式、域名策略、用户自行编写的规则集、锁定规则、
   process/port/network/protocol 匹配，以及规则导入导出。应用不内置任何地区或国家规则集，
   全部规则由用户自行编写。
-- 分应用隧道：支持隧道/直出模式和持久化包名列表。HarmonyOS NEXT 这里没有通用全局应用枚举，
-  所以手动填写包名仍是当前设计的一部分。应用不随包任何包名清单。
+- 分应用隧道：支持隧道/直出模式和持久化包名列表。HarmonyOS NEXT 不向三方应用开放
+  已安装应用的全局枚举接口，所以页面提供了少量常用本地应用作为输入快捷方式，
+  同时支持手动填写任意包名。应用不会替你勾选任何一项，这份快捷列表也与目的地无关。
+- 网络场景自动化：由用户自己列出的可信 Wi-Fi SSID 加上蜂窝网络开关，驱动自动连接/断开。
+  后台判断由 VPN Extension 进程轮询完成，因为它是 HarmonyOS 下唯一不会被冻结的组件。
+  应用不会自行判定某个网络属于什么性质，名单完全由用户决定。
 - 数据文件与诊断：用户自填的数据文件地址与本地文件导入、运行日志、Core 日志、
-  可选速度显示、持久累计流量、更新检查、出口地址查询（未配置则不请求），
-  以及中英文和更多语言资源。应用不内置任何下载源。
+  可选速度显示、持久累计流量、出口地址查询（未配置端点则完全不请求，且只回报地址本身），
+  以及中英文和更多语言资源。应用不内置任何下载源，也没有任何应用内更新检查。
 - 备份恢复：本地 JSON 覆盖 profile、订阅分组、设置、路由规则、分应用列表和自定义资源 URL。
   运行流量累计和服务卡片状态属于设备本地状态，代码里刻意不迁移。
 
@@ -131,6 +155,18 @@ HVIGOR=/Applications/DevEco-Studio.app/Contents/tools/hvigor/bin/hvigorw \
 entry/build/default/outputs/default/entry-default-signed.hap
 ```
 
+跑单元测试：
+
+```bash
+node "$HVIGORW" --mode module -p module=entry@default -p isLocalTest=true test --no-daemon
+```
+
+提交前跑一遍措辞校验：
+
+```bash
+./scripts/compliance_scan.sh
+```
+
 常用真机命令：
 
 ```bash
@@ -149,10 +185,12 @@ HAP 原生库目录：
 | --- | --- | --- |
 | `libxray.so` | 主 Xray 运行时，导出启动、停止、测速和统计入口。 | `scripts/build_libxray_ohos.sh` 已脚本化。 |
 | `libsingbox.so` | 可选 sing-box 运行时，导出启动、停止、版本和探针入口。 | `scripts/build_libsingbox_ohos.sh` 已脚本化。 |
-| `libheytun2socks.so` | 把 HarmonyOS VPN TUN fd 转发到内核本地入站。 | 已随包并使用，由 `scripts/build_tun2socks_ohos.sh` 构建。 |
+| `libheytun2socks.so` | 默认的 gvisor 数据面引擎，把 HarmonyOS VPN TUN fd 转发到内核本地入站。 | 已随包并使用，由 `scripts/build_tun2socks_ohos.sh` 构建。 |
+| `libhevsocks5tun.so` | 同一条转发链路的另一套 hev 数据面引擎，可在设置里切换。 | 已随包并使用，由 `scripts/build_hev_ohos.sh` 构建。 |
 
-两个已脚本化的 Go 构建都走 OpenHarmony Go fork + `GOOS=openharmony`。Go fork 工具链建议放在
-仓库外面；`hvigor clean` 会删除仓库内的 `build/` 目录。
+三个 Go 库都走 OpenHarmony Go fork + `GOOS=openharmony`；`libhevsocks5tun.so` 是纯 C，
+用 DevEco 自带的 OHOS clang 交叉编译，不需要 Go 工具链。Go fork 建议放在仓库外面；
+`hvigor clean` 会删除仓库内的 `build/` 目录。
 
 ## 许可协议
 
@@ -162,5 +200,5 @@ Hey 基于 [GNU 通用公共许可证 v3.0（GPL-3.0）](LICENSE) 开源。你�
 （包括商用），但衍生作品须同样以 GPL-3.0 开源，并向接收者提供对应源码。
 
 项目打包了 Xray-core（MPL-2.0），基于 libXray（MIT）构建，同时打包 sing-box
-（GPL-3.0-or-later），并使用基于 xjasonlyu/tun2socks（MIT）的 tun2socks 适配层。
-这些组件保留各自的协议，详见 [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md)。
+（GPL-3.0-or-later），并使用两套 TUN 适配层：基于 xjasonlyu/tun2socks（MIT）
+和 heiher/hev-socks5-tunnel（MIT）。这些组件保留各自的协议，详见 [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md)。
