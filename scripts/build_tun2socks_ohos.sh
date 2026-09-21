@@ -3,12 +3,13 @@ set -euo pipefail
 
 # 交叉编译 tun2socks 适配层为 HarmonyOS 的 libheytun2socks.so。
 #
-# 走 **OHOS 官方 Go fork + GOOS=openharmony**（与 build_libxray/libsingbox 同一套配方），
-# 这是目前真机上唯一不崩的编法，详见 docs/building-native-cores.md。
+# 走 **OHOS Go fork + GOOS=openharmony**（与 build_libxray/libsingbox 同一套配方），
+# 这是目前真机上唯一不崩的编法，详见 docs/building-native-cores.md。现役工具链是
+# 第三方 fork star4277/ohos-go v1.26.5-beta1（go1.26.5），不是 OpenHarmony 官方发行。
 #
 # 这是 VPN 数据面的命脉：读 Harmony VPN 的 TUN fd → 转发进内核的本地 SOCKS 入站
 # （127.0.0.1:VPN_DATA_SOCKS_PORT）。两个内核（Xray/sing-box）都依赖它，没有它 VPN
-# 连上也不过流量。详见 docs/harmonyos-go-tls-wall.md 路径 A。
+# 连上也不过流量。详见 docs/harmonyos-go-tls-wall.md §7。
 #
 # 源码是仓库内第一方 adapter（entry/src/main/cpp/tun2socks_adapter/，基于
 # xjasonlyu/tun2socks v2.6.0 + gvisor netstack）。与旧脚本（提交 5a21b4e 删除前）的区别：
@@ -28,7 +29,7 @@ WORK_DIR="${ROOT_DIR}/build/native/libheytun2socks-ohos"
 OUT_DIR="${ROOT_DIR}/entry/src/main/cpp/prebuilt/arm64-v8a"
 GO_LDFLAGS_DEFAULT="-s -w -checklinkname=0"
 
-# fork 工具链。
+# OHOS Go 工具链（star4277/ohos-go v1.26.5-beta1，go1.26.5），覆盖请设 OHOS_GO_FORK。
 OHOS_GO_FORK="${OHOS_GO_FORK:-${HOME}/hey-ohos-build/ohos-go-1.26.5}"
 
 mkdir -p "${WORK_DIR}" "${OUT_DIR}"
@@ -38,10 +39,11 @@ if [[ -x "${OHOS_GO_FORK}/bin/go" ]]; then
   export PATH="${OHOS_GO_FORK}/bin:${PATH}"
   export GOTOOLCHAIN=local
 else
-  echo "ERROR: 找不到 OHOS Go fork: ${OHOS_GO_FORK}/bin/go" >&2
-  echo "  按 docs/building-native-cores.md 构建该工具链：" >&2
-  echo "  git clone --branch release-branch.go1.24 https://gitcode.com/openharmony-sig/ohos_golang_go.git" >&2
-  echo "  cd ohos_golang_go/src && GOROOT_BOOTSTRAP=/usr/local/go GOTOOLCHAIN=local ./make.bash" >&2
+  echo "ERROR: 找不到 OHOS Go 工具链: ${OHOS_GO_FORK}/bin/go" >&2
+  echo "  按 docs/building-native-cores.md §2.1 构建第三方 fork star4277/ohos-go v1.26.5-beta1（go1.26.5）：" >&2
+  echo "  git clone --branch v1.26.5-beta1 https://github.com/star4277/ohos-go.git \"${OHOS_GO_FORK}\"" >&2
+  echo "  cd \"${OHOS_GO_FORK}/src\" && GOROOT_BOOTSTRAP=/usr/local/go GOTOOLCHAIN=local ./make.bash" >&2
+  echo "  （GOROOT_BOOTSTRAP 指向本机任一 go1.24.6+ 的标准 Go；工具链在别处则用 OHOS_GO_FORK 覆盖路径）" >&2
   exit 1
 fi
 # 去掉其余 IE-TLS 重定位，配合 fork 的 tls_g TLSDESC——musl 在 dlopen 的库里只接受

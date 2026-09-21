@@ -90,13 +90,14 @@ VLESS Reality、VMess WS+TLS、Trojan gRPC+TLS、Shadowsocks、AnyTLS、TUIC、H
 | --- | --- |
 | `main.go` | c-shared 导出、base64 CallResponse 协议、libbox service 启停。文件头注释仍带有早期 spike 语境，实际状态以本 README 为准。 |
 | `platform_stub.go` | `libbox.PlatformInterface` 的最小实现。当前 SOCKS 数据面基本不依赖 `OpenTun()`，但 `libbox.NewService` 仍需要这个接口对象。 |
-| `validate_test.go` | 用真实 sing-box v1.11.0 校验生成配置能否被 `libbox.NewService` 接受。 |
+| `validate_test.go` | 用真实 sing-box v1.12.x 校验生成配置能否被 `libbox.NewService` 接受。 |
 | `go.mod` / `go.sum` | 锁定 sing-box 及其依赖。 |
 | `../scripts/build_libsingbox_ohos.sh` | 使用 OpenHarmony Go fork 交叉编译 `libsingbox.so`。 |
 
 ## 构建
 
-准备 OpenHarmony Go fork 和 DevEco Native 工具链后：
+按 [`docs/building-native-cores.md`](../docs/building-native-cores.md) §2 准备好 OHOS Go 工具链
+（第三方 fork star4277/ohos-go v1.26.5-beta1，go1.26.5）和 DevEco Native 后：
 
 ```bash
 bash scripts/build_libsingbox_ohos.sh
@@ -106,7 +107,7 @@ bash scripts/build_libsingbox_ohos.sh
 
 ```text
 GO_TAGS="with_gvisor with_utls with_clash_api with_quic"
-OHOS_GO_FORK=~/hey-ohos-build/ohos_golang_go
+OHOS_GO_FORK=~/hey-ohos-build/ohos-go-1.26.5
 ```
 
 这几个 tag 都有实际作用：

@@ -16,9 +16,9 @@ part of Hey.
   inside the HAP.
 - Obligation: the corresponding source of the MPL-covered files is available at
   the upstream repository above. The native library is reproduced from source by
-  [`scripts/build_libxray_ohos.sh`](scripts/build_libxray_ohos.sh). For an
-  exact correspondence between a released `libxray.so` and its source, pin the
-  upstream commit/tag in that script (currently it clones the latest `HEAD`).
+  [`scripts/build_libxray_ohos.sh`](scripts/build_libxray_ohos.sh), which pins
+  libXray to a tag (`LIBXRAY_PIN`, currently `v26.7.28`); that tag's `go.mod`
+  in turn pins the exact Xray-core version compiled into `libxray.so`.
 
 ### sing-box — GPL-3.0-or-later
 
@@ -55,10 +55,13 @@ part of Hey.
 
 - Source: https://github.com/XTLS/libXray
 - License: MIT
-- Usage: cloned and lightly modified by
-  [`scripts/build_libxray_ohos.sh`](scripts/build_libxray_ohos.sh) to export the
-  CGo entry points (`CGoRunXrayFromJSON`, `CGoStopXray`, `CGoPing`,
-  `CGoSetTunFd`) and compiled into `libxray.so`.
+- Usage: cloned at a pinned tag (currently `v26.7.28`) by
+  [`scripts/build_libxray_ohos.sh`](scripts/build_libxray_ohos.sh) and compiled
+  into `libxray.so` from libXray's own c-shared entry `cgo_bridge/`. The build
+  exports only `CGoInvoke` / `CGoFree` (a linker version script hides every
+  other symbol). The libXray sources themselves are not modified; the only
+  build-time patch is an optional, best-effort one to the gVisor dependency's
+  `isSocketFD`.
 
 ---
 

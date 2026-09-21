@@ -3,8 +3,9 @@ set -euo pipefail
 
 # 交叉编译 Xray 内核为 HarmonyOS 的 libxray.so。
 #
-# 走 **OHOS 官方 Go fork + GOOS=openharmony**（与 build_libsingbox_ohos.sh 同一套
-# 配方），这是目前真机上唯一不崩的编法，详见 docs/building-native-cores.md。
+# 走 **OHOS Go fork + GOOS=openharmony**（与 build_libsingbox_ohos.sh 同一套配方），
+# 这是目前真机上唯一不崩的编法，详见 docs/building-native-cores.md。现役工具链是
+# 第三方 fork star4277/ohos-go v1.26.5-beta1（go1.26.5），不是 OpenHarmony 官方发行。
 #
 # ┌─ GOOS 选择：一段曾经的“两难”，现已由 OHOS Go fork 终结 ───────────────────────────┐
 # │ HarmonyOS 是 musl libc（ld-musl-aarch64.so.1）。Go 在 arm64 上怎么存 goroutine     │
@@ -29,7 +30,8 @@ set -euo pipefail
 #
 # ⚠️ 无 OHOS NDK / go 工具链时无法本机验证编译；改动后请在装好工具链的环境实跑，
 #    并比对产物：nm -D 应只见 CGoInvoke/CGoFree 两个 global 符号、strings 应含
-#    xray-core@v1.2607xx（新核）、readelf -r 应有 R_AARCH64_TLSDESC。
+#    xray-core@v1.260327.1-0.20260728075948-5ca6f4b7d4dc（新核）、readelf -r 应有
+#    R_AARCH64_TLSDESC。
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SDK_HOME="${DEVECO_SDK_HOME:-/Applications/DevEco-Studio.app/Contents/sdk}"
@@ -57,10 +59,11 @@ if [[ -x "${OHOS_GO_FORK}/bin/go" ]]; then
   export PATH="${OHOS_GO_FORK}/bin:${PATH}"
   export GOTOOLCHAIN=local
 else
-  echo "ERROR: 找不到 OHOS Go fork: ${OHOS_GO_FORK}/bin/go" >&2
-  echo "  按 docs/building-native-cores.md 构建该工具链：" >&2
-  echo "  git clone --branch release-branch.go1.24 https://gitcode.com/openharmony-sig/ohos_golang_go.git" >&2
-  echo "  cd ohos_golang_go/src && GOROOT_BOOTSTRAP=/usr/local/go GOTOOLCHAIN=local ./make.bash" >&2
+  echo "ERROR: 找不到 OHOS Go 工具链: ${OHOS_GO_FORK}/bin/go" >&2
+  echo "  按 docs/building-native-cores.md §2.1 构建第三方 fork star4277/ohos-go v1.26.5-beta1（go1.26.5）：" >&2
+  echo "  git clone --branch v1.26.5-beta1 https://github.com/star4277/ohos-go.git \"${OHOS_GO_FORK}\"" >&2
+  echo "  cd \"${OHOS_GO_FORK}/src\" && GOROOT_BOOTSTRAP=/usr/local/go GOTOOLCHAIN=local ./make.bash" >&2
+  echo "  （GOROOT_BOOTSTRAP 指向本机任一 go1.24.6+ 的标准 Go；工具链在别处则用 OHOS_GO_FORK 覆盖路径）" >&2
   exit 1
 fi
 # 去掉其余 IE-TLS 重定位，配合 fork 的 tls_g TLSDESC——musl 在 dlopen 的库里只接受

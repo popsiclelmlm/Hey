@@ -26,12 +26,14 @@ OUT_DIR="${ROOT_DIR}/entry/src/main/cpp/prebuilt/arm64-v8a"
 EXPORTS_FILE="${WORK_DIR}/libsingbox.exports"
 GO_LDFLAGS_DEFAULT="-s -w -checklinkname=0 -linkmode external -extldflags \"-Wl,--version-script=${EXPORTS_FILE} -Wl,-z,lazy\""
 
-# [SING-BOX] 用 OHOS 官方 Go fork + GOOS=openharmony 编译——这是 docs/harmonyos-go-tls-wall.md
-# 定的正解。fork 为 arm64 补了 TLSDESC（通用动态 TLS）：产物带真正的 PT_TLS，musl 能
+# [SING-BOX] 用 OHOS Go fork + GOOS=openharmony 编译——这是 docs/harmonyos-go-tls-wall.md
+# 定的正解，构建配方见 docs/building-native-cores.md。现役工具链是第三方 fork
+# star4277/ohos-go v1.26.5-beta1（go1.26.5），与 libxray / tun2socks 共用。
+# fork 为 arm64 补了 TLSDESC（通用动态 TLS）：产物带真正的 PT_TLS，musl 能
 # dlopen，且外来线程 cgo 不再从 bionic 固定槽读到垃圾 g。
 # 真机实测（ALN-AL80/HarmonyOS 6.1）：用原版 Go(GOOS=android) 编的 libsingbox，连最轻量的
-# CGoSingBoxVersion 都一调就 SIGSEGV(@0x000103ffd50323b7)，VPN 扩展进程当场死。libxray 现在
-# 能用，正是因为它已用本 fork 重编过。
+# CGoSingBoxVersion 都一调就 SIGSEGV(@0x000103ffd50323b7)，VPN 扩展进程当场死。libxray 能用，
+# 正是因为它改用 OHOS fork + GOOS=openharmony 重编过。
 OHOS_GO_FORK="${OHOS_GO_FORK:-${HOME}/hey-ohos-build/ohos-go-1.26.5}"
 # build tags（已用真实 sing-box NewService 校验，见 validate_test.go）：
 #   with_gvisor / with_utls(reality+uTLS) / with_clash_api(libbox.NewService 必需)。
@@ -44,10 +46,11 @@ if [[ -x "${OHOS_GO_FORK}/bin/go" ]]; then
   export PATH="${OHOS_GO_FORK}/bin:${PATH}"
   export GOTOOLCHAIN=local
 else
-  echo "ERROR: 找不到 OHOS Go fork: ${OHOS_GO_FORK}/bin/go" >&2
-  echo "  按 docs/harmonyos-go-tls-wall.md §9.4 构建该工具链:" >&2
-  echo "  git clone --branch release-branch.go1.24 https://gitcode.com/openharmony-sig/ohos_golang_go.git" >&2
-  echo "  cd ohos_golang_go/src && GOROOT_BOOTSTRAP=/usr/local/go GOTOOLCHAIN=local ./make.bash" >&2
+  echo "ERROR: 找不到 OHOS Go 工具链: ${OHOS_GO_FORK}/bin/go" >&2
+  echo "  按 docs/building-native-cores.md §2.1 构建第三方 fork star4277/ohos-go v1.26.5-beta1（go1.26.5）：" >&2
+  echo "  git clone --branch v1.26.5-beta1 https://github.com/star4277/ohos-go.git \"${OHOS_GO_FORK}\"" >&2
+  echo "  cd \"${OHOS_GO_FORK}/src\" && GOROOT_BOOTSTRAP=/usr/local/go GOTOOLCHAIN=local ./make.bash" >&2
+  echo "  （GOROOT_BOOTSTRAP 指向本机任一 go1.24.6+ 的标准 Go；工具链在别处则用 OHOS_GO_FORK 覆盖路径）" >&2
   exit 1
 fi
 

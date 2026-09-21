@@ -6,6 +6,23 @@
 >
 > 首次排查设备：ALN-AL80 / HarmonyOS 6.1.0.117(SP6C00E115R4P9) / API 23。
 > 构建配方请以 [`building-native-cores.md`](building-native-cores.md) 为准。
+>
+> **这主要是一份历史记录（2026-06 排查）。** §5–§8 里的 openharmony-sig go1.24.5 fork、
+> libXray `20d70a98` / xray-core `v1.250803.0` 钉版、`libxray.so` 导出 4 个符号，都是当时的
+> 状态，推理过程保留不改。
+>
+> **现状（2026-09）**：
+>
+> - 工具链换成第三方 fork [star4277/ohos-go](https://github.com/star4277/ohos-go)
+>   **v1.26.5-beta1**（go1.26.5，同样带 `openharmony` 端口 + arm64 TLSDESC），默认放在
+>   `~/hey-ohos-build/ohos-go-1.26.5`。本文的 TLS 结论不变，仍是 `GOOS=openharmony` + TLSDESC。
+> - libXray 升到 **v26.7.28**，从其自带的 `cgo_bridge/` 编 c-shared，`libxray.so` 只导出
+>   `CGoInvoke` / `CGoFree`（所有方法经 `CGoInvoke` 分发）。
+> - sing-box v1.12.25、tun2socks adapter 用同一套工具链编；数据面仍是 §7 的 tun2socks。
+> - 迁到 v26.7.28 后遇到的那次 VPN 启动崩溃与 TLS 无关，是 `dlopen` 后 `setenv` 抢
+>   `environ`，见 [`building-native-cores.md` §5](building-native-cores.md)。
+>
+> 现役构建步骤、导出集和产物校验见 [`building-native-cores.md`](building-native-cores.md)。
 
 ---
 
@@ -97,6 +114,10 @@ HarmonyOS 这里跑的是 musl，不是 bionic。在 ArkTS / native 外来线程
 
 ## 5. 能解 TLS 的方案：OpenHarmony Go fork + TLSDESC
 
+> 历史：下面是 2026-06 排查时用的 openharmony-sig fork。现役工具链已换成第三方 fork
+> star4277/ohos-go v1.26.5-beta1（在 openharmony-sig 的 go1.24 树上 merge go1.26.5），
+> TLSDESC 机制相同，见 [`building-native-cores.md`](building-native-cores.md) §1 / §2.1。
+
 OpenHarmony-SIG 维护了 Go 的 OpenHarmony 移植：
 
 ```text
@@ -124,6 +145,10 @@ tls_g 重定位：R_AARCH64_TLSDESC
 ---
 
 ## 6. 为什么没有继续走 native-TUN
+
+> 历史：本节说的 go 版本鸿沟后来由 go1.26.5 工具链解开，libXray v26.7.28（go.mod 要
+> go1.26.3）可以直接编。但数据面仍保持 §7 的 tun2socks，没有回到 native-TUN，
+> 现役 `libxray.so` 也不导出 `CGoSetTunFd`。
 
 TLS 问题解决后，还剩一个版本鸿沟。
 
@@ -164,14 +189,20 @@ HarmonyOS TUN fd
 - 不需要 `CGoSetTunFd`、`proxy/tun` 或 `TunFdKey`。
 - Go-on-HarmonyOS 的 TLS 问题仍然用 fork + TLSDESC 正面解决，不再碰 bionic 固定槽。
 
+> 上面的 go1.24.5 fork 和 libXray `20d70a98` / xray-core `v1.250803.0` 是当时的钉版。
+> 现役已换 go1.26.5 工具链、libXray v26.7.28，Xray 仍只提供本地 SOCKS 入站。
+
 代价也要承认：数据面多了一层 gVisor 用户态转发，性能和维护成本都不如 native-TUN 干净。
 但它构建确定、风险可控，而且和项目早期跑通过的设计一致。
 
 ---
 
-## 8. 当前实现状态
+## 8. 修复落地时的实现状态（2026-06-28，历史）
 
-截至 2026-06-28，现役状态是：
+> 历史快照。现状见文首「现状」一节和 [`building-native-cores.md`](building-native-cores.md)：
+> 最大的变化是 `libxray.so` 现在只导出 `CGoInvoke` / `CGoFree`，工具链是 go1.26.5。
+
+截至 2026-06-28，当时的状态是：
 
 - `libxray.so`：`GOOS=openharmony`，带 `PT_TLS + R_AARCH64_TLSDESC`，只导出
   `CGoRunXrayFromJSON` / `CGoStopXray` / `CGoPing` / `CGoQueryStats`。脚本见
@@ -215,7 +246,8 @@ func isSocketFD(fd int) (bool, error) {
 完整构建步骤放在 [`building-native-cores.md`](building-native-cores.md)。这里只留几条最容易
 忘的规则：
 
-- OpenHarmony Go fork 放仓库外，默认路径是 `~/hey-ohos-build/ohos_golang_go`。不要放
+- OHOS Go 工具链（现役 star4277/ohos-go v1.26.5-beta1）放仓库外，默认路径是
+  `~/hey-ohos-build/ohos-go-1.26.5`，脚本用 `OHOS_GO_FORK` 覆盖。不要放
   `<repo>/build/`，`hvigor clean` 会删。
 - 公共环境：
 
@@ -240,13 +272,15 @@ llvm-readelf -r entry/src/main/cpp/prebuilt/arm64-v8a/libxray.so | grep -i TLSDE
 nm -D entry/src/main/cpp/prebuilt/arm64-v8a/libxray.so | grep ' T .*CGo'
 ```
 
-`libxray.so` 的 CGo 导出应该只有 4 个。`libxray.h` 是 cgo 生成的历史头文件，可能列出
-现役 `.so` 不再导出的符号，判断导出集以 `nm -D` 为准。
+现役 `libxray.so`（libXray v26.7.28）的 CGo 导出应该只有 `CGoInvoke` / `CGoFree` 两个
+（2026-06 的旧核是 4 个）。`libxray.h` 是 cgo 生成的头文件，可能列出现役 `.so` 不再导出
+的符号，判断导出集以 `nm -D` 为准。
 
 ---
 
 ## 11. 还没收尾的事
 
 - 继续观察冷启动首连、DNS-over-UDP、长时间运行后的稳定性。
-- 如果以后想回到 native-TUN，需要先做 go1.25+ 的 OpenHarmony 工具链前向移植；在那之前，
-  不建议把 Xray 主线和 native-TUN 重新接回 VPN 数据面。
+- 如果以后想回到 native-TUN：go1.25+ 工具链这个前置条件已由 go1.26.5 满足，但现役
+  libXray 没有导出 `CGoSetTunFd`，HarmonyOS VPN fd 拒 `Fstat`（§9）等问题也要重新在
+  真机验证。在那之前，数据面继续走 tun2socks。
