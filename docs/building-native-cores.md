@@ -15,7 +15,7 @@ Hey 打包了四个 `.so`（前三个 Go，第四个 C）：
 > 两套实现**，运行时由设置项 `useHevTun` 二选一，互斥。原生侧（`napi_init.cpp`）按当前引擎
 > 分发 start/stop/stats，停止统一走 `stopTun2Socks`。
 
-> 这是“怎么从源码构建这三个库”的权威说明（single source of truth）。
+> 这是“怎么从源码构建这四个库”的权威说明（single source of truth）。
 > **为什么必须这么编**的深度原理见 [`harmonyos-go-tls-wall.md`](harmonyos-go-tls-wall.md)。
 
 ---
@@ -30,23 +30,29 @@ HarmonyOS 是 **musl** libc（`ld-musl-aarch64.so.1`）。Go 在 arm64 上怎么
 | 标准 Go + `GOOS=linux` | initial-exec TLS | musl **拒绝 dlopen** 含 IE-TLS 的库 → 整个原生桥加载失败 |
 | **OHOS fork + `GOOS=openharmony`** | **TLSDESC（通用动态 TLS）** | `dlopen` 能过 **且** 外来线程 cgo 正常 ✅ |
 
-fork 给 arm64 补了 **TLSDESC**，产物带真正的 `PT_TLS` + `R_AARCH64_TLSDESC`。这是目前真机上唯一不崩的编法，三个库现役产物（`strings` 可见 `GOOS=openharmony`）都走这条路线。
+fork 给 arm64 补了 **TLSDESC**，产物带真正的 `PT_TLS` + `R_AARCH64_TLSDESC`。这是目前真机上唯一不崩的编法，三个 Go 库现役产物（`strings` 可见 `GOOS=openharmony`）都走这条路线。
 
-**代价**：fork 目前封顶 **go1.24.5**，而 libXray 主线已需 go1.26、xray-core 需 go≥1.25。所以 libxray 必须钉回能用 go1.24 编的旧版（见 §3.1）。
+**工具链版本**：现役是 [star4277/ohos-go](https://github.com/star4277/ohos-go) **v1.26.5-beta1**（go1.26.5）。它是在 openharmony-sig 的 OHOS go1.24 树上 merge go1.26.5 得到的第三方 fork，同样带 `openharmony` 端口 + arm64 TLSDESC。早先用的 openharmony-sig 官方 fork 封顶 **go1.24.5**，编不动需要 go1.26 的 libXray 主线，libxray 只能钉在 2025-08 的旧核；换成 go1.26.5 工具链后才升到 libXray **v26.7.28**（见 §3.1）。
+
+> 这是第三方 fork：“能编”不等于“真机不崩”。换工具链或升级版本后，必须按 §4 确认 `PT_TLS` + `R_AARCH64_TLSDESC`，并在真机上验证外来线程（ArkTS / VPN 扩展）调 cgo 不 SIGSEGV。
 
 ---
 
 ## 2. 准备工具链
 
-### 2.1 OHOS Go fork（一次性）
+### 2.1 OHOS Go 工具链（一次性）
 
 ```bash
-git clone --branch release-branch.go1.24 https://gitcode.com/openharmony-sig/ohos_golang_go.git
-cd ohos_golang_go/src
+git clone --branch v1.26.5-beta1 https://github.com/star4277/ohos-go.git ~/hey-ohos-build/ohos-go-1.26.5
+cd ~/hey-ohos-build/ohos-go-1.26.5/src
 GOROOT_BOOTSTRAP=/usr/local/go GOTOOLCHAIN=local ./make.bash
 ```
 
-把整个 `ohos_golang_go/` 放在**仓库外**，默认约定路径 `~/hey-ohos-build/ohos_golang_go`（脚本用环境变量 `OHOS_GO_FORK` 覆盖）。
+- 自举需要 **go1.24.6+**（`src/cmd/dist/buildtool.go` 的 `minBootstrap`），`GOROOT_BOOTSTRAP` 指向本机任一满足版本的标准 Go。
+- 编完确认：`bin/go version` 是 `go1.26.5`，`bin/go tool dist list | grep openharmony` 能看到 `openharmony/arm64`。
+- 放在**仓库外**，默认约定路径 `~/hey-ohos-build/ohos-go-1.26.5`；三个 Go 脚本都用环境变量 `OHOS_GO_FORK` 覆盖。
+
+> 旧的 openharmony-sig go1.24.5 fork（`~/hey-ohos-build/ohos_golang_go`）编不动 libXray v26.7.28，最多只能拿来回退编旧核，不再是默认工具链。
 
 > ⚠️ **不要放进仓库的 `build/`**：`hvigor clean` 会删掉 `<repo>/build/`，曾因此丢过整套工具链。
 
@@ -87,8 +93,13 @@ bash scripts/build_libxray_ohos.sh           # 默认 openharmony
 
 脚本要点（[`scripts/build_libxray_ohos.sh`](../scripts/build_libxray_ohos.sh)）：
 
-- libXray 源**钉死**在提交 `20d70a98`（2025-08，`LIBXRAY_PIN` 可覆盖），其 `go.mod` 锁 **xray-core v1.250803.0**——go1.24 能编。`go mod edit -go=1.24` 降语言版本以适配 fork。
-- version-script **只导出 4 个 SOCKS 数据面符号**：`CGoRunXrayFromJSON` / `CGoStopXray` / `CGoPing` / `CGoQueryStats`。旧版模板天然**不含** `CGoSetTunFd`（原生 TUN 入站已弃用，数据面改走 tun2socks）；其余模板自带符号（`CGoXrayVersion`/`CGoInitDns`…）被 `local: *` 隐藏。
+- libXray 源**钉死**在 tag **`v26.7.28`**（`LIBXRAY_PIN` 可覆盖；设 `LIBXRAY_SRC` 可改用本地源码目录），其 `go.mod` 声明 go1.26.3，锁 2026-07-28 的 xray-core（`v1.260327.1-0.20260728075948-5ca6f4b7d4dc`）。go1.26.5 工具链直接编，**不再**需要 `go mod edit -go=…` 降级。
+- c-shared 入口是 libXray 自带的 **`cgo_bridge/`**（已是 `package main`），脚本执行 `go build ./cgo_bridge`；旧版“拷 `main.gotemplate` + 改 package 名”的步骤已删除。找不到 `cgo_bridge/main.go` 就报错退出（说明 libXray 版本太旧，需 v26.7.28+）。
+- version-script **只导出 2 个符号**，其余全部被 `local: *` 隐藏：
+  - `CGoInvoke(jsonRequest)`：单一分发入口。请求信封是 `{"apiVersion":1,"method":"…","payload":{…}}`，method 列表见 libXray 的 `invoke_model.go`（`runXrayFromJson` / `stopXray` / `ping` / `pingBatch` / `xrayVersion` / `getFreePorts` / `countGeoData` …）；返回原始 JSON（不是 base64）`{"success":…,"data":…,"error":"…"}`。
+  - `CGoFree`：释放 `CGoInvoke` 返回的字符串。必须用它，不能用 `std::free`。
+- 不导出 `CGoSetTunFd`：数据面走 tun2socks，libxray 只提供本地 SOCKS 入站和测速。napi 桥目前通过 `CGoInvoke` 调 `runXrayFromJson` / `stopXray` / `ping`。旧版遗留的可选符号（`CGoQueryStats` / `CGoCountGeoData` …）`dlsym` 拿到的是空指针，桥会优雅降级（例如流量统计回退到桥自身的计数）。
+- 新版 run / ping 请求里不再带 datDir，Geo 资源目录只能通过环境变量 `XRAY_LOCATION_ASSET` 传给 Go，而且必须在首次 `dlopen` 之前设好，见 §5。
 - gvisor `isSocketFD` 的 Fstat 补丁改为**尽力而为**（SOCKS 版通常不命中，不中只告警不中断）。
 - 顺带把内置 Xray 核版本号戳进 `entry/src/main/ets/core/CoreInfo.ets`（`BUNDLED_XRAY_VERSION`），About 页用它显示，避免运行时原生冷调用。
 
@@ -102,9 +113,10 @@ bash scripts/build_libsingbox_ohos.sh
 
 脚本要点（[`scripts/build_libsingbox_ohos.sh`](../scripts/build_libsingbox_ohos.sh)）：
 
-- 源码是仓库内第一方 wrapper [`libsingbox/`](../libsingbox)（不 clone 外部仓库），钉 **sing-box v1.11.0**。
+- 源码是仓库内第一方 wrapper [`libsingbox/`](../libsingbox)（不 clone 外部仓库），`go.mod` 钉 **sing-box v1.12.25**（anytls 出站需要 1.12+）。用同一套 go1.26.5 工具链编译，wrapper 代码不用改。
 - 导出 `CGoStartSingBox` / `CGoStopSingBox` / `CGoSetTunFd` / `CGoSingBoxVersion`。
-- build tags 必须有 `with_gvisor with_utls with_clash_api`（缺 `with_utls` → reality/uTLS 配置被拒；缺 `with_clash_api` → `libbox.NewService` 起不来）；**同样不能加 netgo**。
+- build tags 默认 `with_gvisor with_utls with_clash_api with_quic`，可用 `GO_TAGS` 覆盖。缺 `with_utls` → reality/uTLS 配置被拒；缺 `with_clash_api` → `libbox.NewService` 起不来；缺 `with_quic` → TUIC / Hysteria2 出站没注册，启动报 `QUIC is not included in this build`。**同样不能加 netgo**。
+- 升到 sing-box 1.13 要重写 wrapper：libbox 删掉了 `NewService` / `BoxService`，改成 daemon + CommandServer 模型。所以暂时停在 1.12.25。
 - gvisor `isSocketFD` 补丁同为尽力而为。
 
 ### 3.3 libheytun2socks.so
@@ -145,29 +157,53 @@ bash scripts/build_hev_ohos.sh
 ```bash
 SO=entry/src/main/cpp/prebuilt/arm64-v8a/libxray.so
 
-# 1) 确是 openharmony 产物
+# 1) 确是 openharmony 产物，且用 go1.26.5 工具链编
 strings -a "$SO" | grep -m1 'GOOS=openharmony'
+strings -a "$SO" | grep -m1 -o 'go1\.26\.[0-9]*'   # go1.26.5
 
-# 2) libxray 应只见 4 个 global 导出
-nm -D "$SO" | grep ' T .*CGo'
-#   CGoPing / CGoQueryStats / CGoRunXrayFromJSON / CGoStopXray
+# 2) libxray 应只见 2 个 global 导出
+llvm-nm -D "$SO" | grep ' T .*CGo'
+#   CGoFree / CGoInvoke
 
-# 3) 钉死的 xray-core 版本
-strings -a "$SO" | grep -m1 'xray-core@v1.250803.0'
+# 3) 钉定的 xray-core 版本（libXray v26.7.28 对应 2026-07-28 的 pseudo-version）
+strings -a "$SO" | grep -m1 -o 'xray-core@v[^ ]*'
+#   xray-core@v1.260327.1-0.20260728075948-5ca6f4b7d4dc
 
 # 4) TLSDESC 落地（fork 路线的关键标志）
 llvm-readelf -l "$SO" | grep -i TLS          # 应有 PT_TLS
 llvm-readelf -r "$SO" | grep -i TLSDESC       # 应有 R_AARCH64_TLSDESC
 ```
 
-`entry/src/main/cpp/prebuilt/arm64-v8a/libxray.h` 是 cgo 生成的旧产物头文件，**可能与现役 .so 不一致**（例如列了已不存在的 `CGoSetTunFd`），判断导出集请以 `nm -D` 为准，不要信 `.h`。
+`llvm-nm` / `llvm-readelf` 在 DevEco 的 `<OHOS_NATIVE_HOME>/llvm/bin/` 下。其余两个 Go 库同样检查：`libsingbox.so` 应见 `CGoStartSingBox` / `CGoStopSingBox` / `CGoSetTunFd` / `CGoSingBoxVersion`，`strings` 应含 `sing-box@v1.12.25`；`libheytun2socks.so` 应见 4 个 `HeyTun2Socks*`（无 version-script，另有一批 cgo 运行时符号，属正常）。
+
+`entry/src/main/cpp/prebuilt/arm64-v8a/*.h` 是 cgo 顺带生成的头文件，列的是全部 `//export` 符号，不管 version-script 有没有把其中一部分隐藏；手动替换 `.so` 时也可能忘了同步。判断导出集请以 `llvm-nm -D` 为准，不要信 `.h`。
 
 ---
 
-## 5. 雷区速查
+## 5. 原生桥加载约束：`dlopen` 之后不要再 `setenv`
+
+libXray v26.7.28 的 run / ping 请求不再带 datDir，Geo 资源目录只能靠环境变量 `XRAY_LOCATION_ASSET` 告诉 Go。napi 桥（[`napi_init.cpp`](../entry/src/main/cpp/napi_init.cpp) 的 `PrepareXrayAssetDir`）负责设置它，规则只有一条：**必须在首次 `dlopen` libxray.so 之前 `setenv`；任何 Go c-shared 库加载之后，都不能再调 `setenv`**。
+
+原因有两层：
+
+1. **Go 只在运行时初始化时拷贝一次 `environ`**。`dlopen` 之后 C 侧再 `setenv`，Go 根本看不到新值，Geo 资源目录就丢了。
+2. **c-shared 运行时在 `dlopen` 返回后另起线程异步初始化**，初始化期间会读 `dlopen` 时捕获的 musl `environ` 数组。这时 C 侧 `setenv`，musl 会 realloc / free 旧数组，Go 初始化线程读到野指针，直接 SIGSEGV。这正是迁移到 libXray v26.7.28 后 VPN 扩展进程启动 Xray 就崩的真因：崩在非主线程（Go 线程），和 TLS 墙、工具链都无关。
+
+因此 `PrepareXrayAssetDir` 用互斥锁保护，只在 `g_xrayHandle == nullptr`（库还没加载）时 `setenv` 一次，由 `StartXray` / `PingOutbound` 在首次加载核心前调用。以后给 napi 桥加代码时：
+
+- 需要传给 Go 的环境变量，一律放到对应库首次 `dlopen` **之前**设置；
+- 这条规则适用于所有 Go c-shared 库（libxray / libsingbox / libheytun2socks）：同进程里任一 Go 库加载后，`environ` 就可能正被它的初始化线程读取；
+- 运行期要传的参数走调用参数（JSON 请求、函数实参），不要走环境变量。
+
+> 现状的一处缺口：`PrepareXrayAssetDir` 只检查 libxray 自己有没有加载。如果同一进程里先加载过 libsingbox / libheytun2socks（例如先用 sing-box 连过、再切回 Xray），它仍会 `setenv` 一次。那时那些库的异步初始化通常早已结束，风险很低，但严格说不满足上面的规则，改这块时留意。
+
+---
+
+## 6. 雷区速查
 
 - **产物/工具链放仓库外**（`~/hey-ohos-build/`），别放 `<repo>/build/`（`hvigor clean` 会删）。
 - **不加 netgo**（openharmony net 需 cgo）。
-- libxray **不能用主线**（要 go1.26），必须钉 go1.24 能编的旧版。
+- libxray 钉 **v26.7.28**，要用 go1.26.5 工具链编；旧 go1.24.5 fork 编不动。升级 `LIBXRAY_PIN` 前先确认 `cgo_bridge/` 入口和 `CGoInvoke` 的 method 名没变，否则要同步改 `napi_init.cpp`。
+- **Go 库 `dlopen` 之后不要再 `setenv`**（§5）：要传给 Go 的环境变量只能在首次加载前设，否则轻则 Go 读不到，重则 SIGSEGV。
 - 维护者若无 OHOS NDK / fork 环境，**改脚本后无法本机验证编译**，需在装好 fork 的机器实跑并按 §4 比对产物。
 - `go.mod` 里**不能残留** `go mod edit -replace` 的机器绝对路径（gvisor 补丁路径），脚本结束会 `-dropreplace` 清理；提交前确认 `go.mod` 干净。

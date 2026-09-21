@@ -5,14 +5,16 @@
 `libheyvpn.so` 是 ArkTS 的 N-API 桥。它在运行时 `dlopen` 同目录下打包的几个 Go
 共享库：
 
-- `libxray.so` —— Xray 代理内核（基于 XTLS/libXray 编译）。导出：
-  - `CGoRunXrayFromJSON(const char* base64Request) -> char*` —— 用一份 JSON 配置
-    启动 Xray（VPN 配置会在 `127.0.0.1:18082` 开一个本地 SOCKS 入站）。
-  - `CGoStopXray() -> char*`
-  - `CGoQueryStats(const char* base64Request) -> char*` —— 读取 Xray 指标（expvar）。
-  - `CGoPing(const char* base64Request) -> char*` —— 单节点出站延迟测速；桥这边用一份
-    base64 JSON 请求 `{datDir, configPath, timeout, url, proxy}` 调它，再从 base64 的
-    `{success, data, err}` 响应里解析出毫秒延迟。
+- `libxray.so` —— Xray 代理内核（基于 XTLS/libXray `v26.7.28` 的 `cgo_bridge/` 编译）。
+  只导出两个符号：
+  - `CGoInvoke(char* requestJSON) -> char*` —— 单一分发入口。桥发送
+    `{"apiVersion":1,"method":"…","payload":{…}}`，拿回原始 JSON（不是 base64）
+    `{success, data, error}`。目前用到 `runXrayFromJson`（VPN 配置会在 `127.0.0.1:18082`
+    开一个本地 SOCKS 入站）、`stopXray` 和 `ping`（单节点出站延迟测速）。
+  - `CGoFree(char* value)` —— 释放 `CGoInvoke` 返回的字符串，不能用 `free()`。
+
+  旧版的可选符号（`CGoQueryStats`、`CGoCountGeoData` 等）已不再导出，桥 `dlsym` 拿到空
+  指针后会优雅降级。
 - `libsingbox.so` —— 可选的第二内核（sing-box）。导出 `CGoStartSingBox` /
   `CGoStopSingBox`（外加一个 UI 线程安全的探针）。和 Xray 一样，它的 VPN 配置开的也是
   本地 SOCKS 入站，而不是原生 TUN 入站。
@@ -33,8 +35,9 @@ Go 在鸿蒙（musl）上的 TLS 墙，加上原生 TUN 入口的工具链缺口
 
 ## 构建
 
-随包发布的 `libxray.so` / `libsingbox.so` / `libheytun2socks.so` 都用
-**OpenHarmony Go fork**（`GOOS=openharmony`，arm64 **TLSDESC**）编译，这样 cgo 才能从
+随包发布的 `libxray.so` / `libsingbox.so` / `libheytun2socks.so` 都用带 OpenHarmony 端口的
+**Go 工具链**（star4277/ohos-go `v1.26.5-beta1`，go1.26.5，`GOOS=openharmony`，arm64
+**TLSDESC**）编译，这样 cgo 才能从
 ArkTS／外来线程里正常工作，几个库也能在 musl 上干净地 `dlopen`。原生 TUN 入口是早期实验
 留下来的：`libxray.so` 干脆不导出 `CGoSetTunFd`，`libsingbox.so` 则还带着它（连同
 `OpenTun()` 桩），只是 SOCKS 数据面从来不会去调它。
@@ -46,3 +49,12 @@ ArkTS／外来线程里正常工作，几个库也能在 musl 上干净地 `dlop
 [`docs/harmonyos-go-tls-wall.md`](../../../../docs/harmonyos-go-tls-wall.md)。
 CMake 会在编完 `libheyvpn.so` 之后，把
 `entry/src/main/cpp/prebuilt/arm64-v8a/` 下预编译好的 `.so` 拷进 HAP 的原生库目录。
+
+## 环境变量与 `dlopen`
+
+`napi_init.cpp` 的 `PrepareXrayAssetDir` 负责设置 `XRAY_LOCATION_ASSET`（Geo 资源目录；
+libXray `v26.7.28` 的 run / ping 请求不再带 `datDir`），而且必须在首次 `dlopen`
+`libxray.so` **之前**设。任何 Go c-shared 库加载之后都不能再调 `setenv`：Go 只在运行时
+初始化时拷贝一次 `environ`，而这个初始化在 `dlopen` 返回后另起线程异步进行；之后 C 侧再
+`setenv`（musl 会 realloc / free `environ` 数组）就会和它竞争，曾导致 VPN 扩展进程
+SIGSEGV。详见 [`docs/building-native-cores.md`](../../../../docs/building-native-cores.md) §5。

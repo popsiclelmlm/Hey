@@ -214,14 +214,14 @@ copies the packaged Go shared libraries into the HAP native library directory:
 
 | Library | Current role | Build status |
 | --- | --- | --- |
-| `libxray.so` | Main Xray runtime; exports start/stop, ping, and stats entry points. | Scripted by `scripts/build_libxray_ohos.sh`. |
+| `libxray.so` | Main Xray runtime (libXray `v26.7.28`); exports a single `CGoInvoke` dispatch entry (plus `CGoFree`) for start/stop and ping. | Scripted by `scripts/build_libxray_ohos.sh`. |
 | `libsingbox.so` | Optional sing-box runtime; exports start/stop/version/probe entry points. | Scripted by `scripts/build_libsingbox_ohos.sh`. |
 | `libheytun2socks.so` | Default gvisor data-plane engine; relays the HarmonyOS VPN TUN fd into the core's local inbound. | Packaged and used; built by `scripts/build_tun2socks_ohos.sh`. |
 | `libhevsocks5tun.so` | Alternative hev data-plane engine for the same relay, selectable in settings. | Packaged and used; built by `scripts/build_hev_ohos.sh`. |
 
-The three Go libraries are built against the OpenHarmony Go fork with
-`GOOS=openharmony`; `libhevsocks5tun.so` is plain C and cross-compiles with the
-DevEco OHOS clang, so it needs no Go toolchain. Keep the Go fork outside the
+The three Go libraries are built with an OpenHarmony-port Go toolchain (go1.26.5)
+with `GOOS=openharmony`; `libhevsocks5tun.so` is plain C and cross-compiles with the
+DevEco OHOS clang, so it needs no Go toolchain. Keep the Go toolchain outside the
 repository; `hvigor clean` removes the repository `build/` directory.
 
 ## License

@@ -183,13 +183,14 @@ HAP 原生库目录：
 
 | 库 | 当前作用 | 构建状态 |
 | --- | --- | --- |
-| `libxray.so` | 主 Xray 运行时，导出启动、停止、测速和统计入口。 | `scripts/build_libxray_ohos.sh` 已脚本化。 |
+| `libxray.so` | 主 Xray 运行时（libXray `v26.7.28`），只导出单一分发入口 `CGoInvoke`（外加 `CGoFree`），用于启动、停止和测速。 | `scripts/build_libxray_ohos.sh` 已脚本化。 |
 | `libsingbox.so` | 可选 sing-box 运行时，导出启动、停止、版本和探针入口。 | `scripts/build_libsingbox_ohos.sh` 已脚本化。 |
 | `libheytun2socks.so` | 默认的 gvisor 数据面引擎，把 HarmonyOS VPN TUN fd 转发到内核本地入站。 | 已随包并使用，由 `scripts/build_tun2socks_ohos.sh` 构建。 |
 | `libhevsocks5tun.so` | 同一条转发链路的另一套 hev 数据面引擎，可在设置里切换。 | 已随包并使用，由 `scripts/build_hev_ohos.sh` 构建。 |
 
-三个 Go 库都走 OpenHarmony Go fork + `GOOS=openharmony`；`libhevsocks5tun.so` 是纯 C，
-用 DevEco 自带的 OHOS clang 交叉编译，不需要 Go 工具链。Go fork 建议放在仓库外面；
+三个 Go 库都用带 OpenHarmony 端口的 Go 工具链（go1.26.5）+ `GOOS=openharmony` 编译；
+`libhevsocks5tun.so` 是纯 C，用 DevEco 自带的 OHOS clang 交叉编译，不需要 Go 工具链。
+Go 工具链建议放在仓库外面；
 `hvigor clean` 会删除仓库内的 `build/` 目录。
 
 ## 许可协议
