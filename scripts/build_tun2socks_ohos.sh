@@ -29,7 +29,7 @@ OUT_DIR="${ROOT_DIR}/entry/src/main/cpp/prebuilt/arm64-v8a"
 GO_LDFLAGS_DEFAULT="-s -w -checklinkname=0"
 
 # fork 工具链。
-OHOS_GO_FORK="${OHOS_GO_FORK:-${HOME}/hey-ohos-build/ohos_golang_go}"
+OHOS_GO_FORK="${OHOS_GO_FORK:-${HOME}/hey-ohos-build/ohos-go-1.26.5}"
 
 mkdir -p "${WORK_DIR}" "${OUT_DIR}"
 

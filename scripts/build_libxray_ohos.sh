@@ -19,16 +19,17 @@ set -euo pipefail
 # │    （通用动态 TLS）。产物带真正的 PT_TLS + R_AARCH64_TLSDESC，musl 能 dlopen，      │
 # │    外来线程 cgo 也不再读到垃圾 g。这是真正的解。                                      │
 # │                                                                                    │
-# │ 代价：fork 目前封顶 go1.24.5，而 libXray 主线已需 go1.26、xray-core 需 go≥1.25。     │
-# │ 所以必须把 libXray 钉回 2025-08 的 ${LIBXRAY_PIN}（go.mod 钉 xray-core             │
-# │ v1.250803.0，go1.24 能编），并只导出 tun2socks 数据面真正用到的 4 个 SOCKS 符号——   │
-# │ 旧版模板天然不含 CGoSetTunFd（原生 TUN 入站已弃用，改走 tun2socks）。               │
+# │ 工具链已从 openharmony-sig 的 go1.24.5 fork 换成 star4277/ohos-go v1.26.5-beta1     │
+# │ （go1.26.5，同样带 openharmony 端口 + arm64 TLSDESC），解锁 libXray 主线            │
+# │ （v26.7.28 需 go1.26.3）。数据面仍走 tun2socks（libxray 只提供 SOCKS 入站与诊断，   │
+# │ 不启用原生 TUN），故不导出 CGoSetTunFd；新版 API 改为单一 CGoInvoke 分发入口。      │
 # └────────────────────────────────────────────────────────────────────────────────────┘
 #
 # 用法：bash scripts/build_libxray_ohos.sh
 #
-# ⚠️ 无 OHOS NDK / fork 工具链时无法本机验证编译；改动后请在装好 fork 的环境实跑，
-#    并比对产物：nm -D 应只见 4 个 global 符号、strings 应含 xray-core@v1.250803.0。
+# ⚠️ 无 OHOS NDK / go 工具链时无法本机验证编译；改动后请在装好工具链的环境实跑，
+#    并比对产物：nm -D 应只见 CGoInvoke/CGoFree 两个 global 符号、strings 应含
+#    xray-core@v1.2607xx（新核）、readelf -r 应有 R_AARCH64_TLSDESC。
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SDK_HOME="${DEVECO_SDK_HOME:-/Applications/DevEco-Studio.app/Contents/sdk}"
@@ -42,11 +43,11 @@ LIBXRAY_REPO="${LIBXRAY_REPO:-https://github.com/XTLS/libXray.git}"
 EXPORTS_FILE="${WORK_DIR}/libxray.exports"
 GO_LDFLAGS_DEFAULT="-s -w -checklinkname=0 -linkmode external -extldflags \"-Wl,--version-script=${EXPORTS_FILE} -Wl,-z,lazy\""
 
-# fork 工具链与钉死的 libXray 版本。
-OHOS_GO_FORK="${OHOS_GO_FORK:-${HOME}/hey-ohos-build/ohos_golang_go}"
-# 钉死 libXray 到 2025-08 的提交：其 go.mod 锁 xray-core v1.250803.0（go1.24 可编）。
-# 主线已需 go1.26，fork（go1.24.5）编不动。覆盖请设 LIBXRAY_PIN。
-LIBXRAY_PIN="${LIBXRAY_PIN:-20d70a98}"
+# OHOS Go 工具链（star4277/ohos-go v1.26.5-beta1，go1.26.5，带 openharmony 端口 + TLSDESC）
+# 与钉定的 libXray 版本。老 go1.24.5 fork（openharmony-sig）已封顶、编不动新核，
+# 换 go1.26 工具链后解锁 libXray 主线。覆盖请设 OHOS_GO_FORK / LIBXRAY_PIN。
+OHOS_GO_FORK="${OHOS_GO_FORK:-${HOME}/hey-ohos-build/ohos-go-1.26.5}"
+LIBXRAY_PIN="${LIBXRAY_PIN:-v26.7.28}"
 
 mkdir -p "${WORK_DIR}" "${OUT_DIR}"
 rm -rf "${SRC_DIR}"
@@ -69,16 +70,15 @@ export CGO_CFLAGS="${CGO_CFLAGS:-} -ftls-model=global-dynamic"
 GO_TAGS="${GO_TAGS:-}"
 
 # ── 导出符号 ──────────────────────────────────────────────────────────────────────
-# 数据面走 tun2socks（libheytun2socks.so 读 TUN fd → 转发到核心本地 SOCKS 入站），
-# libxray 只需提供 SOCKS 入站与诊断，故只导出这 4 个符号；其余（含旧版模板自带的
-# CGoXrayVersion/CGoInitDns…）被 version-script 的 local:* 隐藏。
+# libXray v26.7.28 起改为单一分发入口：所有方法经 CGoInvoke(jsonRequest) 路由
+# （method 见 invoke_model.go：ping/pingBatch/runXray/runXrayFromJson/stopXray/
+# xrayVersion/getXrayState/getFreePorts/countGeoData…），CGoFree 释放返回串。
+# 故只导出这两个符号；其余被 version-script 的 local:* 隐藏。
 cat > "${EXPORTS_FILE}" <<'MAP'
 {
   global:
-    CGoRunXrayFromJSON;
-    CGoStopXray;
-    CGoPing;
-    CGoQueryStats;
+    CGoInvoke;
+    CGoFree;
   local: *;
 };
 MAP
@@ -94,26 +94,13 @@ fi
 
 cd "${SRC_DIR}"
 
-# main 模板：新旧版本文件名不一（main.gotemplate / main.go），择一。
-if [[ -f build/template/main.gotemplate ]]; then
-  cp build/template/main.gotemplate main.go
-elif [[ -f build/template/main.go ]]; then
-  cp build/template/main.go main.go
-else
-  echo "ERROR: 在 ${SRC_DIR}/build/template 找不到 main.gotemplate 或 main.go" >&2
+# libXray v26.7.28 起：c-shared 入口在 cgo_bridge/（已是 package main，导出
+# CGoInvoke/CGoFree），不再需要旧版 main.gotemplate 拷贝 + package 改名。
+# go.mod 声明 go1.26.3，新工具链（go1.26.5）可直接编，无需降级 go 版本。
+if [[ ! -f cgo_bridge/main.go ]]; then
+  echo "ERROR: 未找到 ${SRC_DIR}/cgo_bridge/main.go（libXray 版本过旧？需 v26.7.28+）" >&2
   exit 1
 fi
-
-python3 - <<'PY'
-from pathlib import Path
-
-for path in Path(".").glob("*.go"):
-    text = path.read_text()
-    path.write_text(text.replace("package libXray\n", "package main\n"))
-PY
-
-# fork 封顶 go1.24，降低 go.mod 声明的语言版本以便用 fork 工具链构建。
-go mod edit -go=1.24
 
 # ── gvisor fdbased Fstat 补丁（尽力而为）────────────────────────────────────────────
 # gvisor 的 fdbased 端点用 unix.Fstat 判断 dispatcher，而 HarmonyOS 的 VPN fd 会拒 Fstat
@@ -179,7 +166,7 @@ go build \
   -ldflags="${GO_LDFLAGS:-${GO_LDFLAGS_DEFAULT}}" \
   -buildmode=c-shared \
   -o "${OUT_DIR}/libxray.so" \
-  .
+  ./cgo_bridge
 
 # 撤掉构建期注入的 gvisor replace（若有），保持 SRC 干净。
 go mod edit -dropreplace="gvisor.dev/gvisor" 2>/dev/null || true

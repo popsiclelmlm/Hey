@@ -32,7 +32,7 @@ GO_LDFLAGS_DEFAULT="-s -w -checklinkname=0 -linkmode external -extldflags \"-Wl,
 # 真机实测（ALN-AL80/HarmonyOS 6.1）：用原版 Go(GOOS=android) 编的 libsingbox，连最轻量的
 # CGoSingBoxVersion 都一调就 SIGSEGV(@0x000103ffd50323b7)，VPN 扩展进程当场死。libxray 现在
 # 能用，正是因为它已用本 fork 重编过。
-OHOS_GO_FORK="${OHOS_GO_FORK:-${HOME}/hey-ohos-build/ohos_golang_go}"
+OHOS_GO_FORK="${OHOS_GO_FORK:-${HOME}/hey-ohos-build/ohos-go-1.26.5}"
 # build tags（已用真实 sing-box NewService 校验，见 validate_test.go）：
 #   with_gvisor / with_utls(reality+uTLS) / with_clash_api(libbox.NewService 必需)。
 #   with_quic：TUIC / Hysteria2 出站是 QUIC 协议，不加这个 tag 它们不会被注册，

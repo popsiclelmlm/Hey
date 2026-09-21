@@ -11,6 +11,7 @@
 #include <dlfcn.h>
 #include <fcntl.h>
 #include <hilog/log.h>
+#include <mutex>
 #include <sstream>
 #include <string>
 #include <unistd.h>
@@ -31,6 +32,10 @@ using CGoStopFunc = char* (*)();
 using CGoVersionFunc = char* (*)();
 using CGoFreePortsFunc = char* (*)(int64_t);
 using CGoSetTunFdFunc = void (*)(int);
+// libXray v26.7.28+ 单一分发入口：CGoInvoke(jsonRequest)->jsonResponse（原始 JSON，
+// 非 base64），CGoFree 释放返回串。所有 xray 操作经此路由（method 见 invoke_model.go）。
+using CGoInvokeFunc = char* (*)(char*);
+using CGoFreeFunc = void (*)(char*);
 
 std::atomic_bool g_xrayRunning(false);
 std::atomic_bool g_tunRunning(false);
@@ -38,9 +43,8 @@ std::atomic<int64_t> g_uploadBytes(0);
 std::atomic<int64_t> g_downloadBytes(0);
 std::string g_lastMessage = "Native bridge ready. Waiting for Xray shared library.";
 void* g_xrayHandle = nullptr;
-CGoStringFunc g_runXrayFromJson = nullptr;
-CGoStopFunc g_stopXray = nullptr;
-CGoPingFunc g_pingXray = nullptr;
+CGoInvokeFunc g_cgoInvoke = nullptr;
+CGoFreeFunc g_cgoFree = nullptr;
 CGoSetTunFdFunc g_setTunFd = nullptr;
 // Optional symbols. Resolved lazily and best-effort: an older libxray.so that
 // does not export these (e.g. built before they were added to the version
@@ -358,6 +362,26 @@ bool ResponseOk(const std::string& base64Response, std::string& message)
 
 bool LoadXrayCore(std::string& message);
 
+// 设置 Xray 资源目录（geoip/geosite 所在目录），必须在首次 dlopen libxray.so 之前调用。
+// 原因有二：
+// 1. Go 运行时只在库初始化时拷贝一次 environ，之后 C 侧 setenv 的值 Go 看不到；
+// 2. c-shared 库在 dlopen 返回后另起线程异步初始化运行时，期间读取 dlopen 时捕获的
+//    environ 数组；此时再 setenv，musl 会 realloc/free 旧数组，Go 初始化线程读到野指针
+//    即 SIGSEGV（VPN 扩展进程启动 Xray 时的真机崩溃）。
+// 因此只在库未加载时 setenv 一次，加载后不再改动环境变量。
+std::mutex g_xrayAssetEnvMutex;
+bool g_xrayAssetEnvSet = false;
+
+void PrepareXrayAssetDir(const std::string& dir)
+{
+    std::lock_guard<std::mutex> lock(g_xrayAssetEnvMutex);
+    if (g_xrayAssetEnvSet || g_xrayHandle != nullptr || dir.empty()) {
+        return;
+    }
+    setenv("XRAY_LOCATION_ASSET", dir.c_str(), 1);
+    g_xrayAssetEnvSet = true;
+}
+
 bool LoadXray()
 {
     std::string message;
@@ -371,8 +395,7 @@ bool LoadXray()
 
 bool LoadXrayCore(std::string& message)
 {
-    if (g_xrayHandle != nullptr && g_runXrayFromJson != nullptr && g_stopXray != nullptr &&
-        g_pingXray != nullptr && g_setTunFd != nullptr) {
+    if (g_xrayHandle != nullptr && g_cgoInvoke != nullptr && g_cgoFree != nullptr) {
         return true;
     }
 
@@ -388,14 +411,14 @@ bool LoadXrayCore(std::string& message)
     }
 
     dlerror();
-    g_runXrayFromJson = reinterpret_cast<CGoStringFunc>(dlsym(handle, "CGoRunXrayFromJSON"));
-    g_stopXray = reinterpret_cast<CGoStopFunc>(dlsym(handle, "CGoStopXray"));
-    g_pingXray = reinterpret_cast<CGoPingFunc>(dlsym(handle, "CGoPing"));
+    // libXray v26.7.28+：所有方法经单一 CGoInvoke 分发，CGoFree 释放返回串。
+    g_cgoInvoke = reinterpret_cast<CGoInvokeFunc>(dlsym(handle, "CGoInvoke"));
+    g_cgoFree = reinterpret_cast<CGoFreeFunc>(dlsym(handle, "CGoFree"));
     // CGoSetTunFd 为可选：tun2socks（SOCKS 入站）数据面不需要它，SOCKS 版
-    // libxray.so 也不导出它。只把真正必需的三个符号作为加载成功判据。
+    // libxray.so 也不导出它。
     g_setTunFd = reinterpret_cast<CGoSetTunFdFunc>(dlsym(handle, "CGoSetTunFd"));
-    if (g_runXrayFromJson == nullptr || g_stopXray == nullptr || g_pingXray == nullptr) {
-        message = "libXray unavailable: required CGo symbols missing.";
+    if (g_cgoInvoke == nullptr || g_cgoFree == nullptr) {
+        message = "libXray unavailable: CGoInvoke/CGoFree symbols missing.";
         return false;
     }
     g_xrayHandle = handle;
@@ -463,13 +486,68 @@ bool LoadHevCore(std::string& message)
     return true;
 }
 
-CGoPingFunc LoadCGoPing(std::string& message)
+// 经 libXray 单一分发入口调用一个方法。请求 {apiVersion,method,payload}，
+// 返回体（原始 JSON，非 base64）写入 outResponse；失败时置 err 返回 false。
+// 返回串由 CGoFree 释放（新库自带的 allocator，勿用 std::free）。
+bool InvokeXray(const std::string& method, const std::string& payloadJson,
+                std::string& outResponse, std::string& err)
 {
-    if (!LoadXrayCore(message)) {
-        message = "libXray ping unavailable: " + message;
-        return nullptr;
+    if (!LoadXrayCore(err)) {
+        return false;
     }
-    return g_pingXray;
+    std::string request = "{\"apiVersion\":1,\"method\":\"" + method + "\",\"payload\":" +
+        (payloadJson.empty() ? std::string("{}") : payloadJson) + "}";
+    std::vector<char> buffer(request.begin(), request.end());
+    buffer.push_back('\0');
+    char* raw = g_cgoInvoke(buffer.data());
+    if (raw == nullptr) {
+        err = "libXray CGoInvoke(" + method + ") returned null.";
+        return false;
+    }
+    outResponse.assign(raw);
+    g_cgoFree(raw);
+    return true;
+}
+
+// 解析响应信封 {"success":bool,"data":...,"error":"..."}。成功返回 true；
+// 否则从 "error" 取消息（naive 定位，与本文件既有解析风格一致）。
+bool InvokeSuccess(const std::string& response, std::string& err)
+{
+    if (response.find("\"success\":true") != std::string::npos) {
+        return true;
+    }
+    size_t key = response.find("\"error\":\"");
+    if (key != std::string::npos) {
+        size_t start = key + 9;
+        size_t end = response.find('"', start);
+        err = response.substr(start, end == std::string::npos ? std::string::npos : end - start);
+    }
+    if (err.empty()) {
+        err = "libXray call failed.";
+    }
+    return false;
+}
+
+// 从 ping 响应体里取 data.delay（毫秒）。找 "delay": 后的整数；无则返回 -1。
+int64_t ExtractDelay(const std::string& response)
+{
+    size_t key = response.find("\"delay\":");
+    if (key == std::string::npos) {
+        return -1;
+    }
+    size_t start = key + 8;
+    while (start < response.size() && response[start] == ' ') {
+        start++;
+    }
+    size_t end = start;
+    while (end < response.size() &&
+           (std::isdigit(static_cast<unsigned char>(response[end])) != 0 || response[end] == '-')) {
+        end++;
+    }
+    if (end <= start) {
+        return -1;
+    }
+    return std::strtoll(response.substr(start, end - start).c_str(), nullptr, 10);
 }
 
 // Best-effort resolution of an optional symbol from the already-loaded core.
@@ -550,43 +628,6 @@ CGoStringFunc LoadConvertXrayJsonToShareLinks()
     return g_convertXrayJsonToShareLinks;
 }
 
-bool ParsePingResponse(const std::string& json, int64_t& delay, std::string& message)
-{
-    delay = -1;
-    bool success = json.find("\"success\":true") != std::string::npos;
-
-    size_t dataKey = json.find("\"data\":");
-    if (dataKey != std::string::npos) {
-        size_t start = dataKey + 7;
-        while (start < json.size() && (json[start] == ' ' || json[start] == '"')) {
-            start++;
-        }
-        size_t end = start;
-        while (end < json.size() && (std::isdigit(static_cast<unsigned char>(json[end])) != 0 || json[end] == '-')) {
-            end++;
-        }
-        if (end > start) {
-            delay = std::strtoll(json.substr(start, end - start).c_str(), nullptr, 10);
-        }
-    }
-
-    if (success && delay >= 0) {
-        message = "libXray ping ok.";
-        return true;
-    }
-
-    size_t errorKey = json.find("\"err\":\"");
-    if (errorKey != std::string::npos) {
-        size_t start = errorKey + 7;
-        size_t end = json.find('"', start);
-        std::string error = json.substr(start, end == std::string::npos ? std::string::npos : end - start);
-        message = error.empty() ? "libXray ping failed." : error;
-    } else {
-        message = success ? "libXray ping returned no delay." : "libXray ping failed.";
-    }
-    return false;
-}
-
 napi_value CreatePingResult(napi_env env, bool ok, int64_t delayMs, const std::string& message)
 {
     napi_value result = nullptr;
@@ -631,10 +672,8 @@ napi_value PingOutbound(napi_env env, napi_callback_info info)
     }
 
     std::string message;
-    CGoPingFunc ping = LoadCGoPing(message);
-    if (ping == nullptr) {
-        return CreatePingResult(env, false, -1, message);
-    }
+    // 新版 libXray 的 ping 不再从请求取 datDir，需在首次加载核心前设置资源目录。
+    PrepareXrayAssetDir(datDir);
 
     // 并发测速时每个 ping 用独立的 socks 端口，按端口区分配置文件名，避免多个并发
     // ping 同时写同一个文件互相覆盖（旧实现固定 PING_CONFIG_FILE 会造成串行/串读）。
@@ -654,31 +693,26 @@ napi_value PingOutbound(napi_env env, napi_callback_info info)
         return CreatePingResult(env, false, -1, message);
     }
 
-    std::ostringstream request;
-    request << "{\"datDir\":\"" << JsonEscape(datDir) << "\","
-            << "\"configPath\":\"" << JsonEscape(configPath) << "\","
+    std::ostringstream payload;
+    payload << "{\"configPath\":\"" << JsonEscape(configPath) << "\","
             << "\"timeout\":" << timeoutSeconds << ","
             << "\"url\":\"" << JsonEscape(url) << "\","
             << "\"proxy\":\"" << JsonEscape(proxy) << "\"}";
 
-    std::string encoded = Base64Encode(request.str());
-    std::vector<char> buffer(encoded.begin(), encoded.end());
-    buffer.push_back('\0');
-
-    char* raw = ping(buffer.data());
-    if (raw == nullptr) {
-        return CreatePingResult(env, false, -1, "libXray ping returned null.");
+    std::string response;
+    if (!InvokeXray("ping", payload.str(), response, message)) {
+        return CreatePingResult(env, false, -1, message);
     }
-
-    std::string response(raw);
-    std::string decoded = Base64Decode(response);
-    if (decoded.find('{') == std::string::npos) {
-        decoded = response;
+    std::string err;
+    if (!InvokeSuccess(response, err)) {
+        return CreatePingResult(env, false, -1, err);
     }
-
-    int64_t delay = -1;
-    bool ok = ParsePingResponse(decoded, delay, message);
-    return CreatePingResult(env, ok, delay, message);
+    // data.delay：成功为真实毫秒；失败/超时为哨兵 PingDelayError(10000)/PingDelayTimeout(11000)。
+    int64_t delay = ExtractDelay(response);
+    if (delay < 0 || delay >= 10000) {
+        return CreatePingResult(env, false, -1, "libXray ping returned no valid delay.");
+    }
+    return CreatePingResult(env, true, delay, "libXray ping ok.");
 }
 
 // Queries the running Xray metrics endpoint. `server` is the expvar URL, e.g.
@@ -1006,14 +1040,16 @@ napi_value StartXray(napi_env env, napi_callback_info info)
         return CreateResult(env, true, "Xray already running.");
     }
 
-    if (!LoadXray()) {
-        g_xrayRunning.store(false);
-        return CreateResult(env, false, g_lastMessage);
-    }
-
     std::string workDir = argc >= 2 ? GetStringArg(env, args[1]) : "";
     if (workDir.empty()) {
         return CreateResult(env, false, "Missing native work directory for Xray config.");
+    }
+    // 新版 libXray 的 runXrayFromJson 不再从请求取 datDir，需在首次加载核心前设置资源目录。
+    PrepareXrayAssetDir(workDir);
+
+    if (!LoadXray()) {
+        g_xrayRunning.store(false);
+        return CreateResult(env, false, g_lastMessage);
     }
 
     std::string message;
@@ -1022,22 +1058,15 @@ napi_value StartXray(napi_env env, napi_callback_info info)
         return CreateResult(env, false, message);
     }
 
-    std::ostringstream request;
-    request << "{\"datDir\":\"" << JsonEscape(workDir) << "\","
-            << "\"configJSON\":\"" << JsonEscape(config) << "\"}";
-    std::string encoded = Base64Encode(request.str());
-    std::vector<char> buffer(encoded.begin(), encoded.end());
-    buffer.push_back('\0');
+    std::ostringstream payload;
+    payload << "{\"configJSON\":\"" << JsonEscape(config) << "\"}";
 
-    char* raw = g_runXrayFromJson(buffer.data());
-    if (raw == nullptr) {
+    std::string response;
+    if (!InvokeXray("runXrayFromJson", payload.str(), response, message)) {
         g_xrayRunning.store(false);
-        return CreateResult(env, false, "libXray run returned null.");
+        return CreateResult(env, false, message);
     }
-
-    std::string response(raw);
-    std::free(raw);
-    if (!ResponseOk(response, message)) {
+    if (!InvokeSuccess(response, message)) {
         g_xrayRunning.store(false);
         return CreateResult(env, false, message);
     }
@@ -1059,13 +1088,11 @@ napi_value StopXray(napi_env env, napi_callback_info info)
         return CreateResult(env, false, message);
     }
 
-    char* raw = g_stopXray();
-    if (raw == nullptr) {
-        return CreateResult(env, false, "libXray stop returned null.");
+    std::string response;
+    if (!InvokeXray("stopXray", "{}", response, message)) {
+        return CreateResult(env, false, message);
     }
-    std::string response(raw);
-    std::free(raw);
-    if (!ResponseOk(response, message)) {
+    if (!InvokeSuccess(response, message)) {
         return CreateResult(env, false, message);
     }
 

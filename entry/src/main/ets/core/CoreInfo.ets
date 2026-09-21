@@ -5,7 +5,7 @@
  * xtls/xray-core 源码（core/core.go 的 Version_x/y/z 常量）自动写入，
  * 与 prebuilt/arm64-v8a/libxray.so 保持同步——请勿手动修改。
  */
-export const BUNDLED_XRAY_VERSION: string = '25.8.3';
+export const BUNDLED_XRAY_VERSION: string = '26.7.28';
 
 /**
  * 内置 sing-box 内核（sagernet/sing-box）的版本号。
