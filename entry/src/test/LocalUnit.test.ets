@@ -3336,6 +3336,37 @@ export default function localUnitTest() {
       expect(spacedName.name).assertEqual('my node');
     });
 
+    it('carries TLS for https proxy links and TLS proxies in clash content', 0, () => {
+      const https = parseShareLinkToOutboundJson('https://user:pass@proxy.example:8443?sni=front.example#https-demo');
+      expect(https.success).assertTrue();
+      expect(https.outboundJson).assertContain('"protocol": "http"');
+      expect(https.outboundJson).assertContain('"security": "tls"');
+      expect(https.outboundJson).assertContain('"serverName": "front.example"');
+      expect(buildXrayConfig(https.outboundJson).configJson).assertContain('"security": "tls"');
+      const exportedHttps = formatOutboundJsonToShareLink(https.outboundJson, 'https-demo');
+      expect(exportedHttps.startsWith('https://user%3Apass@proxy.example:8443?')).assertTrue();
+      const roundTripHttps = parseShareLinkToOutboundJson(exportedHttps);
+      expect(roundTripHttps.success).assertTrue();
+      expect(roundTripHttps.outboundJson).assertContain('"security": "tls"');
+      expect(roundTripHttps.outboundJson).assertContain('"serverName": "front.example"');
+
+      const plain = parseShareLinkToOutboundJson('http://user:pass@proxy.example:8080#http-plain');
+      expect(plain.outboundJson.indexOf('streamSettings')).assertEqual(-1);
+      expect(formatOutboundJsonToShareLink(plain.outboundJson, 'http-plain')).assertEqual('http://user%3Apass@proxy.example:8080#http-plain');
+
+      const content = 'proxies:\n' +
+        '  - {name: http-tls, type: http, server: proxy.example, port: 443, username: u, password: p, tls: true, sni: front.example}\n' +
+        '  - {name: http-plain, type: http, server: proxy.example, port: 8080}\n' +
+        '  - {name: socks-tls, type: socks5, server: socks.example, port: 1080, tls: true}\n';
+      const nodes = SubscriptionManager.parseSubscriptionContent(content, 'https://sub.example/clash');
+      expect(nodes.length).assertEqual(3);
+      expect(nodes[0].outboundJson).assertContain('"security": "tls"');
+      expect(nodes[0].outboundJson).assertContain('"serverName": "front.example"');
+      expect(nodes[1].outboundJson.indexOf('streamSettings')).assertEqual(-1);
+      expect(nodes[2].outboundJson).assertContain('"protocol": "socks"');
+      expect(nodes[2].outboundJson).assertContain('"security": "tls"');
+    });
+
     it('imports socks http wireguard and hysteria2 share links as outbound json', 0, () => {
       const socks = parseShareLinkToOutboundJson('socks://dXNlcjpwYXNz@example.com:1080#socks-demo');
       expect(socks.success).assertTrue();

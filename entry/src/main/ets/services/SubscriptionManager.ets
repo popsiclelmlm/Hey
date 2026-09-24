@@ -984,6 +984,7 @@ export class SubscriptionManager {
         tag: 'proxy',
         settings
       };
+      SubscriptionManager.applyClashProxyTls(entry, outbound, '');
       return outbound;
     }
 
@@ -1004,6 +1005,7 @@ export class SubscriptionManager {
         tag: 'proxy',
         settings
       };
+      SubscriptionManager.applyClashProxyTls(entry, outbound, type === 'https' ? 'tls' : '');
       return outbound;
     }
 
@@ -1213,6 +1215,15 @@ export class SubscriptionManager {
 
     SubscriptionManager.applyClashSecurity(entry, stream, defaultSecurity);
     return stream;
+  }
+
+  // http / socks5 代理声明了 TLS（https 类型或 tls: true）时必须挂上 TLS，否则代理凭据会明文发出；
+  // 未声明时保持原样，不附加 streamSettings。
+  private static applyClashProxyTls(entry: Map<string, string>, outbound: ClashOutbound, defaultSecurity: string): void {
+    const stream = SubscriptionManager.buildClashStreamSettings(entry, defaultSecurity);
+    if (stream.security === 'tls') {
+      outbound.streamSettings = stream;
+    }
   }
 
   private static applyClashSecurity(entry: Map<string, string>, stream: ClashStreamSettings, defaultSecurity: string): void {

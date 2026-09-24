@@ -716,6 +716,10 @@ function parseHttpProxyLink(input: string, scheme: string): ShareLinkParseResult
       servers: [server]
     }
   };
+  // https:// 是走 TLS 的 HTTP 代理：不挂 TLS，代理凭据和 CONNECT 请求都会明文发出。
+  if (scheme === 'https') {
+    outbound.streamSettings = buildStreamSettings(parsed.query, 'tls');
+  }
   return makeSuccess('http', defaultShareName(parsed.fragment), outbound);
 }
 
@@ -1792,6 +1796,11 @@ function formatHttp(outbound: XrayOutbound, name: string): string {
     userInfo = `${formatUserInfo(`${server.users[0].user}:${server.users[0].pass}`)}@`;
   }
   const hashStr = name.length > 0 ? `#${encodeURIComponent(name)}` : '';
+  if (outbound.streamSettings?.security === 'tls') {
+    const queryParams = new Map<string, string>();
+    appendStreamSettingsToQuery(queryParams, outbound.streamSettings);
+    return `https://${userInfo}${formatHostPort(server.address, server.port)}${formatQueryParams(queryParams)}${hashStr}`;
+  }
   return `http://${userInfo}${formatHostPort(server.address, server.port)}${hashStr}`;
 }
 
