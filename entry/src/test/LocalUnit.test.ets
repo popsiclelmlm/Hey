@@ -3307,6 +3307,35 @@ export default function localUnitTest() {
       expect(nodes[0].name).assertEqual('none');
     });
 
+    it('keeps literal plus signs in share link userinfo and wireguard keys', 0, () => {
+      // 'aes-256-gcm:pa>ss~w?rd' 的标准 base64 含 '+'，这类链接把它原样放在 userinfo 里。
+      const ss = parseShareLinkToOutboundJson('ss://YWVzLTI1Ni1nY206cGE+c3N+dz9yZA==@example.com:8388#ss-plus');
+      expect(ss.success).assertTrue();
+      expect(ss.outboundJson).assertContain('"method": "aes-256-gcm"');
+      expect(ss.outboundJson).assertContain('"password": "pa>ss~w?rd"');
+
+      const trojan = parseShareLinkToOutboundJson('trojan://pa+ss@example.com:443?security=tls&type=tcp#trojan-plus');
+      expect(trojan.success).assertTrue();
+      expect(trojan.outboundJson).assertContain('"password": "pa+ss"');
+      const roundTripTrojan = parseShareLinkToOutboundJson(formatOutboundJsonToShareLink(trojan.outboundJson, 'trojan-plus'));
+      expect(roundTripTrojan.success).assertTrue();
+      expect(roundTripTrojan.outboundJson).assertContain('"password": "pa+ss"');
+
+      const hy2 = parseShareLinkToOutboundJson('hy2://pa+ss@example.com:443?sni=hy.example#hy2-plus');
+      expect(hy2.success).assertTrue();
+      expect(hy2.outboundJson).assertContain('"password": "pa+ss"');
+
+      const wireguard = parseShareLinkToOutboundJson('wireguard://aB+cD/eF=@example.com:51820?publickey=Xy+Z/w=&presharedkey=Ps+K=#wg-plus');
+      expect(wireguard.success).assertTrue();
+      expect(wireguard.outboundJson).assertContain('"secretKey": "aB+cD/eF="');
+      expect(wireguard.outboundJson).assertContain('"publicKey": "Xy+Z/w="');
+      expect(wireguard.outboundJson).assertContain('"preSharedKey": "Ps+K="');
+
+      // 名称仍按表单编码把 '+' 当空格。
+      const spacedName = parseShareLinkToOutboundJson('trojan://secret@example.com:443?security=tls#my+node');
+      expect(spacedName.name).assertEqual('my node');
+    });
+
     it('imports socks http wireguard and hysteria2 share links as outbound json', 0, () => {
       const socks = parseShareLinkToOutboundJson('socks://dXNlcjpwYXNz@example.com:1080#socks-demo');
       expect(socks.success).assertTrue();

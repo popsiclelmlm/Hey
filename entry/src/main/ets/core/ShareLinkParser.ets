@@ -724,7 +724,7 @@ function parseWireguardLink(input: string): ShareLinkParseResult {
   if (parsed.userInfo.length === 0) {
     return makeFailure('WireGuard 链接缺少私钥。', 'wireguard');
   }
-  const publicKey = queryValue(parsed.query, 'publickey', queryValue(parsed.query, 'publicKey', ''));
+  const publicKey = restoreBase64Plus(queryValue(parsed.query, 'publickey', queryValue(parsed.query, 'publicKey', '')));
   if (publicKey.length === 0) {
     return makeFailure('WireGuard 链接缺少 publickey。', 'wireguard');
   }
@@ -733,7 +733,7 @@ function parseWireguardLink(input: string): ShareLinkParseResult {
     publicKey,
     endpoint: formatEndpoint(parsed.host, parsed.port)
   };
-  const preSharedKey = queryValue(parsed.query, 'presharedkey', queryValue(parsed.query, 'preSharedKey', ''));
+  const preSharedKey = restoreBase64Plus(queryValue(parsed.query, 'presharedkey', queryValue(parsed.query, 'preSharedKey', '')));
   if (preSharedKey.length > 0) {
     peer.preSharedKey = preSharedKey;
   }
@@ -917,7 +917,7 @@ function parseOptionalUserShareLink(input: string, scheme: string): ParsedShareU
   }
 
   const atIndex = body.lastIndexOf('@');
-  const userInfo = atIndex >= 0 ? safeDecodeURIComponent(body.substring(0, atIndex)) : '';
+  const userInfo = atIndex >= 0 ? decodeUserInfo(body.substring(0, atIndex)) : '';
   const target = atIndex >= 0 ? body.substring(atIndex + 1) : body;
   const hostPort = parseHostPort(target);
   return {
@@ -951,7 +951,7 @@ function parseUrlStyleShareLink(input: string, scheme: string): ParsedShareUrl {
     throw new Error(`${scheme} 链接缺少用户信息或服务器地址。`);
   }
 
-  const userInfo = safeDecodeURIComponent(body.substring(0, atIndex));
+  const userInfo = decodeUserInfo(body.substring(0, atIndex));
   const hostPort = parseHostPort(body.substring(atIndex + 1));
   return {
     userInfo,
@@ -1425,6 +1425,21 @@ function safeDecodeURIComponent(value: string): string {
   } catch (error) {
     return value;
   }
+}
+
+// userinfo 里的 '+' 是字面量（RFC 3986），不能按表单编码当成空格：标准 base64 的 SS 凭据、
+// 含 '+' 的 Trojan/Hysteria2 密码和 WireGuard 私钥都要原样保留。查询串与名称仍走 safeDecodeURIComponent。
+function decodeUserInfo(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch (error) {
+    return value;
+  }
+}
+
+// base64 密钥不会含空格：查询串里未转义的 '+' 已被 safeDecodeURIComponent 解成空格，这里还原。
+function restoreBase64Plus(value: string): string {
+  return value.split(' ').join('+');
 }
 
 function stringifyError(error: Error): string {
