@@ -156,6 +156,13 @@ function asString(value: JsonField): string {
   return typeof value === 'string' ? value : '';
 }
 
+// sing-box 1.12 没有证书哈希钉住选项（pinSHA256 / pinnedPeerCertSha256 都无处可放）。钉住存在时
+// 不下发 insecure，退回常规 CA 校验：宁可握手失败，也不在零校验下连接（与 Xray 侧
+// disableAllowInsecureWhenPinned 同一规则）。
+function hasPinnedCertificate(value: JsonField): boolean {
+  return asString(value).trim().length > 0;
+}
+
 function asNumber(value: JsonField): number {
   if (typeof value === 'number') {
     return value;
@@ -199,7 +206,7 @@ function buildTls(stream: JsonObject): SbTls | undefined {
     if (sni.length > 0) {
       tls.server_name = sni;
     }
-    if (tlsSettings['allowInsecure'] === true) {
+    if (tlsSettings['allowInsecure'] === true && !hasPinnedCertificate(tlsSettings['pinnedPeerCertSha256'])) {
       tls.insecure = true;
     }
     const alpn = asStringArray(tlsSettings['alpn']);
@@ -240,7 +247,7 @@ function buildServerTls(server: JsonObject): SbTls {
   if (sni.length > 0) {
     tls.server_name = sni;
   }
-  if (server['insecure'] === true) {
+  if (server['insecure'] === true && !hasPinnedCertificate(server['pinSHA256'])) {
     tls.insecure = true;
   }
   const alpn = splitCsv(asString(server['alpn']));

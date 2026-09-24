@@ -4053,6 +4053,36 @@ export default function localUnitTest() {
     });
   });
 
+  describe('singboxPinnedTls', () => {
+    const proxyTls = (configJson: string): Record<string, Object> => {
+      const config = JSON.parse(configJson) as Record<string, Object>;
+      const outbounds = config['outbounds'] as Array<Record<string, Object>>;
+      const proxy = outbounds.find((item: Record<string, Object>) => item['tag'] === 'proxy') as Record<string, Object>;
+      return proxy['tls'] as Record<string, Object>;
+    };
+
+    it('never skips certificate checks for a pinned hysteria2 node', 0, () => {
+      const pinned = parseShareLinkToOutboundJson('hy2://secret@example.com:443?sni=hy.example&insecure=1&pinSHA256=hy2-pinned-sha256#pinned');
+      const pinnedConfig = buildSingboxConfig(pinned.outboundJson);
+      expect(pinnedConfig.ok).assertTrue();
+      expect(proxyTls(pinnedConfig.configJson)['insecure']).assertUndefined();
+      expect(proxyTls(pinnedConfig.configJson)['server_name'] as string).assertEqual('hy.example');
+
+      const unpinned = parseShareLinkToOutboundJson('hy2://secret@example.com:443?sni=hy.example&insecure=1#unpinned');
+      const unpinnedConfig = buildSingboxConfig(unpinned.outboundJson);
+      expect(unpinnedConfig.ok).assertTrue();
+      expect(proxyTls(unpinnedConfig.configJson)['insecure'] as boolean).assertTrue();
+    });
+
+    it('never skips certificate checks for a pinned stream tls node', 0, () => {
+      const outbound = '{"protocol":"trojan","tag":"proxy","settings":{"servers":[{"address":"example.com","port":443,"password":"secret"}]},' +
+        '"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"serverName":"example.com","allowInsecure":true,"pinnedPeerCertSha256":"pinned-hash"}}}';
+      const config = buildSingboxConfig(outbound);
+      expect(config.ok).assertTrue();
+      expect(proxyTls(config.configJson)['insecure']).assertUndefined();
+    });
+  });
+
   describe('networkAutomation', () => {
     const cfg = (trustedSsids: string[], cellularTrusted: boolean): NetAutomationConfig => {
       return { enabled: true, trustedSsids: trustedSsids, cellularTrusted: cellularTrusted };
