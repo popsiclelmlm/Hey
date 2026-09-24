@@ -24,6 +24,8 @@ import { HARMONY_SEND_DATA_ACTION, HARMONY_SHARE_ABSTRACT_KEY, HARMONY_SHARE_URL
 import { extractOutboundsFromXrayConfig } from '../main/ets/core/XrayOutbounds';
 import { SUPPORTED_SHARE_LINK_SCHEMES, buildUnsupportedShareLinkMessage, formatOutboundJsonToShareLink, isSupportedShareLink, parseShareLinkToOutboundJson } from '../main/ets/core/ShareLinkParser';
 import { buildSingboxConfig } from '../main/ets/core/SingboxConfig';
+import { credentialsFromRandomBytes, DATA_PLANE_RANDOM_BYTES, DataPlaneCredentials, secureDataPlaneInbound, tun2socksProxyHost } from '../main/ets/core/DataPlaneAuth';
+import { buildHevTunConfigYaml } from '../main/ets/core/HevTunConfig';
 import { exportRoutingRulesJson, importRoutingRulesJson } from '../main/ets/core/RoutingRules';
 import { buildConfigBackup, parseConfigBackup, serializeConfigBackup, CONFIG_BACKUP_APP_TAG, CONFIG_BACKUP_VERSION } from '../main/ets/core/ConfigBackup';
 import { CustomAssetUrl } from '../main/ets/storage/AssetStore';
@@ -75,7 +77,7 @@ import { buildTextShareWant } from '../main/ets/services/SystemShare';
 import { DEFAULT_APP_SETTINGS } from '../main/ets/storage/SettingsStore';
 import { formatBytes, formatDuration } from '../main/ets/utils/Formatters';
 import { formatOne, localizedProfileSavedText, localizeCoreMessage, localizeDiagnosticHeartbeat } from '../main/ets/utils/LocalizationPresenter';
-import { BUNDLE_NAME, DEFAULT_VPN_DNS_ADDRESSES, createDefaultVpnConfig, normalizeVpnDnsAddresses } from '../main/ets/vpn/VpnConstants';
+import { BUNDLE_NAME, DEFAULT_VPN_DNS_ADDRESSES, VPN_DATA_PLANE_PASS_KEY, VPN_DATA_PLANE_USER_KEY, createDefaultVpnConfig, createVpnWant, normalizeVpnDnsAddresses } from '../main/ets/vpn/VpnConstants';
 
 const VLESS_REALITY_OUTBOUND: string =
   '{"protocol":"vless","tag":"proxy","settings":{"vnext":[{"address":"example.com","port":443,"users":[{"id":"00000000-0000-0000-0000-000000000000","encryption":"none","flow":"xtls-rprx-vision"}]}]},"streamSettings":{"network":"tcp","security":"reality","realitySettings":{"serverName":"www.example.com","publicKey":"test-public-key","shortId":"abcd","fingerprint":"chrome"}}}';
@@ -4081,6 +4083,100 @@ export default function localUnitTest() {
       expect(config.ok).assertTrue();
       const hasTuicType = config.configJson.indexOf('"type": "tuic"') >= 0 || config.configJson.indexOf('"type":"tuic"') >= 0;
       expect(hasTuicType).assertTrue();
+    });
+  });
+
+  describe('dataPlaneAuth', () => {
+    const credentials: DataPlaneCredentials = {
+      username: '0011223344556677',
+      password: '8899aabbccddeeff0011223344556677'
+    };
+    const vlessOutbound = '{"protocol":"vless","tag":"proxy","settings":{"vnext":[{"address":"example.com","port":443,"users":[{"id":"00000000-0000-0000-0000-000000000000","encryption":"none"}]}]},"streamSettings":{"network":"tcp","security":"tls"}}';
+    const findInbound = (configJson: string, tag: string): Record<string, Object> => {
+      const config = JSON.parse(configJson) as Record<string, Object>;
+      const inbounds = config['inbounds'] as Array<Record<string, Object>>;
+      return inbounds.find((item: Record<string, Object>) => item['tag'] === tag) as Record<string, Object>;
+    };
+
+    it('derives hex credentials from secure random bytes', 0, () => {
+      const bytes = new Uint8Array(DATA_PLANE_RANDOM_BYTES);
+      for (let index = 0; index < bytes.length; index++) {
+        bytes[index] = index * 11;
+      }
+      const derived = credentialsFromRandomBytes(bytes);
+      expect(derived.username).assertEqual('000b16212c37424d');
+      expect(derived.password).assertEqual('58636e79848f9aa5b0bbc6d1dce7f2fd');
+      let rejected = false;
+      try {
+        credentialsFromRandomBytes(new Uint8Array(4));
+      } catch (error) {
+        rejected = true;
+      }
+      expect(rejected).assertTrue();
+    });
+
+    it('requires the session credentials on the xray vpn data plane inbound', 0, () => {
+      const generated = buildXrayConfig(vlessOutbound);
+      const secured = secureDataPlaneInbound(generated.configJson, false, credentials);
+      expect(secured.credentials !== undefined).assertTrue();
+      const tunIn = findInbound(secured.configJson, 'tun-in');
+      const settings = tunIn['settings'] as Record<string, Object>;
+      expect(settings['auth'] as string).assertEqual('password');
+      const accounts = settings['accounts'] as Array<Record<string, string>>;
+      expect(accounts.length).assertEqual(1);
+      expect(accounts[0]['user']).assertEqual(credentials.username);
+      expect(accounts[0]['pass']).assertEqual(credentials.password);
+      expect(settings['udp'] as boolean).assertTrue();
+    });
+
+    it('requires the session credentials on the sing-box data plane inbound', 0, () => {
+      const generated = buildSingboxConfig(vlessOutbound);
+      expect(generated.ok).assertTrue();
+      const secured = secureDataPlaneInbound(generated.configJson, true, credentials);
+      expect(secured.credentials !== undefined).assertTrue();
+      const users = findInbound(secured.configJson, 'socks-in')['users'] as Array<Record<string, string>>;
+      expect(users.length).assertEqual(1);
+      expect(users[0]['username']).assertEqual(credentials.username);
+      expect(users[0]['password']).assertEqual(credentials.password);
+    });
+
+    it('leaves configs without a Hey data plane inbound untouched', 0, () => {
+      const foreign = '{"inbounds":[{"tag":"my-socks","listen":"127.0.0.1","port":18082,"protocol":"socks","settings":{"auth":"noauth"}}],"outbounds":[{"protocol":"freedom"}]}';
+      const secured = secureDataPlaneInbound(foreign, false, credentials);
+      expect(secured.credentials === undefined).assertTrue();
+      expect(secured.configJson).assertEqual(foreign);
+      expect(secureDataPlaneInbound('not json', false, credentials).configJson).assertEqual('not json');
+      const xrayOnSingbox = secureDataPlaneInbound(buildXrayConfig(vlessOutbound).configJson, true, credentials);
+      expect(xrayOnSingbox.credentials === undefined).assertTrue();
+    });
+
+    it('keeps existing accounts on a data plane inbound from a full config', 0, () => {
+      const full = '{"inbounds":[{"tag":"tun-in","listen":"127.0.0.1","port":18082,"protocol":"socks","settings":{"auth":"password","accounts":[{"user":"me","pass":"mine"}],"udp":true}}],"outbounds":[{"protocol":"freedom"}]}';
+      const secured = secureDataPlaneInbound(full, false, credentials);
+      expect(secured.credentials !== undefined).assertTrue();
+      const accounts = (findInbound(secured.configJson, 'tun-in')['settings'] as Record<string, Object>)['accounts'] as Array<Record<string, string>>;
+      expect(accounts.length).assertEqual(2);
+      expect(accounts[0]['user']).assertEqual('me');
+      expect(accounts[1]['user']).assertEqual(credentials.username);
+    });
+
+    it('hands the session credentials to both tun engines and the vpn want', 0, () => {
+      expect(tun2socksProxyHost('127.0.0.1', credentials)).assertEqual(`${credentials.username}:${credentials.password}@127.0.0.1`);
+      expect(tun2socksProxyHost('127.0.0.1')).assertEqual('127.0.0.1');
+
+      const yaml = buildHevTunConfigYaml(1500, '127.0.0.1', 18082, DEFAULT_HEV_TUN_LOG_LEVEL, DEFAULT_HEV_TUN_RW_TIMEOUT, credentials);
+      expect(yaml).assertContain(`socks5:\n  address: 127.0.0.1\n  port: 18082\n  udp: 'udp'\n  username: '${credentials.username}'\n  password: '${credentials.password}'\nmisc:\n`);
+      const plainYaml = buildHevTunConfigYaml(1500, '127.0.0.1', 18082, DEFAULT_HEV_TUN_LOG_LEVEL, DEFAULT_HEV_TUN_RW_TIMEOUT);
+      expect(plainYaml).assertContain("  udp: 'udp'\nmisc:\n");
+      expect(plainYaml.indexOf('username')).assertEqual(-1);
+
+      const want = createVpnWant('{}', 'singbox', credentials);
+      expect(want.parameters?.[VPN_DATA_PLANE_USER_KEY] as string).assertEqual(credentials.username);
+      expect(want.parameters?.[VPN_DATA_PLANE_PASS_KEY] as string).assertEqual(credentials.password);
+      expect(want.parameters?.['coreType'] as string).assertEqual('singbox');
+      const plainWant = createVpnWant('{}');
+      expect(plainWant.parameters?.[VPN_DATA_PLANE_USER_KEY]).assertUndefined();
+      expect(plainWant.parameters?.['coreType'] as string).assertEqual('xray');
     });
   });
 

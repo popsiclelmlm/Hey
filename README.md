@@ -61,7 +61,7 @@ The current VPN data path for both cores is:
 ```text
 HarmonyOS VPN TUN fd
   -> libheytun2socks.so (gvisor, default) or libhevsocks5tun.so (hev)
-  -> 127.0.0.1:18082 (local SOCKS/mixed inbound)
+  -> 127.0.0.1:18082 (local SOCKS/mixed inbound, random per-session credentials)
   -> Xray or sing-box outbound
 ```
 

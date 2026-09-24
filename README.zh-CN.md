@@ -54,7 +54,7 @@ VPN 流量。
 ```text
 HarmonyOS VPN TUN fd
   -> libheytun2socks.so（gvisor，默认）或 libhevsocks5tun.so（hev）
-  -> 127.0.0.1:18082（本地 SOCKS/mixed 入站）
+  -> 127.0.0.1:18082（本地 SOCKS/mixed 入站，每次会话随机凭据）
   -> Xray 或 sing-box outbound
 ```
 

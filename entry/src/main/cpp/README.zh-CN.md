@@ -20,7 +20,8 @@
   本地 SOCKS 入站，而不是原生 TUN 入站。
 - `libheytun2socks.so` —— `tun2socks` 适配器。导出 `HeyTun2SocksStart(fd, host, port, mtu)` /
   `HeyTun2SocksStop()` 以及字节计数器。它把鸿蒙 VPN TUN fd 上的流量转发进内核的本地
-  SOCKS 入站。
+  SOCKS 入站。该入站要求每次会话的随机凭据：ArkTS 侧把它以 `user:pass@127.0.0.1` 形式放进
+  `host`，适配层拼出的 `socks5://%s:%d` 代理 URL 会把它交给 tun2socks。
 
 ## 数据面
 

@@ -11,7 +11,9 @@ import {
   normalizeVpnDnsAddresses,
   normalizeVpnMtu,
   VPN_COMMAND_KEY,
-  VPN_COMMAND_STOP
+  VPN_COMMAND_STOP,
+  VPN_DATA_PLANE_PASS_KEY,
+  VPN_DATA_PLANE_USER_KEY
 } from './VpnConstants';
 import { SETTINGS_CONTROLLER } from '../features/settings/SettingsController';
 import {
@@ -27,6 +29,7 @@ import {
 } from '../native/HeyNative';
 import { METRICS_SERVER_URL, VPN_DATA_SOCKS_HOST, VPN_DATA_SOCKS_PORT } from '../core/XrayConfig';
 import { buildHevTunConfigYaml } from '../core/HevTunConfig';
+import { DataPlaneCredentials, tun2socksProxyHost } from '../core/DataPlaneAuth';
 import { isSingboxCore } from '../core/CoreSelection';
 import { DiagnosticLog } from '../services/DiagnosticLog';
 
@@ -77,6 +80,7 @@ export default class HeyVpnAbility extends VpnExtensionAbility {
   private async startVpn(want: Want): Promise<void> {
     const configJson = this.getStringParameter(want, 'xrayConfigJson', '');
     const useSingbox = isSingboxCore(this.getStringParameter(want, 'coreType', 'xray'));
+    const dataPlaneCredentials = this.getDataPlaneCredentials(want);
 
     try {
       this.emitInfo('VPN start requested.', `core=${useSingbox ? 'singbox' : 'xray'}, configBytes=${configJson.length}`);
@@ -123,17 +127,19 @@ export default class HeyVpnAbility extends VpnExtensionAbility {
       // 数据面引擎二选一：useHevTun=true 走 hev-socks5-tunnel（高性能，libhevsocks5tun.so），
       // 否则走默认 gvisor/xjasonlyu（libheytun2socks.so）。两者都把 TUN fd 转发到同一个
       // 本地 SOCKS 入站，只是实现不同。停止时统一调 stopNativeTun2Socks（原生侧按引擎分发）。
+      // 数据面入站带会话凭据时（主进程生成、随 want 传入），两个引擎都以用户名密码认证。
       const useHevTun = settings.useHevTun;
       const tun2socksResult = useHevTun
         ? startNativeHevTun(
             this.tunFd,
-            buildHevTunConfigYaml(vpnMtu, VPN_DATA_SOCKS_HOST, VPN_DATA_SOCKS_PORT, settings.hevTunLogLevel, settings.hevTunRwTimeout)
+            buildHevTunConfigYaml(vpnMtu, VPN_DATA_SOCKS_HOST, VPN_DATA_SOCKS_PORT, settings.hevTunLogLevel, settings.hevTunRwTimeout,
+              dataPlaneCredentials)
           )
-        : startNativeTun2Socks(this.tunFd, VPN_DATA_SOCKS_HOST, VPN_DATA_SOCKS_PORT, vpnMtu);
+        : startNativeTun2Socks(this.tunFd, tun2socksProxyHost(VPN_DATA_SOCKS_HOST, dataPlaneCredentials), VPN_DATA_SOCKS_PORT, vpnMtu);
       if (!tun2socksResult.ok) {
         throw new Error(tun2socksResult.message);
       }
-      this.emitInfo('tun data plane started.', `engine=${useHevTun ? 'hev' : 'gvisor'}, ${VPN_DATA_SOCKS_HOST}:${VPN_DATA_SOCKS_PORT}, mtu=${vpnMtu}, core=${useSingbox ? 'singbox' : 'xray'}, ${tun2socksResult.message}`);
+      this.emitInfo('tun data plane started.', `engine=${useHevTun ? 'hev' : 'gvisor'}, ${VPN_DATA_SOCKS_HOST}:${VPN_DATA_SOCKS_PORT}, auth=${dataPlaneCredentials !== undefined ? 'on' : 'off'}, mtu=${vpnMtu}, core=${useSingbox ? 'singbox' : 'xray'}, ${tun2socksResult.message}`);
 
       if (settings.speedEnabled) {
         this.startStatsTimer();
@@ -215,6 +221,15 @@ export default class HeyVpnAbility extends VpnExtensionAbility {
       return fallback;
     }
     return value.toString();
+  }
+
+  private getDataPlaneCredentials(want: Want): DataPlaneCredentials | undefined {
+    const username = this.getStringParameter(want, VPN_DATA_PLANE_USER_KEY, '');
+    const password = this.getStringParameter(want, VPN_DATA_PLANE_PASS_KEY, '');
+    if (username.length === 0 || password.length === 0) {
+      return undefined;
+    }
+    return { username, password };
   }
 
   private isStopCommand(want: Want): boolean {

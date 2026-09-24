@@ -23,7 +23,9 @@ libraries beside it:
 - `libheytun2socks.so` — the `tun2socks` adapter. Exports
   `HeyTun2SocksStart(fd, host, port, mtu)` / `HeyTun2SocksStop()` and byte
   counters. It relays the Harmony VPN TUN fd's traffic into the core's local
-  SOCKS inbound.
+  SOCKS inbound. The inbound requires per-session credentials; the ArkTS side
+  passes them as `user:pass@127.0.0.1` in `host`, which the adapter's
+  `socks5://%s:%d` proxy URL hands to tun2socks.
 
 ## Data path
 

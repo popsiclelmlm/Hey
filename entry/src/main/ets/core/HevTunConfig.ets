@@ -1,3 +1,4 @@
+import { DataPlaneCredentials } from './DataPlaneAuth';
 import { HevTunLogLevel } from './Profile';
 
 // 默认读写超时（毫秒），与 DEFAULT_HEV_TUN_RW_TIMEOUT='300,60'（秒）一致的回退值。
@@ -25,7 +26,8 @@ export function buildHevTunConfigYaml(
   socksHost: string,
   socksPort: number,
   logLevel: HevTunLogLevel,
-  rwTimeout: string
+  rwTimeout: string,
+  credentials?: DataPlaneCredentials
 ): string {
   const timeouts = parseTimeoutsMs(rwTimeout);
   const tcpMs = timeouts[0];
@@ -36,12 +38,19 @@ export function buildHevTunConfigYaml(
     'socks5:',
     `  address: ${socksHost}`,
     `  port: ${socksPort}`,
-    "  udp: 'udp'",
+    "  udp: 'udp'"
+  ];
+  // 数据面入站带会话凭据时，hev 以用户名密码认证（凭据是十六进制串，yaml 无需转义）。
+  if (credentials !== undefined) {
+    lines.push(`  username: '${credentials.username}'`);
+    lines.push(`  password: '${credentials.password}'`);
+  }
+  lines.push(
     'misc:',
     `  log-level: ${logLevel}`,
     `  tcp-read-write-timeout: ${tcpMs}`,
     `  udp-read-write-timeout: ${udpMs}`,
     ''
-  ];
+  );
   return lines.join('\n');
 }

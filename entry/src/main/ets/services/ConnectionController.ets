@@ -1,6 +1,7 @@
 import { common } from '@kit.AbilityKit';
 import { vpnExtension } from '@kit.NetworkKit';
 import { BusinessError } from '@kit.BasicServicesKit';
+import { cryptoFramework } from '@kit.CryptoArchitectureKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { APP_MODE_PROXY_ONLY, APP_MODE_VPN, AppRuntimeMode, AppSettings, ConnectionStatus, GeneratedXrayConfig, normalizeAppRuntimeMode, ProxyProfile, RuntimeStats } from '../core/Profile';
 import { resolveDynamicPolicyGroupConfigJson } from '../core/AdvancedOutboundBuilder';
@@ -9,6 +10,7 @@ import { buildRuntimeXrayConfig, injectXrayLogFile, LOCAL_HTTP_PROXY_PORT, METRI
 import { normalizeCoreLogLevel } from '../core/ProtocolOptions';
 import { CORE_TYPE_SINGBOX, CORE_TYPE_XRAY, CoreSelectionStore, CoreType, isSingboxCore, isSingboxOnlyProtocol } from '../core/CoreSelection';
 import { buildSingboxConfig } from '../core/SingboxConfig';
+import { credentialsFromRandomBytes, DATA_PLANE_RANDOM_BYTES, SecuredDataPlaneConfig, secureDataPlaneInbound } from '../core/DataPlaneAuth';
 import { SubscriptionStore } from '../storage/SubscriptionStore';
 import { createStopCommandVpnWant, createStopVpnWant, createVpnWant } from '../vpn/VpnConstants';
 import { getNativeFreePorts, getNativeStats, startNativeXray, stopNativeXray, testNativeXrayConfig } from '../native/HeyNative';
@@ -124,8 +126,11 @@ export class ConnectionController {
       }
       hilog.info(LOG_DOMAIN, LOG_TAG, 'Calling startVpnExtensionAbility, configBytes=%{public}d',
         this.generatedConfig.configJson.length);
+      const dataPlane = this.secureVpnDataPlane(this.generatedConfig.configJson, false);
       await this.withTimeout(vpnExtension.startVpnExtensionAbility(createVpnWant(
-        this.generatedConfig.configJson
+        dataPlane.configJson,
+        CORE_TYPE_XRAY,
+        dataPlane.credentials
       )), START_VPN_TIMEOUT_MS, '启动 VPN 超时：系统 VPN 授权服务没有响应。若 hilog 中出现 com.huawei.hmos.vpndialog bundle not exist，说明当前系统镜像缺少 VPN 授权组件，请改用真机测试。');
       hilog.info(LOG_DOMAIN, LOG_TAG, 'startVpnExtensionAbility returned.');
       const startEvent = await this.waitForDiagnosticEvent(context, requestedAt, START_VPN_READY_TIMEOUT_MS, (event: DiagnosticEvent) => {
@@ -182,9 +187,11 @@ export class ConnectionController {
     try {
       hilog.info(LOG_DOMAIN, LOG_TAG, 'Calling startVpnExtensionAbility (sing-box), configBytes=%{public}d',
         generated.configJson.length);
+      const dataPlane = this.secureVpnDataPlane(generated.configJson, true);
       await this.withTimeout(vpnExtension.startVpnExtensionAbility(createVpnWant(
-        generated.configJson,
-        CORE_TYPE_SINGBOX
+        dataPlane.configJson,
+        CORE_TYPE_SINGBOX,
+        dataPlane.credentials
       )), START_VPN_TIMEOUT_MS, '启动 VPN 超时：系统 VPN 授权服务没有响应。若为模拟器缺少 VPN 授权组件，请改用真机测试。');
       const startEvent = await this.waitForDiagnosticEvent(context, requestedAt, START_VPN_READY_TIMEOUT_MS, (event: DiagnosticEvent) => {
         return event.source === 'vpn' && (event.message === VPN_STARTED_MESSAGE || event.message === VPN_START_FAILED_MESSAGE);
@@ -204,6 +211,21 @@ export class ConnectionController {
       hilog.error(LOG_DOMAIN, LOG_TAG, 'sing-box start failed: %{public}s', this.lastError);
     }
     return this.getSnapshot();
+  }
+
+  // 给这次会话的数据面入站加随机凭据。只作用于交给 VPN 扩展的那份配置，generatedConfig 快照不带凭据。
+  // 取不到安全随机数时退回无认证（与此前行为一致），不让 VPN 因此起不来。
+  private secureVpnDataPlane(configJson: string, useSingbox: boolean): SecuredDataPlaneConfig {
+    try {
+      const random = cryptoFramework.createRandom();
+      const credentials = credentialsFromRandomBytes(random.generateRandomSync(DATA_PLANE_RANDOM_BYTES).data);
+      const secured = secureDataPlaneInbound(configJson, useSingbox, credentials);
+      hilog.info(LOG_DOMAIN, LOG_TAG, 'VPN data plane auth: %{public}s', secured.credentials !== undefined ? 'on' : 'off');
+      return secured;
+    } catch (error) {
+      hilog.warn(LOG_DOMAIN, LOG_TAG, 'VPN data plane auth unavailable: %{public}s', JSON.stringify(error));
+      return { configJson };
+    }
   }
 
   private startProxyOnly(context: common.Context): void {
